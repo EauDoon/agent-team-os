@@ -7,7 +7,7 @@ Agent Team OS was created from scratch as a public, generic coordination skill.
 - Project direction and requirements: Oonyl
 - Initial public text and implementation drafting: OpenAI Codex
 - Automated validation and privacy review: OpenAI Codex
-- Final evaluation, review, and acceptance: Oonyl, pending
+- Final evaluation, review, and acceptance: Oonyl
 
 This is an independent community project. It is not an OpenAI product, and OpenAI does not endorse it.
 

@@ -1,81 +1,148 @@
 # Agent Team OS
 
-Agent Team OS is an installable Codex skill for coordinating complex work across task-scoped specialist AI agents. It turns a broad request into bounded role briefs, delegates only when specialization has clear value, integrates the results, and requires an explicit audit for important outputs.
+Build complex AI work like a small, accountable project team.
 
-## Purpose
+Agent Team OS is an installable Codex skill that turns a broad request into bounded role assignments, evidence-backed handoffs, and, for important work, an independently audited result. It is designed for work where discovery, analysis, construction, and verification should remain distinct.
 
-Use Agent Team OS when a request needs distinct evidence gathering, analysis, construction, or verification. Keep simple work with one agent. Add a role only when it improves a separate output or reduces a named risk.
+The skill does not add agents for show. It applies a simple delegation gate: every role must own a distinct output or reduce a named risk. Straightforward work stays with one agent.
 
-The generic roles are:
+## What it brings to AI work
 
-- Orchestrator: frame the request, choose roles, sequence work, integrate results, and own delivery.
-- Scout: gather and organize permitted evidence without deciding the answer.
-- Analyst: interpret evidence, compare options, expose assumptions, and reason about tradeoffs.
-- Maker: create the requested artifact and revise it against findings.
-- Auditor: independently check correctness, assumptions, contradictions, risks, and satisfaction of the request.
+- **Clear ownership:** one owner for each decision and artifact.
+- **Bounded access:** every role receives an explicit read, write, tool, and action scope.
+- **Traceable reasoning:** claims, assumptions, gaps, and evidence travel with each handoff.
+- **Deliberate sequencing:** dependent work happens in order, while safe independent work may run concurrently.
+- **Independent review:** important outputs are checked by an Auditor before delivery.
+- **One coherent result:** the Orchestrator resolves conflicts and answers the original request.
 
-Every delegated role receives an access scope, task, evidence requirement, output contract, and stop condition.
+## Quick start
+
+Agent Team OS is instruction-only. It requires no runtime dependencies, package manager, or external assets.
+
+1. Copy the included `skill/agent-team-os` directory into the target workspace at `.agents/skills/agent-team-os/`.
+2. Confirm the installed structure:
+
+   ```text
+   <workspace>/
+   `-- .agents/
+       `-- skills/
+           `-- agent-team-os/
+               |-- SKILL.md
+               `-- agents/
+                   `-- openai.yaml
+   ```
+
+3. Invoke the skill explicitly in Codex:
+
+   ```text
+   Use $agent-team-os to compare three vendors from the supplied briefs.
+   Keep evidence extraction, comparative analysis, recommendation drafting,
+   and independent audit distinct. Do not use external sources.
+   ```
+
+The included metadata also permits implicit invocation when a complex request clearly benefits from specialist routing. Explicit invocation is the clearest way to request the workflow.
+
+## Good use cases
+
+Use Agent Team OS when separate work products or independent review will improve the result. The repository includes three fully synthetic scenarios:
+
+1. **Vendor comparison:** extract evidence from supplied capability briefs, compare options consistently, and audit the conclusion.
+2. **Customer-support workflow design:** map the current state, analyze failure points, design a bounded future workflow, and test it against service goals.
+3. **Small internal tool:** define acceptance criteria, implement within a narrow write scope, test behavior, and independently review delivery.
+
+Detailed role briefs are available in [`examples/routing-scenarios.md`](examples/routing-scenarios.md).
+
+Keep a task with one agent when it is simple, self-contained, and does not benefit from a distinct specialist output or independent check.
+
+## How the workflow operates
+
+```text
+Request -> frame -> route -> execute -> integrate -> audit -> deliver
+```
+
+1. **Frame the request.** Restate the outcome, constraints, available evidence, authorized actions, and completion test.
+2. **Apply the delegation gate.** Add a role only when it produces a distinct output or reduces a specific risk.
+3. **Write complete role briefs.** Define the role, access scope, task, evidence, output contract, and stop condition before work begins.
+4. **Sequence the work.** Run dependent stages in order. Run independent stages concurrently only when their outputs cannot contaminate one another.
+5. **Integrate the outputs.** Resolve contradictions instead of presenting incompatible conclusions side by side.
+6. **Audit important results.** Classify findings as blocking, material, or minor; correct material issues; then recheck the changed work.
+7. **Deliver one answer.** Summarize the outcome, evidence basis, assumptions, unresolved risks, and anything left incomplete.
+
+## Task-scoped roles
+
+| Role | Primary responsibility |
+| --- | --- |
+| **Orchestrator** | Frames the request, selects the minimum useful roles, sequences work, integrates outputs, and owns request satisfaction. |
+| **Scout** | Gathers and organizes permitted evidence without silently converting missing information into conclusions. |
+| **Analyst** | Interprets evidence, compares options, exposes assumptions, and explains trade-offs. |
+| **Maker** | Creates or revises the requested artifact within the authorized write scope. |
+| **Auditor** | Independently checks correctness, assumptions, contradictions, risks, uncertainty, and request satisfaction. |
+
+Not every task needs every role. Roles are temporary assignments for one request, not persistent identities or trusted personas.
+
+## The role brief contract
+
+Every delegated role must receive:
+
+- **Role:** the task-scoped assignment.
+- **Access scope:** exact sources, tools, actions, and read or write limits.
+- **Task:** the distinct question, artifact, or risk the role owns.
+- **Evidence:** the inputs to inspect and the traceability required for claims.
+- **Output contract:** the expected format, contents, quality bar, and recipient.
+- **Stop condition:** the event that ends work, including completion, a blocking gap, or a scope conflict.
+
+A role should not begin with missing fields, duplicate another role, or receive broader access than its task requires.
 
 ## Safety boundaries
 
-- Treat every agent as a task-scoped worker, not a persistent identity.
-- Treat role separation as a coordination technique, not a security boundary.
-- Enforce access through the execution environment and explicit permissions.
-- Grant only the access needed for the assigned task.
-- Require evidence for material claims and preserve uncertainty when evidence is incomplete.
-- Stop work when a role reaches its contract, lacks permitted evidence, encounters conflicting instructions, or needs wider scope.
-- Require explicit authorization before any consequential external action.
-- Keep the Orchestrator responsible for resolving contradictions and satisfying the original request.
+Agent Team OS improves coordination, but coordination is not access control.
 
-## Repository layout
+- Treat role separation as an operating pattern, not a security boundary.
+- Enforce real permissions through the execution environment.
+- Grant only the access required for the assigned task.
+- Do not allow a role to widen its scope, redefine the request, or invent authorization.
+- Preserve uncertainty when evidence is missing, weak, or contradictory.
+- Stop a role when it completes its contract, exhausts permitted evidence, needs wider scope, or reaches diminishing returns.
+- Require explicit authorization before any consequential external action that was not already approved.
+- Keep human review in the loop for consequential decisions and actions.
+
+An Auditor is an independent check, not a guarantee. Confidence, silence, and role labels are not substitutes for evidence.
+
+## Repository map
 
 ```text
 agent-team-os/
-|-- README.md
-|-- LICENSE
-|-- SECURITY.md
-|-- CONTRIBUTING.md
-|-- PROVENANCE.md
+|-- README.md                       # Overview, installation, and operating model
+|-- LICENSE                         # MIT License
+|-- SECURITY.md                     # Safe-use and reporting guidance
+|-- CONTRIBUTING.md                 # Design rules and contribution process
+|-- PROVENANCE.md                   # Creation, review, and evaluation record
 |-- examples/
-|   `-- routing-scenarios.md
+|   `-- routing-scenarios.md        # Three synthetic end-to-end scenarios
 `-- skill/
     `-- agent-team-os/
-        |-- SKILL.md
+        |-- SKILL.md                # Coordination instructions
         `-- agents/
-            `-- openai.yaml
+            `-- openai.yaml         # Display metadata and invocation policy
 ```
-
-## Installation
-
-Place the included `skill/agent-team-os` directory under `.agents/skills/` in the target workspace. The installed directory should be `.agents/skills/agent-team-os/`.
-
-Invoke the skill explicitly with `$agent-team-os`. Its metadata also permits implicit invocation when a complex request clearly benefits from specialist routing.
-
-The skill is instruction-only and has no runtime dependencies or external assets.
-
-## Synthetic examples
-
-1. Vendor comparison: route supplied fictional capability briefs to a Scout for extraction, an Analyst for comparison, and an Auditor for evidence and consistency checks.
-2. Customer-support workflow design: map fictional request categories, analyze failure points, draft a bounded workflow, and audit the result against the stated service goals.
-3. Small internal tool: define acceptance criteria, build a minimal work-item tracker, test its behavior, and audit the result against the original request.
-
-Detailed role briefs for these fictional scenarios are in `examples/routing-scenarios.md`.
 
 ## Limitations
 
-- Coordination adds overhead and can reduce quality when roles duplicate work.
-- An Auditor is fallible and does not make unsupported claims reliable.
-- Missing or weak evidence limits every downstream result.
-- Task-scoped roles do not create durable identity, memory, access control, or isolation.
-- The skill does not provide an execution engine, storage layer, or authorization mechanism.
-- Human review remains necessary before consequential use.
+- The skill is an instruction layer, not an execution engine, storage system, authorization mechanism, or isolation boundary.
+- Output quality remains limited by the supplied evidence, available tools, model behavior, and enforced permissions.
+- An Auditor can miss errors and cannot make unsupported claims reliable.
+- Delegation adds overhead when roles overlap or the task is too small.
+- Task-scoped roles do not provide durable identity, memory, authority, or trust across requests.
+- Human judgment remains necessary before consequential use.
 
-## Authorship
+## Authorship and provenance
 
-Project direction and requirements are by Oonyl. This public package was drafted and tested with OpenAI Codex. Final evaluation, review, and acceptance remain with Oonyl. See `PROVENANCE.md` for the creation record.
+Project direction and requirements are by Oonyl. OpenAI Codex supported the initial public text, implementation drafting, automated validation, and privacy review. Final evaluation, review, and acceptance are by Oonyl.
 
-This is an independent community project. It is not an OpenAI product, and OpenAI does not endorse it.
+This public package was independently redrafted from high-level requirements and uses synthetic scenarios. See [`PROVENANCE.md`](PROVENANCE.md) for the complete creation record.
+
+Agent Team OS is an independent community project. It is not an OpenAI product, and OpenAI does not endorse it.
 
 ## License
 
-Released under the MIT License. See `LICENSE`.
+Released under the MIT License. See [`LICENSE`](LICENSE).
