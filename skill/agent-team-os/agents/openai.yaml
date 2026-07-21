@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agent Team OS"
+  short_description: "Route complex work across specialist AI agents"
+  default_prompt: "Use $agent-team-os to coordinate a complex task across specialist AI agents."
+
+policy:
+  allow_implicit_invocation: true
