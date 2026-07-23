@@ -137,7 +137,7 @@ agent-team-os/
 
 ## Authorship and provenance
 
-Project direction and requirements are by Oonyl. OpenAI Codex supported the initial public text, implementation drafting, automated validation, and privacy review. Final evaluation, review, and acceptance are by Oonyl.
+OpenAI Codex assisted with drafting, validation, and privacy review. Oonyl directed, reviewed, and takes responsibility for the result.
 
 This public package was independently redrafted from high-level requirements and uses synthetic scenarios. See [`PROVENANCE.md`](PROVENANCE.md) for the complete creation record.
 
