@@ -1,14 +1,13 @@
 # Provenance
 
-Agent Team OS was created from scratch as a public, generic coordination skill.
+Agent Team was created from scratch as a public, generic coordination skill.
 
 ## Authorship and review
 
 - Project direction and final review: Oonyl
-- Drafting, validation, and privacy-review assistance: OpenAI Codex
 - Responsibility for the result: Oonyl
 
-This is an independent community project. It is not an OpenAI product, and OpenAI does not endorse it.
+This is an independent community project.
 
 ## Creation boundary
 

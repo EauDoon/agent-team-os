@@ -1,8 +1,8 @@
-# Agent Team OS
+# Agent Team
 
 Build complex AI work like a small, accountable project team.
 
-Agent Team OS is an installable Codex skill that turns a broad request into bounded role assignments, evidence-backed handoffs, and, for important work, an independently audited result. It is designed for work where discovery, analysis, construction, and verification should remain distinct.
+Agent Team is an installable skill that turns a broad request into bounded role assignments, evidence-backed handoffs, and, for important work, an independently audited result. It is designed for work where discovery, analysis, construction, and verification should remain distinct.
 
 The skill does not add agents for show. It applies a simple delegation gate: every role must own a distinct output or reduce a named risk. Straightforward work stays with one agent.
 
@@ -17,7 +17,7 @@ The skill does not add agents for show. It applies a simple delegation gate: eve
 
 ## Quick start
 
-Agent Team OS is instruction-only. It requires no runtime dependencies, package manager, or external assets.
+Agent Team is instruction-only. It requires no runtime dependencies, package manager, or external assets.
 
 1. Copy the included `skill/agent-team-os` directory into the target workspace at `.agents/skills/agent-team-os/`.
 2. Confirm the installed structure:
@@ -42,15 +42,42 @@ Agent Team OS is instruction-only. It requires no runtime dependencies, package 
 
 The included metadata also permits implicit invocation when a complex request clearly benefits from specialist routing. Explicit invocation is the clearest way to request the workflow.
 
+### Package and install
+
+The package builder is deterministic and writes a ZIP plus SHA-256 checksum.
+It uses only the Python standard library:
+
+```powershell
+python .\scripts\validate.py
+python .\scripts\package.py --output .\dist
+Get-FileHash .\dist\agent-team-0.1.0.zip -Algorithm SHA256
+Expand-Archive .\dist\agent-team-0.1.0.zip -DestinationPath .\dist\expanded
+Copy-Item .\dist\expanded\agent-team-0.1.0\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
+```
+
+On Bash:
+
+```bash
+python3 scripts/validate.py
+python3 scripts/package.py --output dist
+sha256sum dist/agent-team-0.1.0.zip
+unzip -q dist/agent-team-0.1.0.zip -d dist/expanded
+cp -R dist/expanded/agent-team-0.1.0/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
+```
+
+Verify the checksum before copying. The package contains the skill, templates,
+schemas, examples, validator, and release documentation. It does not publish
+or change remote metadata.
+
 ## Good use cases
 
-Use Agent Team OS when separate work products or independent review will improve the result. The repository includes three fully synthetic scenarios:
+Use Agent Team when separate work products or independent review will improve the result. The repository includes three fully synthetic scenarios:
 
 1. **Vendor comparison:** extract evidence from supplied capability briefs, compare options consistently, and audit the conclusion.
 2. **Customer-support workflow design:** map the current state, analyze failure points, design a bounded future workflow, and test it against service goals.
 3. **Small internal tool:** define acceptance criteria, implement within a narrow write scope, test behavior, and independently review delivery.
 
-Detailed role briefs are available in [`examples/routing-scenarios.md`](examples/routing-scenarios.md).
+Detailed role briefs are available in [`examples/routing-scenarios.md`](examples/routing-scenarios.md). Reusable briefs and audit reports are in [`templates/`](templates/).
 
 Keep a task with one agent when it is simple, self-contained, and does not benefit from a distinct specialist output or independent check.
 
@@ -91,11 +118,11 @@ Every delegated role must receive:
 - **Output contract:** the expected format, contents, quality bar, and recipient.
 - **Stop condition:** the event that ends work, including completion, a blocking gap, or a scope conflict.
 
-A role should not begin with missing fields, duplicate another role, or receive broader access than its task requires.
+A role should not begin with missing fields, duplicate another role, or receive broader access than its task requires. The machine-readable contract is [`schemas/role-brief.schema.json`](schemas/role-brief.schema.json), and the dependency-light checker is [`scripts/validate.py`](scripts/validate.py).
 
 ## Safety boundaries
 
-Agent Team OS improves coordination, but coordination is not access control.
+Agent Team improves coordination, but coordination is not access control.
 
 - Treat role separation as an operating pattern, not a security boundary.
 - Enforce real permissions through the execution environment.
@@ -117,6 +144,24 @@ agent-team-os/
 |-- SECURITY.md                     # Safe-use and reporting guidance
 |-- CONTRIBUTING.md                 # Design rules and contribution process
 |-- PROVENANCE.md                   # Creation, review, and evaluation record
+|-- CHANGELOG.md                    # Version history
+|-- VERSION                         # Current package version
+|-- templates/
+|   |-- role-brief.md               # Six-field role brief template
+|   `-- audit-report.md             # Independent audit report template
+|-- schemas/
+|   `-- role-brief.schema.json      # Machine-readable role brief contract
+|-- evals/
+|   |-- tasks.json                  # Versioned synthetic evaluation fixtures
+|   |-- result.schema.json           # Versioned result shape
+|   |-- results.v0.1.json            # Calibration fixture, no performance claims
+|   `-- README.md                   # Evaluation protocol and baseline
+|-- scripts/
+|   |-- validate.py                 # Dependency-light contract and link checker
+|   `-- package.py                  # Deterministic ZIP and checksum builder
+|-- docs/
+|   `-- release-notes-v0.1.0.md     # Proposed release topics, not remote metadata
+|-- .github/workflows/ci.yml        # Pull request and push checks
 |-- examples/
 |   `-- routing-scenarios.md        # Three synthetic end-to-end scenarios
 `-- skill/
@@ -137,11 +182,9 @@ agent-team-os/
 
 ## Authorship and provenance
 
-OpenAI Codex assisted with drafting, validation, and privacy review. Oonyl directed, reviewed, and takes responsibility for the result.
+Oonyl directed, reviewed, and takes responsibility for the result. This public package uses synthetic scenarios. See [`PROVENANCE.md`](PROVENANCE.md) for the complete creation record.
 
-This public package was independently redrafted from high-level requirements and uses synthetic scenarios. See [`PROVENANCE.md`](PROVENANCE.md) for the complete creation record.
-
-Agent Team OS is an independent community project. It is not an OpenAI product, and OpenAI does not endorse it.
+Agent Team is an independent community project.
 
 ## License
 

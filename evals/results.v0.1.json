@@ -1,0 +1,19 @@
+{
+  "result_version": "agent-team-eval/v0.1",
+  "suite_version": "agent-team-eval/v0.1",
+  "status": "calibration_fixture",
+  "arms": [
+    {
+      "id": "solo",
+      "label": "Strong solo baseline",
+      "results": []
+    },
+    {
+      "id": "current",
+      "label": "Current Agent Team instructions",
+      "results": []
+    }
+  ],
+  "claims": [],
+  "notes": "Fixture and schema only. No performance result has been run or claimed. Keep any future holdout prompts outside this repository."
+}

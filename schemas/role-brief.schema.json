@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oonyl.github.io/agent-team-os/schemas/role-brief.schema.json",
+  "title": "Agent Team role brief",
+  "description": "The six-field contract for one task-scoped role.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "role",
+    "access_scope",
+    "task",
+    "evidence",
+    "output_contract",
+    "stop_condition"
+  ],
+  "properties": {
+    "role_brief_version": {
+      "type": "string",
+      "const": "agent-team-role-brief/v0.1"
+    },
+    "role": { "type": "string", "minLength": 1 },
+    "access_scope": { "type": "string", "minLength": 1 },
+    "task": { "type": "string", "minLength": 1 },
+    "evidence": { "type": "string", "minLength": 1 },
+    "output_contract": { "type": "string", "minLength": 1 },
+    "stop_condition": { "type": "string", "minLength": 1 },
+    "prohibited_actions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

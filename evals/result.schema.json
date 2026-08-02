@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oonyl.github.io/agent-team-os/evals/result.schema.json",
+  "title": "Agent Team bounded evaluation result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["result_version", "status", "arms", "claims"],
+  "properties": {
+    "result_version": { "type": "string", "const": "agent-team-eval/v0.1" },
+    "status": { "type": "string", "enum": ["calibration_fixture", "complete"] },
+    "suite_version": { "type": "string", "const": "agent-team-eval/v0.1" },
+    "arms": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "results"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "results": { "type": "array", "items": { "type": "object" } }
+        }
+      }
+    },
+    "claims": { "type": "array", "items": { "type": "string" } },
+    "notes": { "type": "string" }
+  }
+}

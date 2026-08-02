@@ -1,0 +1,23 @@
+[
+  "CHANGELOG.md",
+  "CONTRIBUTING.md",
+  "LICENSE",
+  "PROVENANCE.md",
+  "README.md",
+  "SECURITY.md",
+  "VERSION",
+  "docs/release-notes-v0.1.0.md",
+  "evals/README.md",
+  "evals/result.schema.json",
+  "evals/results.v0.1.json",
+  "evals/tasks.json",
+  "examples/routing-scenarios.md",
+  "package-manifest.json",
+  "schemas/role-brief.schema.json",
+  "scripts/package.py",
+  "scripts/validate.py",
+  "skill/agent-team-os/SKILL.md",
+  "skill/agent-team-os/agents/openai.yaml",
+  "templates/audit-report.md",
+  "templates/role-brief.md"
+]

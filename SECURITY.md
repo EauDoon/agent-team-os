@@ -1,6 +1,6 @@
 # Security
 
-Agent Team OS is an instruction package. Its main safety risks arise when a role receives excessive access, crosses its assigned scope, or produces output that is trusted beyond its evidence.
+Agent Team is an instruction package. Its main safety risks arise when a role receives excessive access, crosses its assigned scope, or produces output that is trusted beyond its evidence.
 
 ## Safe use
 

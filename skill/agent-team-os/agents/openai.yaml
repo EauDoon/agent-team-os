@@ -1,5 +1,5 @@
 interface:
-  display_name: "Agent Team OS"
+  display_name: "Agent Team"
   short_description: "Route complex work across specialist AI agents"
   default_prompt: "Use $agent-team-os to coordinate a complex task across specialist AI agents."
 

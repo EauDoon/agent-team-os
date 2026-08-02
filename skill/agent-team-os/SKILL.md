@@ -3,7 +3,7 @@ name: agent-team-os
 description: Coordinate complex, multi-step work across task-scoped specialist AI agents by defining roles, access, evidence, output contracts, stop conditions, integration, and independent auditing. Use when a request benefits from distinct discovery, analysis, construction, or verification outputs, or when delegation reduces a specific risk.
 ---
 
-# Agent Team OS
+# Agent Team
 
 ## Coordinate the work
 
@@ -27,7 +27,7 @@ Treat these roles as temporary assignments, not persistent identities. Do not as
 
 ## Write every role brief
 
-Specify all five fields before delegation:
+Specify all six fields before delegation:
 
 ```text
 Role: The selected task-scoped role.
