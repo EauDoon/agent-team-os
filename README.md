@@ -182,7 +182,7 @@ agent-team-os/
 
 ## Authorship and provenance
 
-Oonyl directed, reviewed, and takes responsibility for the result. This public package uses synthetic scenarios. See [`PROVENANCE.md`](PROVENANCE.md) for the complete creation record.
+EauDoon directed, reviewed, and takes responsibility for the result. This public package uses synthetic scenarios. See [`PROVENANCE.md`](PROVENANCE.md) for the complete creation record.
 
 Agent Team is an independent community project.
 

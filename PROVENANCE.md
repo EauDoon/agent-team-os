@@ -4,8 +4,8 @@ Agent Team was created from scratch as a public, generic coordination skill.
 
 ## Authorship and review
 
-- Project direction and final review: Oonyl
-- Responsibility for the result: Oonyl
+- Project direction and final review: EauDoon
+- Responsibility for the result: EauDoon
 
 This is an independent community project.
 
