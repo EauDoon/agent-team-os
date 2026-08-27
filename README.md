@@ -6,6 +6,8 @@ Agent Team is an installable skill that turns a broad request into bounded role 
 
 The skill does not add agents for show. It applies a simple delegation gate: every role must own a distinct output or reduce a named risk. Straightforward work stays with one agent.
 
+![Workflow showing a bounded objective routed to solo or named roles, scoped handoffs, independent audit, and one coherent result.](.github/assets/project-overview.svg)
+
 ## What it brings to AI work
 
 - **Clear ownership:** one owner for each decision and artifact.
