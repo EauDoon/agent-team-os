@@ -61,6 +61,19 @@ class ValidateTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 files_for(root)
 
+    def test_manifest_symlink_is_reported_before_packaging(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "target.txt").write_text("fixture\n", encoding="utf-8")
+            (root / "link.txt").symlink_to("target.txt")
+            (root / "package-manifest.json").write_text('["link.txt"]', encoding="utf-8")
+
+            checker = Checker(root)
+            checker.check_manifest()
+            self.assertTrue(any("repo file" in item for item in checker.failures))
+            with self.assertRaises(ValueError):
+                files_for(root)
+
 
 if __name__ == "__main__":
     unittest.main()
