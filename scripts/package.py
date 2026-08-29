@@ -59,7 +59,7 @@ def main() -> int:
             info.external_attr = 0o100644 << 16
             handle.writestr(info, path.read_bytes())
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
-    checksum.write_text(f"{digest}  {archive.name}\n", encoding="ascii", newline="\n")
+    checksum.write_bytes(f"{digest}  {archive.name}\n".encode("ascii"))
     print(archive)
     print(checksum)
     print(digest)

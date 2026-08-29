@@ -2,12 +2,26 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from scripts.package import files_for
+from scripts.package import files_for, main as package_main
 from scripts.validate import Checker
 
 
 class ValidateTests(unittest.TestCase):
+    def test_checksum_write_supports_legacy_pathlib(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            with patch("sys.argv", ["package.py", "--output", directory]), patch.object(
+                Path,
+                "write_text",
+                side_effect=TypeError("newline is unsupported"),
+            ):
+                self.assertEqual(package_main(), 0)
+
+            archive = next(Path(directory).glob("*.zip"))
+            checksum = archive.with_suffix(archive.suffix + ".sha256").read_bytes()
+            self.assertTrue(checksum.endswith(f"  {archive.name}\n".encode("ascii")))
+
     def test_malformed_evaluation_entries_are_reported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
