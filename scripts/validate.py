@@ -47,7 +47,7 @@ class Checker:
         try:
             value = json.loads(self.text(relative))
             self.checks.append(f"valid JSON: {relative}")
-        except (json.JSONDecodeError, OSError) as exc:
+        except (json.JSONDecodeError, OSError, UnicodeError) as exc:
             self.failures.append(f"invalid JSON {relative}: {exc}")
         return value
 
@@ -97,19 +97,24 @@ class Checker:
         if not isinstance(manifest, list) or not manifest:
             self.ok(False, "package-manifest.json is a non-empty string array")
             return
-        self.ok(
-            all(isinstance(item, str) and item for item in manifest),
-            "package-manifest.json is a non-empty string array",
-        )
+        valid_entries = all(isinstance(item, str) and item for item in manifest)
+        self.ok(valid_entries, "package-manifest.json is a non-empty string array")
+        if not valid_entries:
+            return
         self.ok(len(manifest) == len(set(manifest)), "package-manifest.json has no duplicate entries")
         root_resolved = self.root.resolve()
         for entry in manifest:
             if any(part in {"", ".", ".."} for part in PurePosixPath(entry).parts):
-                self.ok(False, f"manifest entry has no path traversal: {entry}")
+                self.ok(False, f"manifest entry has no path traversal: {entry!r}")
                 continue
-            candidate = (root_resolved / entry).resolve()
+            try:
+                candidate = (root_resolved / entry).resolve()
+                safe = candidate.is_file() and (root_resolved in candidate.parents or candidate == root_resolved)
+            except (OSError, RuntimeError, UnicodeError, ValueError):
+                self.ok(False, f"manifest entry is a valid repo path: {entry!r}")
+                continue
             self.ok(
-                candidate.is_file() and (root_resolved in candidate.parents or candidate == root_resolved),
+                safe,
                 f"manifest entry is a repo file: {entry}",
             )
 
