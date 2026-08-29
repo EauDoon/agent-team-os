@@ -114,8 +114,9 @@ class Checker:
                 self.ok(False, f"manifest entry has no path traversal: {entry!r}")
                 continue
             try:
-                candidate = (root_resolved / entry).resolve()
-                safe = candidate.is_file() and (root_resolved in candidate.parents or candidate == root_resolved)
+                path = root_resolved / entry
+                candidate = path.resolve()
+                safe = path.is_file() and not path.is_symlink() and root_resolved in candidate.parents
             except (OSError, RuntimeError, UnicodeError, ValueError):
                 self.ok(False, f"manifest entry is a valid repo path: {entry!r}")
                 continue
