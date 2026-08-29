@@ -8,6 +8,24 @@ from scripts.validate import Checker
 
 
 class ValidateTests(unittest.TestCase):
+    def test_malformed_evaluation_entries_are_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evals = root / "evals"
+            evals.mkdir()
+            (evals / "tasks.json").write_text(
+                json.dumps({"tasks": ["bad", {}, {}, {}, {}]}),
+                encoding="utf-8",
+            )
+            (evals / "results.v0.1.json").write_text(
+                json.dumps({"status": "calibration_fixture", "arms": [{"id": []}], "claims": []}),
+                encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.run()
+            self.assertIn("evaluation task IDs are unique", checker.failures)
+            self.assertIn("evaluation includes strong solo and current arms", checker.failures)
+
     def test_malformed_manifest_entry_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
