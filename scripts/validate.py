@@ -7,7 +7,7 @@ import argparse
 import json
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 
 FIELDS = [
@@ -85,7 +85,33 @@ class Checker:
                 if not relative:
                     continue
                 candidate = (path.parent / relative).resolve()
+                root_resolved = self.root.resolve()
+                self.ok(
+                    root_resolved in candidate.parents or candidate == root_resolved,
+                    f"link stays inside repo: {path.relative_to(self.root)} -> {target}",
+                )
                 self.ok(candidate.exists(), f"link exists: {path.relative_to(self.root)} -> {target}")
+
+    def check_manifest(self) -> None:
+        manifest = self.json_file("package-manifest.json")
+        if not isinstance(manifest, list) or not manifest:
+            self.ok(False, "package-manifest.json is a non-empty string array")
+            return
+        self.ok(
+            all(isinstance(item, str) and item for item in manifest),
+            "package-manifest.json is a non-empty string array",
+        )
+        self.ok(len(manifest) == len(set(manifest)), "package-manifest.json has no duplicate entries")
+        root_resolved = self.root.resolve()
+        for entry in manifest:
+            if any(part in {"", ".", ".."} for part in PurePosixPath(entry).parts):
+                self.ok(False, f"manifest entry has no path traversal: {entry}")
+                continue
+            candidate = (root_resolved / entry).resolve()
+            self.ok(
+                candidate.is_file() and (root_resolved in candidate.parents or candidate == root_resolved),
+                f"manifest entry is a repo file: {entry}",
+            )
 
     def run(self) -> None:
         skill = self.text("skill/agent-team-os/SKILL.md")
@@ -94,6 +120,7 @@ class Checker:
         audit = self.text("templates/audit-report.md")
         examples = self.text("examples/routing-scenarios.md")
         self.check_frontmatter(skill)
+        self.check_manifest()
         self.check_fields("SKILL.md", skill)
         self.check_fields("role brief template", template)
         self.check_fields("routing examples", examples)
