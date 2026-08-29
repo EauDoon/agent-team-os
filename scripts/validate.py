@@ -25,6 +25,12 @@ UNSAFE = re.compile(
 LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
+def object_ids(value: object) -> list[object] | None:
+    if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
+        return None
+    return [item.get("id") for item in value]
+
+
 class Checker:
     def __init__(self, root: Path) -> None:
         self.root = root
@@ -144,9 +150,9 @@ class Checker:
         tasks = self.json_file("evals/tasks.json")
         if isinstance(tasks, dict):
             entries = tasks.get("tasks")
-            ids = [item.get("id") for item in entries] if isinstance(entries, list) else []
+            ids = object_ids(entries)
             self.ok(isinstance(entries, list) and 5 <= len(entries) <= 7, "evaluation suite has five to seven tasks")
-            self.ok(len(ids) == len(set(ids)) and all(isinstance(item, str) for item in ids), "evaluation task IDs are unique")
+            self.ok(ids is not None and all(isinstance(item, str) for item in ids) and len(ids) == len(set(ids)), "evaluation task IDs are unique")
 
         result_schema = self.json_file("evals/result.schema.json")
         result = self.json_file("evals/results.v0.1.json")
@@ -154,9 +160,9 @@ class Checker:
             self.ok(set(result_schema.get("required", [])) >= {"result_version", "status", "arms", "claims"}, "result schema has required envelope")
         if isinstance(result, dict):
             arms = result.get("arms", [])
-            arm_ids = [item.get("id") for item in arms] if isinstance(arms, list) else []
+            arm_ids = object_ids(arms)
             self.ok(result.get("status") == "calibration_fixture", "evaluation result remains an empty calibration fixture")
-            self.ok(set(arm_ids) == {"solo", "current"}, "evaluation includes strong solo and current arms")
+            self.ok(arm_ids is not None and all(isinstance(item, str) for item in arm_ids) and set(arm_ids) == {"solo", "current"}, "evaluation includes strong solo and current arms")
             self.ok(result.get("claims") == [], "evaluation fixture makes no performance claims")
 
         for path in sorted(self.root.rglob("*")):
