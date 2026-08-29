@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://oonyl.github.io/agent-team-os/evals/result.schema.json",
+  "$id": "https://EauDoon.github.io/agent-team-os/evals/result.schema.json",
   "title": "Agent Team bounded evaluation result",
   "type": "object",
   "additionalProperties": false,
