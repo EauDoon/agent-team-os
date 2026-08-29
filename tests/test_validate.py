@@ -80,6 +80,47 @@ class ValidateTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 files_for(root)
 
+    def test_unreadable_required_text_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_bytes(b"\xff")
+
+            checker = Checker(root)
+            checker.run()
+            self.assertIn("readable UTF-8 text: README.md", checker.failures)
+
+    def test_unreadable_optional_packaged_text_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            policy = root / "__pycache__" / "optional-policy.yaml"
+            policy.parent.mkdir()
+            policy.write_bytes(b"\xff")
+            (root / "package-manifest.json").write_text(
+                json.dumps([policy.relative_to(root).as_posix()]),
+                encoding="utf-8",
+            )
+            self.assertEqual(files_for(root), [policy])
+
+            checker = Checker(root)
+            checker.run()
+            self.assertIn(
+                "readable UTF-8 text: __pycache__/optional-policy.yaml",
+                checker.failures,
+            )
+
+    def test_generated_python_bytecode_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            cache = root / "scripts" / "__pycache__"
+            cache.mkdir(parents=True)
+            (cache / "validate.pyc").write_bytes(b"\xff")
+
+            checker = Checker(root)
+            checker.run()
+            self.assertFalse(
+                any("__pycache__" in failure for failure in checker.failures),
+            )
+
     def test_manifest_symlink_is_reported_before_packaging(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
