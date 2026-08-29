@@ -141,6 +141,9 @@ class Checker:
         self.ok('display_name: "Agent Team"' in self.text("skill/agent-team-os/agents/openai.yaml"), "metadata display name uses Agent Team")
         self.ok("all five" not in skill.lower(), "old five-field wording is absent")
         self.ok("Agent Team OS" not in readme, "old public display name is absent")
+        version = self.text("VERSION").strip()
+        documented_versions = set(re.findall(r"agent-team-(\d+\.\d+\.\d+)\.zip", readme))
+        self.ok(documented_versions == {version}, "README package commands use VERSION")
 
         schema = self.json_file("schemas/role-brief.schema.json")
         if isinstance(schema, dict):
