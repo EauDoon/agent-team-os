@@ -22,10 +22,14 @@ def files_for(root: Path) -> list[Path]:
     for entry in sorted(entries):
         relative = PurePosixPath(entry)
         if relative.is_absolute() or entry != relative.as_posix() or any(part in {"", ".", ".."} for part in relative.parts):
-            raise ValueError(f"unsafe package manifest entry: {entry}")
-        path = root.joinpath(*relative.parts)
-        if not path.is_file() or path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
-            raise ValueError(f"missing or unsafe package file: {entry}")
+            raise ValueError(f"unsafe package manifest entry: {entry!r}")
+        try:
+            path = root.joinpath(*relative.parts)
+            safe = path.is_file() and not path.is_symlink() and path.resolve().is_relative_to(root.resolve())
+        except (OSError, RuntimeError, UnicodeError, ValueError):
+            safe = False
+        if not safe:
+            raise ValueError(f"missing or unsafe package file: {entry!r}")
         result.append(path)
     return result
 
