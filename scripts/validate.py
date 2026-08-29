@@ -23,6 +23,7 @@ UNSAFE = re.compile(
     r"disable\s+(?:audit|safety)|exfiltrat\w*|delete\s+.+without\s+approval)\b"
 )
 LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+BINARY_SUFFIXES = {".bin", ".gif", ".ico", ".jpeg", ".jpg", ".pdf", ".png", ".pyc", ".webp", ".zip"}
 
 
 def object_ids(value: object) -> list[object] | None:
@@ -43,10 +44,24 @@ class Checker:
         else:
             self.failures.append(message)
 
+    def read_text(self, path: Path, *, allow_binary: bool = False) -> str | None:
+        try:
+            return path.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            if allow_binary:
+                return None
+        except OSError:
+            pass
+        message = f"readable UTF-8 text: {path.relative_to(self.root)}"
+        if message not in self.failures:
+            self.failures.append(message)
+        return None
+
     def text(self, relative: str) -> str:
         path = self.root / relative
-        self.ok(path.is_file(), f"file exists: {relative}")
-        return path.read_text(encoding="utf-8") if path.is_file() else ""
+        exists = path.is_file()
+        self.ok(exists, f"file exists: {relative}")
+        return (self.read_text(path) or "") if exists else ""
 
     def json_file(self, relative: str) -> object:
         value = None
@@ -82,7 +97,9 @@ class Checker:
         for path in sorted(self.root.rglob("*.md")):
             if any(part in {".git", "dist"} for part in path.parts):
                 continue
-            content = path.read_text(encoding="utf-8")
+            content = self.read_text(path)
+            if content is None:
+                continue
             for raw_target in LINK.findall(content):
                 target = raw_target.strip().split()[0].strip("<>")
                 if target.startswith(("http://", "https://", "mailto:", "#")):
@@ -172,9 +189,11 @@ class Checker:
         for path in sorted(self.root.rglob("*")):
             if not path.is_file() or ".git" in path.parts or "dist" in path.parts:
                 continue
-            try:
-                content = path.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
+            content = self.read_text(
+                path,
+                allow_binary=path.suffix.lower() in BINARY_SUFFIXES,
+            )
+            if content is None:
                 continue
             self.ok("\u2014" not in content, f"no em dash: {path.relative_to(self.root)}")
             if path.suffix in {".md", ".yaml", ".yml", ".json"}:
