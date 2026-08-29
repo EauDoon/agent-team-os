@@ -9,6 +9,11 @@ from scripts.validate import Checker
 
 
 class ValidateTests(unittest.TestCase):
+    def test_readme_package_commands_track_version(self) -> None:
+        checker = Checker(Path(__file__).resolve().parents[1])
+        checker.run()
+        self.assertIn("README package commands use VERSION", checker.checks)
+
     def test_checksum_write_supports_legacy_pathlib(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             with patch("sys.argv", ["package.py", "--output", directory]), patch.object(
