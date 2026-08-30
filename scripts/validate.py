@@ -116,7 +116,14 @@ class Checker:
                 except ValueError:
                     self.ok(False, f"link target is valid: {display_path} -> {target}")
                     continue
-                if parsed.scheme.lower() in EXTERNAL_SCHEMES or parsed.netloc:
+                scheme = parsed.scheme.lower()
+                if scheme in EXTERNAL_SCHEMES:
+                    continue
+                if scheme:
+                    self.ok(False, f"link scheme is allowed: {display_path} -> {target}")
+                    continue
+                if parsed.netloc:
+                    self.ok(False, f"link has no remote authority: {display_path} -> {target}")
                     continue
                 if not parsed.path:
                     continue

@@ -256,6 +256,30 @@ class ValidateTests(unittest.TestCase):
                 checker.failures,
             )
 
+    def test_unapproved_link_schemes_and_authorities_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "README.md").write_text(
+                "\n".join(
+                    (
+                        "[script](javascript:README.md)",
+                        "[data](data:README.md)",
+                        "[network](//server/share)",
+                        "[file](file://server/share)",
+                    )
+                ),
+                encoding="utf-8",
+            )
+
+            checker = Checker(root)
+            checker.check_links()
+
+            self.assertEqual(len(checker.failures), 4)
+            self.assertTrue(any("javascript:README.md" in item for item in checker.failures))
+            self.assertTrue(any("data:README.md" in item for item in checker.failures))
+            self.assertTrue(any("//server/share" in item for item in checker.failures))
+            self.assertTrue(any("file://server/share" in item for item in checker.failures))
+
     def test_checker_output_handles_surrogate_filename_when_supported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
