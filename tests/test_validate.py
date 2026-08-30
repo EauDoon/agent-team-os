@@ -235,6 +235,27 @@ class ValidateTests(unittest.TestCase):
             "paired-\U0001f600.txt",
         )
 
+    def test_encoded_parent_escape_is_checked_after_url_decoding(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            root = parent / "repo"
+            decoy = root / "%2e%2e"
+            decoy.mkdir(parents=True)
+            (decoy / "outside.md").write_text("decoy\n", encoding="utf-8")
+            (parent / "outside.md").write_text("outside\n", encoding="utf-8")
+            (root / "README.md").write_text(
+                "[outside](%2e%2e/outside.md)\n",
+                encoding="utf-8",
+            )
+
+            checker = Checker(root)
+            checker.check_links()
+
+            self.assertIn(
+                "link stays inside repo: README.md -> %2e%2e/outside.md",
+                checker.failures,
+            )
+
     def test_checker_output_handles_surrogate_filename_when_supported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

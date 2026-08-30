@@ -8,6 +8,7 @@ import json
 import re
 import sys
 from pathlib import Path, PurePosixPath
+from urllib.parse import unquote, urlsplit
 
 
 FIELDS = [
@@ -24,6 +25,7 @@ UNSAFE = re.compile(
 )
 LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 BINARY_SUFFIXES = {".bin", ".gif", ".ico", ".jpeg", ".jpg", ".pdf", ".png", ".pyc", ".webp", ".zip"}
+EXTERNAL_SCHEMES = {"http", "https", "mailto"}
 
 
 def _display_path(path: Path, root: Path) -> str:
@@ -109,17 +111,33 @@ class Checker:
             display_path = _display_path(path, self.root)
             for raw_target in LINK.findall(content):
                 target = raw_target.strip().split()[0].strip("<>")
-                if target.startswith(("http://", "https://", "mailto:", "#")):
+                try:
+                    parsed = urlsplit(target)
+                except ValueError:
+                    self.ok(False, f"link target is valid: {display_path} -> {target}")
                     continue
-                relative = target.split("#", 1)[0]
-                if not relative:
+                if parsed.scheme.lower() in EXTERNAL_SCHEMES or parsed.netloc:
                     continue
-                candidate = (path.parent / relative).resolve()
+                if not parsed.path:
+                    continue
+                try:
+                    relative = unquote(parsed.path, encoding="utf-8", errors="strict")
+                except UnicodeDecodeError:
+                    self.ok(False, f"link path is UTF-8: {display_path} -> {target}")
+                    continue
+                try:
+                    candidate = (path.parent / relative.replace("\\", "/")).resolve()
+                except (OSError, ValueError):
+                    self.ok(False, f"link target is valid: {display_path} -> {target}")
+                    continue
                 root_resolved = self.root.resolve()
+                inside_repo = root_resolved in candidate.parents or candidate == root_resolved
                 self.ok(
-                    root_resolved in candidate.parents or candidate == root_resolved,
+                    inside_repo,
                     f"link stays inside repo: {display_path} -> {target}",
                 )
+                if not inside_repo:
+                    continue
                 self.ok(candidate.exists(), f"link exists: {display_path} -> {target}")
 
     def check_manifest(self) -> None:
