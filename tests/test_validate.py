@@ -9,6 +9,12 @@ from scripts.validate import Checker
 
 
 class ValidateTests(unittest.TestCase):
+    def test_release_validates_before_packaging(self) -> None:
+        workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/release.yml").read_text(encoding="utf-8")
+        package = workflow.index("python3 scripts/package.py --output dist")
+        self.assertLess(workflow.index("python3 scripts/validate.py"), package)
+        self.assertLess(workflow.index("python3 -m unittest discover -s tests -v"), package)
+
     def test_readme_package_commands_track_version(self) -> None:
         checker = Checker(Path(__file__).resolve().parents[1])
         checker.run()
