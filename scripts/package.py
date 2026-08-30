@@ -6,11 +6,22 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 from pathlib import PurePosixPath
 from shutil import copyfile
 from tempfile import TemporaryDirectory
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
+
+
+VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z")
+
+
+def version_for(root: Path) -> str:
+    version = (root / "VERSION").read_text(encoding="utf-8").strip()
+    if VERSION_PATTERN.fullmatch(version) is None:
+        raise ValueError("VERSION must contain a semantic X.Y.Z version")
+    return version
 
 
 def files_for(root: Path) -> list[Path]:
@@ -87,7 +98,7 @@ def main() -> int:
     root = Path(__file__).resolve().parents[1]
     output_dir = args.output.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    version = (root / "VERSION").read_text(encoding="utf-8").strip()
+    version = version_for(root)
     archive = output_dir / f"agent-team-{version}.zip"
     checksum = archive.with_suffix(archive.suffix + ".sha256")
     files = files_for(root)
