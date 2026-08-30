@@ -1,4 +1,7 @@
 import json
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +12,98 @@ from scripts.validate import Checker
 
 
 class ValidateTests(unittest.TestCase):
+    def test_invalid_rebuild_preserves_previous_release(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "project"
+            (root / "scripts").mkdir(parents=True)
+            shutil.copy2(
+                Path(__file__).resolve().parents[1] / "scripts/package.py",
+                root / "scripts/package.py",
+            )
+            (root / "VERSION").write_text("0.1.1\n", encoding="utf-8")
+            (root / "payload.txt").write_text("release content\n", encoding="utf-8")
+            manifest = root / "package-manifest.json"
+            manifest.write_text(json.dumps(["payload.txt"]), encoding="utf-8")
+            output = root / "dist"
+            command = [
+                sys.executable,
+                str(root / "scripts/package.py"),
+                "--output",
+                str(output),
+            ]
+
+            first = subprocess.run(command, capture_output=True, text=True, check=False)
+            self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+            archive = output / "agent-team-0.1.1.zip"
+            checksum = archive.with_suffix(".zip.sha256")
+            previous = archive.read_bytes(), checksum.read_bytes()
+
+            manifest.write_text(json.dumps(["missing.txt"]), encoding="utf-8")
+            failed = subprocess.run(command, capture_output=True, text=True, check=False)
+
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertEqual((archive.read_bytes(), checksum.read_bytes()), previous)
+
+    def test_second_promotion_failure_restores_release_pair(self) -> None:
+        for archive_existed, checksum_existed in (
+            (True, True),
+            (True, False),
+            (False, True),
+            (False, False),
+        ):
+            with self.subTest(
+                archive_existed=archive_existed,
+                checksum_existed=checksum_existed,
+            ), tempfile.TemporaryDirectory() as directory:
+                output = Path(directory)
+                archive = output / "agent-team-0.1.1.zip"
+                checksum = archive.with_suffix(".zip.sha256")
+                old_archive = b"previous archive bytes\n"
+                old_checksum = b"previous checksum bytes\n"
+                if archive_existed:
+                    archive.write_bytes(old_archive)
+                if checksum_existed:
+                    checksum.write_bytes(old_checksum)
+
+                original_replace = Path.replace
+                checksum_failure_raised = False
+
+                def fail_checksum_once(source: Path, target: Path) -> Path:
+                    nonlocal checksum_failure_raised
+                    if Path(target) == checksum and not checksum_failure_raised:
+                        checksum_failure_raised = True
+                        raise PermissionError("checksum is locked")
+                    return original_replace(source, target)
+
+                with patch(
+                    "sys.argv",
+                    ["package.py", "--output", str(output)],
+                ), patch.object(
+                    Path,
+                    "replace",
+                    autospec=True,
+                    side_effect=fail_checksum_once,
+                ):
+                    with self.assertRaisesRegex(PermissionError, "checksum is locked"):
+                        package_main()
+
+                self.assertTrue(checksum_failure_raised)
+                self.assertEqual(archive.exists(), archive_existed)
+                self.assertEqual(checksum.exists(), checksum_existed)
+                if archive_existed:
+                    self.assertEqual(archive.read_bytes(), old_archive)
+                if checksum_existed:
+                    self.assertEqual(checksum.read_bytes(), old_checksum)
+                expected = {
+                    path.name
+                    for path, existed in (
+                        (archive, archive_existed),
+                        (checksum, checksum_existed),
+                    )
+                    if existed
+                }
+                self.assertEqual({path.name for path in output.iterdir()}, expected)
+
     def test_release_validates_before_packaging(self) -> None:
         workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/release.yml").read_text(encoding="utf-8")
         package = workflow.index("python3 scripts/package.py --output dist")
