@@ -7,11 +7,31 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.package import files_for, main as package_main
+from scripts.package import files_for, main as package_main, version_for
 from scripts.validate import Checker
 
 
 class ValidateTests(unittest.TestCase):
+    def test_package_version_cannot_escape_artifact_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            version_path = root / "VERSION"
+            version_path.write_text("1.2.3\n", encoding="utf-8")
+            self.assertEqual(version_for(root), "1.2.3")
+
+            for invalid in (
+                "",
+                "1.2",
+                "01.2.3",
+                "1.2.3-alpha",
+                "../1.2.3",
+                "1.2.3/../../escape",
+            ):
+                with self.subTest(version=invalid):
+                    version_path.write_text(invalid, encoding="utf-8")
+                    with self.assertRaisesRegex(ValueError, "semantic X.Y.Z"):
+                        version_for(root)
+
     def test_invalid_rebuild_preserves_previous_release(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "project"
