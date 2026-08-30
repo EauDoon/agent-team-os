@@ -33,6 +33,10 @@ def files_for(root: Path) -> list[Path]:
         raise ValueError("package-manifest.json contains duplicate entries")
     result: list[Path] = []
     for entry in sorted(entries):
+        try:
+            entry.encode("utf-8")
+        except UnicodeEncodeError as exc:
+            raise ValueError(f"unsafe package manifest entry: {entry!r}") from exc
         relative = PurePosixPath(entry)
         if relative.is_absolute() or entry != relative.as_posix() or any(part in {"", ".", ".."} for part in relative.parts):
             raise ValueError(f"unsafe package manifest entry: {entry!r}")

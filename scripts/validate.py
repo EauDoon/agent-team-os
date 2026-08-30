@@ -26,6 +26,12 @@ LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 BINARY_SUFFIXES = {".bin", ".gif", ".ico", ".jpeg", ".jpg", ".pdf", ".png", ".pyc", ".webp", ".zip"}
 
 
+def _display_path(path: Path, root: Path) -> str:
+    """Render a repo-relative path without leaking lone surrogates to output."""
+    relative = path.relative_to(root).as_posix()
+    return relative.encode("utf-8", errors="backslashreplace").decode("utf-8")
+
+
 def object_ids(value: object) -> list[object] | None:
     if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
         return None
@@ -52,7 +58,7 @@ class Checker:
                 return None
         except OSError:
             pass
-        message = f"readable UTF-8 text: {path.relative_to(self.root)}"
+        message = f"readable UTF-8 text: {_display_path(path, self.root)}"
         if message not in self.failures:
             self.failures.append(message)
         return None
@@ -100,6 +106,7 @@ class Checker:
             content = self.read_text(path)
             if content is None:
                 continue
+            display_path = _display_path(path, self.root)
             for raw_target in LINK.findall(content):
                 target = raw_target.strip().split()[0].strip("<>")
                 if target.startswith(("http://", "https://", "mailto:", "#")):
@@ -111,9 +118,9 @@ class Checker:
                 root_resolved = self.root.resolve()
                 self.ok(
                     root_resolved in candidate.parents or candidate == root_resolved,
-                    f"link stays inside repo: {path.relative_to(self.root)} -> {target}",
+                    f"link stays inside repo: {display_path} -> {target}",
                 )
-                self.ok(candidate.exists(), f"link exists: {path.relative_to(self.root)} -> {target}")
+                self.ok(candidate.exists(), f"link exists: {display_path} -> {target}")
 
     def check_manifest(self) -> None:
         manifest = self.json_file("package-manifest.json")
@@ -129,6 +136,11 @@ class Checker:
         for entry in manifest:
             if any(part in {"", ".", ".."} for part in PurePosixPath(entry).parts):
                 self.ok(False, f"manifest entry has no path traversal: {entry!r}")
+                continue
+            try:
+                entry.encode("utf-8")
+            except UnicodeEncodeError:
+                self.ok(False, f"manifest entry is a valid repo path: {entry!r}")
                 continue
             try:
                 path = root_resolved / entry
@@ -195,10 +207,11 @@ class Checker:
             )
             if content is None:
                 continue
-            self.ok("\u2014" not in content, f"no em dash: {path.relative_to(self.root)}")
+            display_path = _display_path(path, self.root)
+            self.ok("\u2014" not in content, f"no em dash: {display_path}")
             if path.suffix in {".md", ".yaml", ".yml", ".json"}:
                 match = UNSAFE.search(content)
-                self.ok(match is None, f"no prohibited unsafe structure: {path.relative_to(self.root)}")
+                self.ok(match is None, f"no prohibited unsafe structure: {display_path}")
         self.check_links()
 
 
