@@ -1,4 +1,6 @@
 import json
+import contextlib
+import io
 import shutil
 import subprocess
 import sys
@@ -8,7 +10,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from scripts.package import files_for, main as package_main, version_for
-from scripts.validate import Checker
+from scripts.validate import Checker, main as validate_main
 
 
 class ValidateTests(unittest.TestCase):
@@ -182,6 +184,45 @@ class ValidateTests(unittest.TestCase):
                     self.assertTrue(any(failure in item for item in checker.failures))
                     with self.assertRaises(ValueError):
                         files_for(root)
+
+    def test_manifest_surrogate_diagnostic_is_utf8_safe(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entry = "bad\ud800path"
+            (root / "package-manifest.json").write_text(
+                json.dumps([entry]), encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.check_manifest()
+
+            self.assertIn(
+                f"manifest entry is a valid repo path: {entry!r}",
+                checker.failures,
+            )
+            for failure in checker.failures:
+                failure.encode("utf-8")
+
+            output = io.StringIO()
+            with patch(
+                "sys.argv",
+                ["validate.py", "--repo-root", str(root)],
+            ), contextlib.redirect_stdout(output):
+                self.assertEqual(validate_main(), 1)
+            output.getvalue().encode("utf-8")
+
+    def test_manifest_accepts_valid_supplementary_unicode(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entry = "paired-\U0001f600.txt"
+            (root / entry).write_text("valid\n", encoding="utf-8")
+            (root / "package-manifest.json").write_text(
+                json.dumps([entry]), encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.check_manifest()
+
+            self.assertIn(f"manifest entry is a repo file: {entry}", checker.checks)
+            self.assertEqual(files_for(root), [root / entry])
 
     def test_unreadable_or_unresolvable_manifest_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

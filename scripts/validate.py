@@ -52,7 +52,7 @@ class Checker:
                 return None
         except OSError:
             pass
-        message = f"readable UTF-8 text: {path.relative_to(self.root)}"
+        message = f"readable UTF-8 text: {path.relative_to(self.root).as_posix()}"
         if message not in self.failures:
             self.failures.append(message)
         return None
@@ -129,6 +129,11 @@ class Checker:
         for entry in manifest:
             if any(part in {"", ".", ".."} for part in PurePosixPath(entry).parts):
                 self.ok(False, f"manifest entry has no path traversal: {entry!r}")
+                continue
+            try:
+                entry.encode("utf-8")
+            except UnicodeEncodeError:
+                self.ok(False, f"manifest entry is a valid repo path: {entry!r}")
                 continue
             try:
                 path = root_resolved / entry
