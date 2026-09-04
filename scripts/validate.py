@@ -270,6 +270,75 @@ class Checker:
             "connect handoff requires the six role brief fields",
         )
 
+    def check_connect_examples(self) -> None:
+        """Verify the worked examples in connect.md are valid connect messages.
+
+        The spec's examples are extracted from its fenced json blocks and checked
+        against the constraints declared in schemas/connect.schema.json (const,
+        enum, required envelope, per-type required payload keys, and the handoff
+        role brief fields). This keeps the examples from drifting out of
+        conformance with the contract. Uses only the standard library.
+        """
+        content = self.text("connect.md")
+        if not content:
+            return
+        schema = self.json_file("schemas/connect.schema.json")
+        if not isinstance(schema, dict):
+            return
+        properties = schema.get("properties", {})
+        const = {
+            key: spec["const"]
+            for key, spec in properties.items()
+            if isinstance(spec, dict) and "const" in spec
+        }
+        enum = {
+            key: spec["enum"]
+            for key, spec in properties.items()
+            if isinstance(spec, dict) and "enum" in spec
+        }
+        envelope_required = schema.get("required", [])
+        defs = schema.get("$defs", {})
+        message_types = enum.get("type", [])
+        payload_required = {
+            t: defs.get(t, {}).get("required", []) for t in message_types
+        }
+        role_brief_required = (
+            defs.get("handoff", {})
+            .get("properties", {})
+            .get("role_brief", {})
+            .get("required", [])
+        )
+        blocks = re.findall(r"```json\s*(.*?)```", content, flags=re.DOTALL)
+        self.ok(bool(blocks), "connect.md contains worked JSON examples")
+        for index, block in enumerate(blocks, 1):
+            try:
+                msg = json.loads(block)
+            except json.JSONDecodeError as exc:
+                self.ok(False, f"connect example {index} is valid JSON: {exc}")
+                continue
+            if not isinstance(msg, dict):
+                self.ok(False, f"connect example {index} is an object")
+                continue
+            for key in envelope_required:
+                self.ok(key in msg, f"connect example {index} has {key}")
+            for key, value in const.items():
+                if key in msg:
+                    self.ok(msg.get(key) == value, f"connect example {index} {key} matches schema const")
+            if "type" in enum and msg.get("type") not in enum["type"]:
+                self.ok(False, f"connect example {index} type is a known message type")
+            message_type = msg.get("type")
+            payload = msg.get("payload")
+            if message_type in payload_required and isinstance(payload, dict):
+                for key in payload_required[message_type]:
+                    self.ok(key in payload, f"connect example {index} payload has {key}")
+            if message_type == "handoff" and isinstance(payload, dict):
+                role_brief = payload.get("role_brief")
+                for key in role_brief_required:
+                    self.ok(
+                        isinstance(role_brief, dict) and key in role_brief,
+                        f"connect example {index} role_brief has {key}",
+                    )
+
     def check_changelog_version(self, current: str) -> None:
         """Ensure the newest CHANGELOG entry matches the current VERSION.
 
@@ -331,6 +400,7 @@ class Checker:
             self.ok(result.get("claims") == [], "evaluation fixture makes no performance claims")
         self.check_result_conformance(result_schema, result)
         self.check_connect()
+        self.check_connect_examples()
 
         for path in sorted(self.root.rglob("*")):
             if not path.is_file() or ".git" in path.parts or "dist" in path.parts:

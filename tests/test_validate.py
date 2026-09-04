@@ -230,6 +230,55 @@ class ValidateTests(unittest.TestCase):
                 any("link exists" in item and "target(x).md" in item for item in checker.checks),
             )
 
+    def test_connect_examples_are_valid_messages(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "schemas").mkdir()
+            schema = {
+                "required": ["connect_version", "type", "message_id", "correlation_id", "from", "to", "payload"],
+                "properties": {
+                    "connect_version": {"const": "agent-team-connect/v0.1"},
+                    "type": {"enum": ["request", "response", "handoff", "status", "result"]},
+                },
+                "$defs": {
+                    "request": {"required": ["objective", "completion_test"]},
+                    "handoff": {
+                        "properties": {
+                            "role_brief": {
+                                "required": ["role", "access_scope", "task", "evidence", "output_contract", "stop_condition"]
+                            }
+                        }
+                    },
+                },
+            }
+            (root / "schemas" / "connect.schema.json").write_text(json.dumps(schema), encoding="utf-8")
+
+            def msg(payload):
+                base = {
+                    "connect_version": "agent-team-connect/v0.1",
+                    "message_id": "m1",
+                    "correlation_id": "c1",
+                    "from": "a",
+                    "to": "b",
+                }
+                base.update(payload)
+                return base
+
+            valid = msg({"type": "request", "payload": {"objective": "o", "completion_test": "t"}})
+            (root / "connect.md").write_text("```json\n" + json.dumps(valid) + "\n```\n", encoding="utf-8")
+            checker = Checker(root)
+            checker.check_connect_examples()
+            self.assertEqual(checker.failures, [])
+
+            broken = msg({"type": "request", "payload": {"objective": "o"}})
+            (root / "connect.md").write_text("```json\n" + json.dumps(broken) + "\n```\n", encoding="utf-8")
+            checker = Checker(root)
+            checker.check_connect_examples()
+            self.assertIn(
+                "connect example 1 payload has completion_test",
+                checker.failures,
+            )
+
     def test_connect_schema_requires_envelope_and_role_brief(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
