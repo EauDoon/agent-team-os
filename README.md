@@ -52,9 +52,9 @@ It uses only the Python standard library:
 ```powershell
 python .\scripts\validate.py
 python .\scripts\package.py --output .\dist
-Get-FileHash .\dist\agent-team-0.1.7.zip -Algorithm SHA256
-Expand-Archive .\dist\agent-team-0.1.7.zip -DestinationPath .\dist\expanded
-Copy-Item .\dist\expanded\agent-team-0.1.7\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
+Get-FileHash .\dist\agent-team-0.1.8.zip -Algorithm SHA256
+Expand-Archive .\dist\agent-team-0.1.8.zip -DestinationPath .\dist\expanded
+Copy-Item .\dist\expanded\agent-team-0.1.8\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
 ```
 
 On Bash:
@@ -62,9 +62,9 @@ On Bash:
 ```bash
 python3 scripts/validate.py
 python3 scripts/package.py --output dist
-sha256sum dist/agent-team-0.1.7.zip
-unzip -q dist/agent-team-0.1.7.zip -d dist/expanded
-cp -R dist/expanded/agent-team-0.1.7/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
+sha256sum dist/agent-team-0.1.8.zip
+unzip -q dist/agent-team-0.1.8.zip -d dist/expanded
+cp -R dist/expanded/agent-team-0.1.8/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
 ```
 
 Verify the checksum before copying. The package contains the skill, templates,
@@ -96,6 +96,17 @@ Request -> frame -> route -> execute -> integrate -> audit -> deliver
 5. **Integrate the outputs.** Resolve contradictions instead of presenting incompatible conclusions side by side.
 6. **Audit important results.** Classify findings as blocking, material, or minor; correct material issues; then recheck the changed work.
 7. **Deliver one answer.** Summarize the outcome, evidence basis, assumptions, unresolved risks, and anything left incomplete.
+
+## Connecting other agents
+
+If another agent or system needs to hand work to, or receive work from, an Agent
+Team Orchestrator, use the connection specification in
+[`connect.md`](connect.md). It is a versioned, machine-readable contract
+(`schemas/connect.schema.json`) covering capability discovery, message types,
+handoffs that reuse the six-field role brief, status and gap semantics, and the
+security boundaries that keep a connection bounded. It is a specification, not a
+runtime; the transport and real permission enforcement remain the deployment's
+job.
 
 ## Task-scoped roles
 
@@ -148,10 +159,12 @@ agent-team-os/
 |-- PROVENANCE.md                   # Creation, review, and evaluation record
 |-- CHANGELOG.md                    # Version history
 |-- VERSION                         # Current package version
+|-- connect.md                      # Agent interoperability connection spec
 |-- templates/
 |   |-- role-brief.md               # Six-field role brief template
 |   `-- audit-report.md             # Independent audit report template
 |-- schemas/
+|   |-- connect.schema.json         # Machine-readable connect message contract
 |   `-- role-brief.schema.json      # Machine-readable role brief contract
 |-- evals/
 |   |-- tasks.json                  # Versioned synthetic evaluation fixtures
