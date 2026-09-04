@@ -230,6 +230,38 @@ class ValidateTests(unittest.TestCase):
                 any("link exists" in item and "target(x).md" in item for item in checker.checks),
             )
 
+    def test_connect_schema_requires_envelope_and_role_brief(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "schemas").mkdir()
+            good = {
+                "required": ["connect_version", "type", "message_id", "correlation_id", "from", "to", "payload"],
+                "properties": {"type": {"enum": ["request", "response", "handoff", "status", "result"]}},
+                "$defs": {
+                    "handoff": {
+                        "properties": {
+                            "role_brief": {
+                                "required": ["role", "access_scope", "task", "evidence", "output_contract", "stop_condition"]
+                            }
+                        }
+                    }
+                },
+            }
+            (root / "schemas" / "connect.schema.json").write_text(json.dumps(good), encoding="utf-8")
+            checker = Checker(root)
+            checker.check_connect()
+            self.assertEqual(checker.failures, [])
+
+            bad = json.loads(json.dumps(good))
+            bad["required"].remove("payload")
+            bad["$defs"]["handoff"]["properties"]["role_brief"]["required"] = ["role"]
+            (root / "schemas" / "connect.schema.json").write_text(json.dumps(bad), encoding="utf-8")
+            checker = Checker(root)
+            checker.check_connect()
+            joined = "\n".join(checker.failures)
+            self.assertIn("connect schema requires the message envelope", joined)
+            self.assertIn("connect handoff requires the six role brief fields", joined)
+
     def test_changelog_top_entry_must_match_version(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

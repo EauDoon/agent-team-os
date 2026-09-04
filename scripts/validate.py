@@ -247,6 +247,29 @@ class Checker:
             for key in arm_required:
                 self.ok(isinstance(arm, dict) and key in arm, f"arm has required key {key}")
 
+    def check_connect(self) -> None:
+        """Check the connect schema exposes a complete, versioned message contract.
+
+        The connect spec (connect.md) is machine-readable via
+        schemas/connect.schema.json. This verifies the envelope is required, all
+        message types are declared, and a handoff reuses the six-field role brief.
+        """
+        schema = self.json_file("schemas/connect.schema.json")
+        if not isinstance(schema, dict):
+            return
+        envelope = {"connect_version", "type", "message_id", "correlation_id", "from", "to", "payload"}
+        self.ok(envelope.issubset(set(schema.get("required", []))), "connect schema requires the message envelope")
+        message_types = schema.get("properties", {}).get("type", {}).get("enum", [])
+        self.ok(
+            {"request", "response", "handoff", "status", "result"}.issubset(set(message_types)),
+            "connect schema declares all message types",
+        )
+        role_brief = schema.get("$defs", {}).get("handoff", {}).get("properties", {}).get("role_brief", {})
+        self.ok(
+            {field.lower().replace(" ", "_") for field in FIELDS}.issubset(set(role_brief.get("required", []))),
+            "connect handoff requires the six role brief fields",
+        )
+
     def check_changelog_version(self, current: str) -> None:
         """Ensure the newest CHANGELOG entry matches the current VERSION.
 
@@ -307,6 +330,7 @@ class Checker:
             self.ok(arm_ids is not None and all(isinstance(item, str) for item in arm_ids) and set(arm_ids) == {"solo", "current"}, "evaluation includes strong solo and current arms")
             self.ok(result.get("claims") == [], "evaluation fixture makes no performance claims")
         self.check_result_conformance(result_schema, result)
+        self.check_connect()
 
         for path in sorted(self.root.rglob("*")):
             if not path.is_file() or ".git" in path.parts or "dist" in path.parts:

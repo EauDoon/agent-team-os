@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://EauDoon.github.io/agent-team-os/schemas/connect.schema.json",
+  "title": "Agent Team connect message",
+  "description": "Versioned envelope for one agent-to-Orchestrator connection message. The payload is typed by the message type via if/then.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "connect_version",
+    "type",
+    "message_id",
+    "correlation_id",
+    "from",
+    "to",
+    "payload"
+  ],
+  "properties": {
+    "connect_version": {
+      "type": "string",
+      "const": "agent-team-connect/v0.1"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["request", "response", "handoff", "status", "result"]
+    },
+    "message_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique id for this message. Senders should treat delivery as idempotent on message_id."
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifier of the connection or request this message belongs to."
+    },
+    "from": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Sender identifier: an agent, role, or system."
+    },
+    "to": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Recipient identifier."
+    },
+    "sent_at": {
+      "type": "string",
+      "description": "Optional ISO-8601 timestamp of the message."
+    },
+    "capabilities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "description": "Capabilities the sender advertises, or that the connection supports."
+    },
+    "payload": { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "request" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/request" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "response" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/response" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "handoff" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/handoff" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "status" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/status" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "result" } }, "required": ["type"] },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/result" } } }
+    }
+  ],
+  "$defs": {
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["objective", "completion_test"],
+      "properties": {
+        "objective": { "type": "string", "minLength": 1 },
+        "constraints": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "completion_test": { "type": "string", "minLength": 1 },
+        "required_capabilities": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "context": {
+          "type": "object",
+          "description": "Optional key/value context, for example supplied evidence references."
+        }
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accepted"],
+      "properties": {
+        "accepted": { "type": "boolean" },
+        "negotiated_capabilities": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "refusal_reason": {
+          "type": "string",
+          "description": "Present when accepted is false. Name the missing capability, scope conflict, or authorization gap."
+        },
+        "next_step": { "type": "string" }
+      }
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role_brief"],
+      "properties": {
+        "role_brief": {
+          "type": "object",
+          "description": "The six-field role brief for the delegated role; see role-brief.schema.json.",
+          "required": ["role", "access_scope", "task", "evidence", "output_contract", "stop_condition"]
+        },
+        "evidence": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state"],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["working", "gap", "blocked", "done"]
+        },
+        "evidence_inspected": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "gaps": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "decision_needed": { "type": "string" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "request_satisfied"],
+      "properties": {
+        "summary": { "type": "string", "minLength": 1 },
+        "evidence_basis": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "assumptions": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "unresolved_risks": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "request_satisfied": { "type": "boolean" }
+      }
+    }
+  }
+}

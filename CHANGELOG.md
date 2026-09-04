@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.8
+
+- Added `connect.md`, a versioned agent-interoperability specification for how an
+  external agent or system connects to an `agent-team-os` Orchestrator. It defines
+  the message envelope, capability discovery and negotiation, the message types
+  (request, response, handoff, status, result), status and gap semantics, the
+  security boundaries, versioning rules, and structured rejection behavior, with
+  worked examples. It is a specification and protocol, not a runtime.
+- Added `schemas/connect.schema.json`, the machine-readable connect message
+  contract. The `handoff` payload reuses the six-field role brief.
+- Added `check_connect` to `scripts/validate.py` to verify the connect schema
+  requires the message envelope, declares all message types, and reuses the
+  six-field role brief in a handoff. Added a unit test.
+- Packaged both files and documented the spec in the README.
+
 ## 0.1.7
 
 - Hardened the link checker's destination parser in `scripts/validate.py`. The
