@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.1.10
+
+- Added a deterministic **capability negotiation** algorithm to `connect.md`
+  (the `## Capability negotiation` section): the exact accept/refuse rules, the
+  `missing` and `negotiated` set computations, and the edge cases (offered vs
+  required, unknown capabilities, reproducible ordering, and required refusal
+  reasons).
+- Added a versioned **connect conformance suite** at `conformance/connect/`
+  (`cases.json` plus a README), in the spirit of `evals/`: named connect messages
+  with an expected `valid` or `invalid` outcome.
+- Added `check_connect_conformance` to `scripts/validate.py`, which runs the suite
+  in CI and asserts each case's actual conformance matches its expectation.
+- Refactored the connect checks around a reusable `connect_violations` helper so
+  the `connect.md` worked examples and the conformance suite share one code path.
+- Packaged the new suite and added unit tests for `connect_violations` and the
+  conformance outcome check.
+
 ## 0.1.9
 
 - Added `check_connect_examples` to `scripts/validate.py`. The worked examples in

@@ -230,6 +230,115 @@ class ValidateTests(unittest.TestCase):
                 any("link exists" in item and "target(x).md" in item for item in checker.checks),
             )
 
+    def test_connect_violations_detects_contract_breaks(self) -> None:
+        schema = {
+            "required": ["connect_version", "type", "message_id", "correlation_id", "from", "to", "payload"],
+            "properties": {
+                "connect_version": {"const": "agent-team-connect/v0.1"},
+                "type": {"enum": ["request", "response", "handoff", "status", "result"]},
+            },
+            "$defs": {
+                "request": {"required": ["objective", "completion_test"]},
+                "handoff": {
+                    "properties": {
+                        "role_brief": {
+                            "required": ["role", "access_scope", "task", "evidence", "output_contract", "stop_condition"]
+                        }
+                    }
+                },
+            },
+        }
+        checker = Checker(Path("."))
+
+        good = {
+            "connect_version": "agent-team-connect/v0.1",
+            "type": "request",
+            "message_id": "m",
+            "correlation_id": "c",
+            "from": "a",
+            "to": "b",
+            "payload": {"objective": "o", "completion_test": "t"},
+        }
+        self.assertEqual(checker.connect_violations(good, schema), [])
+
+        missing_field = {k: v for k, v in good.items() if k != "correlation_id"}
+        self.assertIn(
+            "missing required field correlation_id",
+            checker.connect_violations(missing_field, schema),
+        )
+
+        wrong_type = dict(good, type="ping")
+        self.assertTrue(
+            any(v.startswith("type must be one of") for v in checker.connect_violations(wrong_type, schema))
+        )
+
+        missing_payload_key = dict(good, payload={"objective": "o"})
+        self.assertIn(
+            "payload missing required field completion_test",
+            checker.connect_violations(missing_payload_key, schema),
+        )
+
+        bad_handoff = {
+            "connect_version": "agent-team-connect/v0.1",
+            "type": "handoff",
+            "message_id": "m",
+            "correlation_id": "c",
+            "from": "a",
+            "to": "b",
+            "payload": {"role_brief": {"role": "Scout"}},
+        }
+        self.assertIn(
+            "role_brief missing required field task",
+            checker.connect_violations(bad_handoff, schema),
+        )
+
+    def test_connect_conformance_suite_outcomes_are_checked(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "schemas").mkdir()
+            (root / "conformance" / "connect").mkdir(parents=True)
+            schema = {
+                "required": ["connect_version", "type", "message_id", "correlation_id", "from", "to", "payload"],
+                "properties": {
+                    "connect_version": {"const": "agent-team-connect/v0.1"},
+                    "type": {"enum": ["request", "response", "handoff", "status", "result"]},
+                },
+                "$defs": {"request": {"required": ["objective", "completion_test"]}},
+            }
+            (root / "schemas" / "connect.schema.json").write_text(json.dumps(schema), encoding="utf-8")
+
+            def msg(payload):
+                return {
+                    "connect_version": "agent-team-connect/v0.1",
+                    "type": "request",
+                    "message_id": "m",
+                    "correlation_id": "c",
+                    "from": "a",
+                    "to": "b",
+                    "payload": payload,
+                }
+
+            good = msg({"objective": "o", "completion_test": "t"})
+            bad = msg({"objective": "o"})
+            suite = {
+                "cases": [
+                    {"name": "good-1", "expect": "valid", "message": good},
+                    {"name": "good-2", "expect": "valid", "message": good},
+                    {"name": "good-3", "expect": "valid", "message": good},
+                    {"name": "bad", "expect": "invalid", "message": bad},
+                    {"name": "lying", "expect": "valid", "message": bad},
+                ]
+            }
+            (root / "conformance" / "connect" / "cases.json").write_text(
+                json.dumps(suite), encoding="utf-8"
+            )
+            checker = Checker(root)
+            checker.check_connect_conformance()
+            joined = "\n".join(checker.failures)
+            self.assertIn("connect conformance case lying matches its expectation", joined)
+            self.assertNotIn("connect conformance case good-1", joined)
+            self.assertNotIn("connect conformance case bad", joined)
+
     def test_connect_examples_are_valid_messages(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -275,7 +384,7 @@ class ValidateTests(unittest.TestCase):
             checker = Checker(root)
             checker.check_connect_examples()
             self.assertIn(
-                "connect example 1 payload has completion_test",
+                "connect example 1 payload missing required field completion_test",
                 checker.failures,
             )
 

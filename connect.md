@@ -106,6 +106,44 @@ Orchestrator should advertise:
 An initiator may require any subset via `required_capabilities`. Unknown or
 missing capabilities are the reason for a refusal, not a reason to guess.
 
+## Capability negotiation
+
+Negotiation is deterministic so two conforming participants always reach the same
+decision for the same inputs. A conforming Orchestrator applies these rules when
+it receives a `request`:
+
+- `R` = `request.payload.required_capabilities` (the capabilities the connection
+  must support), or the empty list.
+- `Ci` = `request.capabilities` (what the initiator offers), or the empty list.
+- `Co` = the capabilities the Orchestrator advertises.
+
+```text
+missing    = sorted(R - Co)          # required capabilities we cannot provide
+negotiated = sorted((Ci ∪ R) ∩ Co)   # capabilities both sides will actually use
+
+if missing is not empty:
+    reply response(accepted = false,
+                   refusal_reason = "missing required capabilities: " + join(missing),
+                   next_step      = "authorize or remove: " + join(missing))
+else:
+    reply response(accepted = true, negotiated_capabilities = negotiated)
+```
+
+Rules and edge cases:
+
+- A connection is accepted if and only if every required capability is supported
+  (`missing` is empty). A capability the initiator *offers* (`Ci`) but does not
+  require never causes a refusal.
+- An offered capability the Orchestrator does not support is simply not negotiated;
+  it is dropped from `negotiated` rather than treated as an error.
+- All sets are sorted lexicographically so `negotiated_capabilities` and the
+  refusal reason are reproducible byte-for-byte.
+- On refusal, `refusal_reason` names exactly the missing capabilities and
+  `next_step` states the bounded action (authorize them or remove them from
+  `required_capabilities`). Never refuse without a reason.
+- Record `negotiated_capabilities` in the final `result` context so a connection
+  is reproducible.
+
 ## Message types and payloads
 
 ### `request`

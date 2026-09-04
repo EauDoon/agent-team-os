@@ -1,0 +1,191 @@
+{
+  "suite_version": "agent-team-connect-conformance/v0.1",
+  "purpose": "Versioned conformance cases for the connect message contract in schemas/connect.schema.json.",
+  "cases": [
+    {
+      "name": "request-valid",
+      "expect": "valid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "request",
+        "message_id": "m1",
+        "correlation_id": "c1",
+        "from": "init",
+        "to": "orch",
+        "capabilities": ["evidence-trace"],
+        "payload": {
+          "objective": "Compare three supplied vendor briefs.",
+          "completion_test": "Every conclusion is sourced or labeled unsupported.",
+          "required_capabilities": ["evidence-trace", "bounded-scope"]
+        }
+      }
+    },
+    {
+      "name": "response-accept-valid",
+      "expect": "valid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "response",
+        "message_id": "m2",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": true,
+          "negotiated_capabilities": ["evidence-trace", "bounded-scope"]
+        }
+      }
+    },
+    {
+      "name": "response-refuse-valid",
+      "expect": "valid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "response",
+        "message_id": "m3",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": false,
+          "refusal_reason": "missing required capabilities: external-write",
+          "next_step": "authorize or remove: external-write"
+        }
+      }
+    },
+    {
+      "name": "handoff-valid",
+      "expect": "valid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "handoff",
+        "message_id": "m4",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "scout-1",
+        "payload": {
+          "role_brief": {
+            "role": "Scout",
+            "access_scope": "Supplied briefs only, read-only.",
+            "task": "Extract claims and mark missing information.",
+            "evidence": "Supplied statements from the briefs.",
+            "output_contract": "Source table with claim, source, and uncertainty.",
+            "stop_condition": "Stop when every criterion is covered or marked missing."
+          },
+          "evidence": ["brief-a.txt", "brief-b.txt"]
+        }
+      }
+    },
+    {
+      "name": "status-gap-valid",
+      "expect": "valid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "status",
+        "message_id": "m5",
+        "correlation_id": "c1",
+        "from": "scout-1",
+        "to": "orch",
+        "payload": {
+          "state": "gap",
+          "gaps": ["brief-c.txt has no exit-effort statement"],
+          "decision_needed": "Mark exit effort missing for vendor C or supply the brief."
+        }
+      }
+    },
+    {
+      "name": "result-valid",
+      "expect": "valid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "result",
+        "message_id": "m6",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "summary": "Vendor A best fits the criteria; vendor C is missing exit-effort evidence.",
+          "request_satisfied": true,
+          "unresolved_risks": ["Vendor C exit effort is unverified."]
+        }
+      }
+    },
+    {
+      "name": "request-missing-objective",
+      "expect": "invalid",
+      "violation": "payload missing required field objective",
+      "message": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "request",
+        "message_id": "m7",
+        "correlation_id": "c1",
+        "from": "init",
+        "to": "orch",
+        "payload": { "completion_test": "x" }
+      }
+    },
+    {
+      "name": "handoff-missing-role-brief-field",
+      "expect": "invalid",
+      "violation": "role_brief missing required field task",
+      "message": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "handoff",
+        "message_id": "m8",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "scout-1",
+        "payload": {
+          "role_brief": {
+            "role": "Scout",
+            "access_scope": "x",
+            "evidence": "x",
+            "output_contract": "x",
+            "stop_condition": "x"
+          }
+        }
+      }
+    },
+    {
+      "name": "wrong-connect-version",
+      "expect": "invalid",
+      "violation": "connect_version must equal agent-team-connect/v0.1",
+      "message": {
+        "connect_version": "agent-team-connect/v0.9",
+        "type": "request",
+        "message_id": "m9",
+        "correlation_id": "c1",
+        "from": "init",
+        "to": "orch",
+        "payload": { "objective": "x", "completion_test": "y" }
+      }
+    },
+    {
+      "name": "unknown-message-type",
+      "expect": "invalid",
+      "violation": "type must be a known message type",
+      "message": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "ping",
+        "message_id": "m10",
+        "correlation_id": "c1",
+        "from": "init",
+        "to": "orch",
+        "payload": {}
+      }
+    },
+    {
+      "name": "missing-envelope-field",
+      "expect": "invalid",
+      "violation": "missing required field correlation_id",
+      "message": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "request",
+        "message_id": "m11",
+        "from": "init",
+        "to": "orch",
+        "payload": { "objective": "x", "completion_test": "y" }
+      }
+    }
+  ]
+}
