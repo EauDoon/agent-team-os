@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.6
+
+- Added `check_result_conformance` to `scripts/validate.py`. The repository ships
+  `evals/result.schema.json` as the versioned result shape, but nothing previously
+  verified that `evals/results.v0.1.json` actually conforms to it. The check now
+  applies the schema's `const`, `enum`, and `required` constraints (top-level and
+  per arm) using only the standard library.
+- Added a unit test covering a conforming fixture and one that violates the
+  const, enum, per-arm required, and top-level required constraints.
+
 ## 0.1.5
 
 - Added a `.gitattributes` that forces LF line endings (`eol=lf`) for all text
