@@ -7,6 +7,8 @@
   "README.md",
   "SECURITY.md",
   "VERSION",
+  "conformance/connect/README.md",
+  "conformance/connect/cases.json",
   "connect.md",
   "docs/release-notes-0.1.0.md",
   "evals/README.md",
