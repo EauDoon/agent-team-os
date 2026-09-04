@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.2
+
+- Made the test suite portable to Windows: the symlink-dependent checks now
+  probe for symlink support and skip gracefully when the platform (or the
+  un-elevated test user) cannot create symlinks, instead of erroring. The
+  platform-independent assertions in those tests still run.
+- Tightened the `check_fields` contract check in `scripts/validate.py` to
+  recognize each of the six field names only as a label (a markdown heading,
+  a `Field:` line, or a table cell) rather than as a bare word, so a prose
+  mention no longer satisfies the presence check.
+
 ## 0.1.1
 
 - Corrected the `$id` host in both schemas from the stale `oonyl.github.io` to
