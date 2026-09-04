@@ -1,0 +1,16 @@
+# Normalize line endings so scripts/package.py produces byte-for-byte identical
+# artifacts (and matching SHA-256 checksums) on every platform. Without this, a
+# machine whose Git converts to CRLF would package different bytes than Linux CI.
+* text=auto eol=lf
+
+# Explicitly mark binary assets so they are never line-ending-normalized.
+*.zip binary
+*.bin binary
+*.gif binary
+*.ico binary
+*.jpeg binary
+*.jpg binary
+*.pdf binary
+*.png binary
+*.pyc binary
+*.webp binary

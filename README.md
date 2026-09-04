@@ -52,9 +52,9 @@ It uses only the Python standard library:
 ```powershell
 python .\scripts\validate.py
 python .\scripts\package.py --output .\dist
-Get-FileHash .\dist\agent-team-0.1.4.zip -Algorithm SHA256
-Expand-Archive .\dist\agent-team-0.1.4.zip -DestinationPath .\dist\expanded
-Copy-Item .\dist\expanded\agent-team-0.1.4\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
+Get-FileHash .\dist\agent-team-0.1.5.zip -Algorithm SHA256
+Expand-Archive .\dist\agent-team-0.1.5.zip -DestinationPath .\dist\expanded
+Copy-Item .\dist\expanded\agent-team-0.1.5\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
 ```
 
 On Bash:
@@ -62,9 +62,9 @@ On Bash:
 ```bash
 python3 scripts/validate.py
 python3 scripts/package.py --output dist
-sha256sum dist/agent-team-0.1.4.zip
-unzip -q dist/agent-team-0.1.4.zip -d dist/expanded
-cp -R dist/expanded/agent-team-0.1.4/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
+sha256sum dist/agent-team-0.1.5.zip
+unzip -q dist/agent-team-0.1.5.zip -d dist/expanded
+cp -R dist/expanded/agent-team-0.1.5/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
 ```
 
 Verify the checksum before copying. The package contains the skill, templates,
