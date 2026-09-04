@@ -184,6 +184,37 @@ class ValidateTests(unittest.TestCase):
             self.assertIn("release-notes-v0.1.0.md", failures)
             self.assertNotIn("release-notes-0.1.0.md", failures)
 
+    def test_result_fixture_must_conform_to_schema(self) -> None:
+        schema = {
+            "required": ["result_version", "status", "arms", "claims"],
+            "properties": {
+                "result_version": {"const": "agent-team-eval/v0.1"},
+                "status": {"enum": ["calibration_fixture", "complete"]},
+                "arms": {"items": {"required": ["id", "label", "results"]}},
+            },
+        }
+        good = {
+            "result_version": "agent-team-eval/v0.1",
+            "status": "calibration_fixture",
+            "arms": [{"id": "solo", "label": "s", "results": []}],
+            "claims": [],
+        }
+        checker = Checker(Path("."))
+        checker.check_result_conformance(schema, good)
+        self.assertEqual(checker.failures, [])
+
+        bad = {k: v for k, v in good.items() if k != "claims"}
+        bad["status"] = "not-a-real-status"
+        bad["result_version"] = "wrong"
+        bad["arms"] = [{"id": "solo"}]
+        checker = Checker(Path("."))
+        checker.check_result_conformance(schema, bad)
+        joined = "\n".join(checker.failures)
+        self.assertIn("result.status is a schema-allowed value", joined)
+        self.assertIn("result.result_version matches schema const", joined)
+        self.assertIn("arm has required key label", joined)
+        self.assertIn("result has required key claims", joined)
+
     def test_changelog_top_entry_must_match_version(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

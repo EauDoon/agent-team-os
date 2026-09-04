@@ -217,6 +217,36 @@ class Checker:
                 f"release notes reference exists: README.md -> docs/{token}",
             )
 
+    def check_result_conformance(self, schema: object, result: object) -> None:
+        """Check the result fixture conforms to the result schema's constraints.
+
+        The repository ships ``evals/result.schema.json`` as the versioned result
+        shape, but nothing previously verified the fixture actually conforms to
+        it. This applies the schema's ``const``, ``enum``, and ``required``
+        constraints (top-level and per arm) without an external schema library.
+        """
+        if not (isinstance(schema, dict) and isinstance(result, dict)):
+            return
+        properties = schema.get("properties", {})
+        if not isinstance(properties, dict):
+            return
+        for key, spec in properties.items():
+            if not isinstance(spec, dict):
+                continue
+            if "const" in spec:
+                self.ok(result.get(key) == spec["const"], f"result.{key} matches schema const")
+            if "enum" in spec:
+                self.ok(result.get(key) in spec["enum"], f"result.{key} is a schema-allowed value")
+        for key in schema.get("required", []):
+            self.ok(key in result, f"result has required key {key}")
+        arms_spec = properties.get("arms")
+        arm_required = []
+        if isinstance(arms_spec, dict):
+            arm_required = arms_spec.get("items", {}).get("required", [])
+        for arm in result.get("arms", []):
+            for key in arm_required:
+                self.ok(isinstance(arm, dict) and key in arm, f"arm has required key {key}")
+
     def check_changelog_version(self, current: str) -> None:
         """Ensure the newest CHANGELOG entry matches the current VERSION.
 
@@ -276,6 +306,7 @@ class Checker:
             self.ok(result.get("status") == "calibration_fixture", "evaluation result remains an empty calibration fixture")
             self.ok(arm_ids is not None and all(isinstance(item, str) for item in arm_ids) and set(arm_ids) == {"solo", "current"}, "evaluation includes strong solo and current arms")
             self.ok(result.get("claims") == [], "evaluation fixture makes no performance claims")
+        self.check_result_conformance(result_schema, result)
 
         for path in sorted(self.root.rglob("*")):
             if not path.is_file() or ".git" in path.parts or "dist" in path.parts:
