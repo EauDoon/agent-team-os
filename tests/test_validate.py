@@ -167,6 +167,23 @@ class ValidateTests(unittest.TestCase):
         checker.run()
         self.assertIn("README package commands use VERSION", checker.checks)
 
+    def test_release_notes_references_must_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "docs" / "release-notes-0.1.0.md").write_text(
+                "notes\n", encoding="utf-8"
+            )
+            (root / "README.md").write_text(
+                "good: release-notes-0.1.0.md\nbad: release-notes-v0.1.0.md\n",
+                encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.check_release_notes_references()
+            failures = "\n".join(checker.failures)
+            self.assertIn("release-notes-v0.1.0.md", failures)
+            self.assertNotIn("release-notes-0.1.0.md", failures)
+
     def test_changelog_top_entry_must_match_version(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -52,9 +52,9 @@ It uses only the Python standard library:
 ```powershell
 python .\scripts\validate.py
 python .\scripts\package.py --output .\dist
-Get-FileHash .\dist\agent-team-0.1.3.zip -Algorithm SHA256
-Expand-Archive .\dist\agent-team-0.1.3.zip -DestinationPath .\dist\expanded
-Copy-Item .\dist\expanded\agent-team-0.1.3\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
+Get-FileHash .\dist\agent-team-0.1.4.zip -Algorithm SHA256
+Expand-Archive .\dist\agent-team-0.1.4.zip -DestinationPath .\dist\expanded
+Copy-Item .\dist\expanded\agent-team-0.1.4\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
 ```
 
 On Bash:
@@ -62,9 +62,9 @@ On Bash:
 ```bash
 python3 scripts/validate.py
 python3 scripts/package.py --output dist
-sha256sum dist/agent-team-0.1.3.zip
-unzip -q dist/agent-team-0.1.3.zip -d dist/expanded
-cp -R dist/expanded/agent-team-0.1.3/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
+sha256sum dist/agent-team-0.1.4.zip
+unzip -q dist/agent-team-0.1.4.zip -d dist/expanded
+cp -R dist/expanded/agent-team-0.1.4/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
 ```
 
 Verify the checksum before copying. The package contains the skill, templates,
@@ -162,7 +162,7 @@ agent-team-os/
 |   |-- validate.py                 # Dependency-light contract and link checker
 |   `-- package.py                  # Deterministic ZIP and checksum builder
 |-- docs/
-|   `-- release-notes-v0.1.0.md     # Proposed release topics, not remote metadata
+|   `-- release-notes-0.1.0.md      # Versioned release notes (one per release)
 |-- .github/workflows/ci.yml        # Pull request and push checks
 |-- examples/
 |   `-- routing-scenarios.md        # Three synthetic end-to-end scenarios

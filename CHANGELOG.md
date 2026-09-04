@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.4
+
+- Corrected a stale reference in the README repository map: it still listed
+  `release-notes-v0.1.0.md`, which the release-notes naming unification had
+  already renamed to `release-notes-0.1.0.md`. The map now lists a real file and
+  notes that release notes are versioned, one per release.
+- Added `check_release_notes_references` to `scripts/validate.py`: any concrete
+  `release-notes-*.md` filename referenced in a markdown file must exist under
+  `docs/`. The repository map is a code block, not a link, so the link checker
+  would not have caught this kind of drift.
+- Added a unit test for a valid and a stale release-notes reference.
+
 ## 0.1.3
 
 - Added a `check_changelog_version` contract check in `scripts/validate.py`
