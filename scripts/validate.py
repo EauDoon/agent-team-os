@@ -200,6 +200,20 @@ class Checker:
                 f"manifest entry is a repo file: {entry}",
             )
 
+    def check_changelog_version(self, current: str) -> None:
+        """Ensure the newest CHANGELOG entry matches the current VERSION.
+
+        The release process relies on the version being consistent across
+        VERSION, the README, the changelog, and the release notes; the README is
+        already checked, so the changelog's top entry is checked too.
+        """
+        changelog = self.text("CHANGELOG.md")
+        versions = re.findall(r"(?m)^##\s+(\d+\.\d+\.\d+)\s*$", changelog)
+        self.ok(
+            bool(versions) and versions[0] == current,
+            "CHANGELOG top entry matches VERSION",
+        )
+
     def run(self) -> None:
         skill = self.text("skill/agent-team-os/SKILL.md")
         readme = self.text("README.md")
@@ -219,6 +233,7 @@ class Checker:
         version = self.text("VERSION").strip()
         documented_versions = set(re.findall(r"agent-team-(\d+\.\d+\.\d+)\.zip", readme))
         self.ok(documented_versions == {version}, "README package commands use VERSION")
+        self.check_changelog_version(version)
 
         schema = self.json_file("schemas/role-brief.schema.json")
         if isinstance(schema, dict):

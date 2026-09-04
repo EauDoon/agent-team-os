@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3
+
+- Added a `check_changelog_version` contract check in `scripts/validate.py`
+  that confirms the newest `## X.Y.Z` entry in `CHANGELOG.md` matches `VERSION`.
+  The README was already checked for version consistency; the changelog was not,
+  even though the release process depends on it.
+- Added a unit test covering a matching top entry, a stale top entry, and a
+  changelog with no version entry.
+
 ## 0.1.2
 
 - Made the test suite portable to Windows: the symlink-dependent checks now

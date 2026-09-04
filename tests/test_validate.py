@@ -164,6 +164,32 @@ class ValidateTests(unittest.TestCase):
         checker.run()
         self.assertIn("README package commands use VERSION", checker.checks)
 
+    def test_changelog_top_entry_must_match_version(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "CHANGELOG.md").write_text(
+                "# Changelog\n\n## 0.1.1\n\n- old\n",
+                encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.check_changelog_version("0.1.2")
+            self.assertIn("CHANGELOG top entry matches VERSION", checker.failures)
+
+            (root / "CHANGELOG.md").write_text(
+                "# Changelog\n\n## 0.1.2\n\n- new\n\n## 0.1.1\n\n- old\n",
+                encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.check_changelog_version("0.1.2")
+            self.assertNotIn("CHANGELOG top entry matches VERSION", checker.failures)
+            self.assertIn("CHANGELOG top entry matches VERSION", checker.checks)
+
+            (root / "CHANGELOG.md").write_text("# Changelog\n\nNo version yet.\n",
+                                                encoding="utf-8")
+            checker = Checker(root)
+            checker.check_changelog_version("0.1.2")
+            self.assertIn("CHANGELOG top entry matches VERSION", checker.failures)
+
     def test_checksum_write_supports_legacy_pathlib(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             with patch("sys.argv", ["package.py", "--output", directory]), patch.object(
