@@ -98,8 +98,29 @@ class Checker:
         self.ok(bool(values.get("description")), "frontmatter has a description")
 
     def check_fields(self, label: str, content: str) -> None:
-        missing = [field for field in FIELDS if not re.search(rf"\b{re.escape(field)}\b", content)]
+        missing = [
+            field
+            for field in FIELDS
+            if self._field_label(field).search(content) is None
+        ]
         self.ok(not missing, f"{label} contains six fields" if not missing else f"{label} missing: {', '.join(missing)}")
+
+    @staticmethod
+    def _field_label(field: str) -> "re.Pattern[str]":
+        """Match a field as a label, not as a prose mention.
+
+        The six field names appear in three controlled shapes: a markdown
+        heading (``## Role``), a ``Field:`` line in the SKILL.md code block, or
+        a table cell (``| Role |``). A bare word such as a prose mention of the
+        role no longer satisfies the presence check.
+        """
+        escaped = re.escape(field)
+        pattern = (
+            r"(?m)(?:^\s*#{1,6}\s+" + escaped + r"\s*$"
+            r"|^\s*" + escaped + r":\s"
+            r"|\|\s*" + escaped + r"\s*\|)"
+        )
+        return re.compile(pattern)
 
     def check_links(self) -> None:
         for path in sorted(self.root.rglob("*.md")):

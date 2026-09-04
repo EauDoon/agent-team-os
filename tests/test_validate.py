@@ -13,6 +13,32 @@ from scripts.package import files_for, main as package_main, version_for
 from scripts.validate import Checker, _display_path, main as validate_main
 
 
+def _symlinks_supported() -> bool:
+    """Return True when this platform lets the test user create symlinks.
+
+    Windows requires elevation (or developer mode) to create symlinks, so the
+    symlink-specific checks are skipped there instead of erroring.
+    """
+    with tempfile.TemporaryDirectory() as directory:
+        base = Path(directory)
+        target = base / "symlink-target"
+        target.write_text("x", encoding="utf-8")
+        probe = base / "symlink-probe"
+        try:
+            probe.symlink_to(target.name)
+            return True
+        except (OSError, NotImplementedError):
+            return False
+        finally:
+            try:
+                probe.unlink()
+            except OSError:
+                pass
+
+
+SYMLINKS_SUPPORTED = _symlinks_supported()
+
+
 class ValidateTests(unittest.TestCase):
     def test_package_version_cannot_escape_artifact_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -78,7 +104,8 @@ class ValidateTests(unittest.TestCase):
                 checksum_existed=checksum_existed,
             ), tempfile.TemporaryDirectory() as directory:
                 output = Path(directory)
-                archive = output / "agent-team-0.1.1.zip"
+                version = version_for(Path(__file__).resolve().parents[1])
+                archive = output / f"agent-team-{version}.zip"
                 checksum = archive.with_suffix(".zip.sha256")
                 old_archive = b"previous archive bytes\n"
                 old_checksum = b"previous checksum bytes\n"
@@ -311,7 +338,10 @@ class ValidateTests(unittest.TestCase):
             self.assertTrue(any("invalid JSON" in item for item in checker.failures))
 
             loop = root / "loop"
-            loop.symlink_to("loop")
+            try:
+                loop.symlink_to("loop")
+            except (OSError, NotImplementedError):
+                return  # symlink creation not permitted; JSON check above already ran
             manifest.write_text(json.dumps(["loop"]), encoding="utf-8")
             checker = Checker(root)
             checker.check_manifest()
@@ -360,6 +390,10 @@ class ValidateTests(unittest.TestCase):
                 any("__pycache__" in failure for failure in checker.failures),
             )
 
+    @unittest.skipUnless(
+        SYMLINKS_SUPPORTED,
+        "symlink creation is not permitted on this platform",
+    )
     def test_manifest_symlink_is_reported_before_packaging(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
