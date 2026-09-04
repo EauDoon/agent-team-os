@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.9
+
+- Added `check_connect_examples` to `scripts/validate.py`. The worked examples in
+  `connect.md` are now extracted from their fenced json blocks and verified as
+  valid, conforming connect messages: the envelope is required, `connect_version`
+  matches the schema const, the `type` is a known message type, each payload has
+  its schema-required keys, and a handoff's `role_brief` has the six fields. The
+  constraints are read from `schemas/connect.schema.json`, so the check stays in
+  sync with the contract. The spec's examples are now machine-verified in CI
+  instead of being only illustrative.
+- Added a unit test covering a conforming example and one with a missing
+  payload field.
+
 ## 0.1.8
 
 - Added `connect.md`, a versioned agent-interoperability specification for how an
