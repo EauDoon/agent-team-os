@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.7
+
+- Hardened the link checker's destination parser in `scripts/validate.py`. The
+  `LINK` regex previously captured a link destination up to the first `)`, so a
+  destination containing a parenthesis was misparsed. It now handles one level of
+  balanced parentheses. No existing repository link uses a parenthesis, so this is
+  a strict robustness improvement, and it keeps the link-escape checks operating
+  on the correct target.
+- Added a unit test for a link whose destination contains a parenthesis.
+
 ## 0.1.6
 
 - Added `check_result_conformance` to `scripts/validate.py`. The repository ships

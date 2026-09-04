@@ -23,7 +23,7 @@ UNSAFE = re.compile(
     r"(?i)\b(?:unlimited\s+access|all\s+access|ignore\s+(?:authorization|review)|"
     r"disable\s+(?:audit|safety)|exfiltrat\w*|delete\s+.+without\s+approval)\b"
 )
-LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+LINK = re.compile(r"\[[^\]]+\]\(([^()]*(?:\([^()]*\))?[^()]*)\)")
 BINARY_SUFFIXES = {".bin", ".gif", ".ico", ".jpeg", ".jpg", ".pdf", ".png", ".pyc", ".webp", ".zip"}
 EXTERNAL_SCHEMES = {"http", "https", "mailto"}
 

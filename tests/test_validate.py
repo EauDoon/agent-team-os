@@ -215,6 +215,21 @@ class ValidateTests(unittest.TestCase):
         self.assertIn("arm has required key label", joined)
         self.assertIn("result has required key claims", joined)
 
+    def test_link_destination_with_parenthesis_is_parsed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "target(x).md").write_text("ok\n", encoding="utf-8")
+            (root / "README.md").write_text(
+                "[ok](target(x).md)\n",
+                encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.check_links()
+            self.assertEqual(checker.failures, [])
+            self.assertTrue(
+                any("link exists" in item and "target(x).md" in item for item in checker.checks),
+            )
+
     def test_changelog_top_entry_must_match_version(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
