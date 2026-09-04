@@ -200,6 +200,23 @@ class Checker:
                 f"manifest entry is a repo file: {entry}",
             )
 
+    def check_release_notes_references(self) -> None:
+        """Verify release-notes filenames listed in the README repository map exist.
+
+        The repository map is a curated list of current files, but it is a code
+        block, not a link, so the link checker does not cover it. Any concrete
+        release-notes filename it names must exist under ``docs/``. Changelog and
+        release notes are intentionally not scanned, because they legitimately
+        mention old filenames when describing a rename.
+        """
+        readme = self.text("README.md")
+        ref = re.compile(r"release-notes-[\w.]+\.md")
+        for token in sorted(set(ref.findall(readme))):
+            self.ok(
+                (self.root / "docs" / token).is_file(),
+                f"release notes reference exists: README.md -> docs/{token}",
+            )
+
     def check_changelog_version(self, current: str) -> None:
         """Ensure the newest CHANGELOG entry matches the current VERSION.
 
@@ -234,6 +251,7 @@ class Checker:
         documented_versions = set(re.findall(r"agent-team-(\d+\.\d+\.\d+)\.zip", readme))
         self.ok(documented_versions == {version}, "README package commands use VERSION")
         self.check_changelog_version(version)
+        self.check_release_notes_references()
 
         schema = self.json_file("schemas/role-brief.schema.json")
         if isinstance(schema, dict):
