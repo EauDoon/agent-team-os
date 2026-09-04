@@ -32,7 +32,10 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           NOTES="docs/release-notes-${VERSION}.md"
-          if [ ! -f "$NOTES" ]; then NOTES="docs/release-notes-v0.1.0.md"; fi
+          if [ ! -f "$NOTES" ]; then
+            echo "Release notes file not found: ${NOTES}" >&2
+            exit 1
+          fi
           gh release create "${GITHUB_REF_NAME}" \
             --title "Agent Team ${GITHUB_REF_NAME}" \
             --verify-tag \
