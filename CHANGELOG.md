@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5
+
+- Added a `.gitattributes` that forces LF line endings (`eol=lf`) for all text
+  files and marks binary assets as binary. `scripts/package.py` packages the
+  working-tree bytes, so on a machine whose Git converts to CRLF the archive
+  (and its SHA-256) differed from the Linux CI build, which would make the
+  README's "verify the checksum" step spuriously fail. Normalizing to LF makes
+  the packaged artifact byte-for-byte identical on every platform.
+
 ## 0.1.4
 
 - Corrected a stale reference in the README repository map: it still listed
