@@ -24,3 +24,10 @@ transfer needs a revised plan after the first owner stops.
 
 The checker cannot establish that the delegation benefit is real or that the
 execution environment enforces the brief. Review both before dispatch.
+
+Plans are bounded to 64 assignments, 63 dependencies per assignment, 256 write
+resources per assignment and 1024 write resources in total. Oversized arrays
+fail before item validation or ownership analysis. Resource overlap checks use
+a path-prefix index, and semantic routing diagnostics stop after 32 findings
+plus an omission notice. These limits bound authoring checks; they do not grant
+permission to run that many assignments or access those resources.

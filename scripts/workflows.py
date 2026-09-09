@@ -1,8 +1,16 @@
 """Semantic checks for operator records. These never schedule or execute work."""
 
+MAX_RESOURCES_PER_ASSIGNMENT = 256
+MAX_TOTAL_WRITE_RESOURCES = 1024
+MAX_ROUTING_DIAGNOSTICS = 32
+
 
 def routing_violations(plan: dict) -> list[str]:
     assignments = plan['assignments']
+    if any(len(item['write_resources']) > MAX_RESOURCES_PER_ASSIGNMENT for item in assignments):
+        return ['assignments: at most 256 write resources are allowed per assignment']
+    if sum(len(item['write_resources']) for item in assignments) > MAX_TOTAL_WRITE_RESOURCES:
+        return ['assignments: at most 1024 total write resources are allowed']
     errors = []
     by_id = {item['id']: item for item in assignments}
     if len(by_id) != len(assignments):
@@ -21,16 +29,33 @@ def routing_violations(plan: dict) -> list[str]:
             errors.append('assignments: dependency cycle or unresolved dependency')
             break
         remaining = {key: dependencies - ready for key, dependencies in remaining.items() if key not in ready}
-    owners = []
+    # Index path components instead of comparing every pair of resources. An
+    # exact owner detects a parent conflict; subtree owners detect descendants.
+    def node():
+        return {'children': {}, 'exact': set(), 'owners': set()}
+
+    resources = node()
     for item in assignments:
         for resource in item['write_resources']:
             normalized = resource.replace('\\', '/').strip('/').casefold()
             if not normalized or any(part in {'.', '..', ''} for part in normalized.split('/')):
                 errors.append(f"{item['id']}: use an unambiguous write resource name")
-            for previous, owner in owners:
-                if owner != item['id'] and (normalized == previous or normalized.startswith(previous + '/') or previous.startswith(normalized + '/')):
-                    errors.append(f"write resource has multiple owners: {owner}, {item['id']}")
-            owners.append((normalized, item['id']))
+                continue
+            current = resources
+            visited = [current]
+            conflicts = set()
+            for part in normalized.split('/'):
+                conflicts.update(current['exact'] - {item['id']})
+                if part not in current['children']:
+                    current['children'][part] = node()
+                current = current['children'][part]
+                visited.append(current)
+            conflicts.update(current['owners'] - {item['id']})
+            if conflicts:
+                errors.append(f"write resource has multiple owners: {sorted(conflicts)[0]}, {item['id']}")
+            current['exact'].add(item['id'])
+            for prefix in visited:
+                prefix['owners'].add(item['id'])
     if plan['route'] == 'solo' and len(assignments) != 1:
         errors.append('solo route requires exactly one assignment')
     budget = plan.get('budget')
@@ -41,6 +66,8 @@ def routing_violations(plan: dict) -> list[str]:
             errors.append('budget: concurrency exceeds assignment limit')
         if budget['review_reserve'] >= budget['total_work_units']:
             errors.append('budget: review reserve must leave capacity for task work')
+    if len(errors) > MAX_ROUTING_DIAGNOSTICS:
+        return errors[:MAX_ROUTING_DIAGNOSTICS] + ['additional routing diagnostics omitted']
     return errors
 
 

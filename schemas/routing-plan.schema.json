@@ -62,7 +62,8 @@
               "type": "string",
               "minLength": 1
             },
-            "uniqueItems": true
+            "uniqueItems": true,
+            "maxItems": 63
           },
           "write_resources": {
             "type": "array",
@@ -70,7 +71,8 @@
               "type": "string",
               "minLength": 1
             },
-            "uniqueItems": true
+            "uniqueItems": true,
+            "maxItems": 256
           },
           "brief": {
             "$ref": "#/$defs/brief"

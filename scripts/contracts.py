@@ -76,7 +76,9 @@ def violations(value: object, schema: dict, *, root: dict | None = None,
         if len(value) < schema.get("minItems", 0):
             errors.append(f"{path}: too few items")
         if len(value) > schema.get("maxItems", len(value)):
-            errors.append(f"{path}: too many items")
+            # Reject oversized collections before visiting their items or producing
+            # one diagnostic per item. The invalid size is already decisive.
+            return errors + [f"{path}: too many items"]
         if schema.get("uniqueItems") and len({canonical(x) for x in value}) != len(value):
             errors.append(f"{path}: duplicate items")
         if "items" in schema:
