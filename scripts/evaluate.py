@@ -2,16 +2,20 @@
 """Check paired evaluation records and print descriptive totals only."""
 
 import argparse
+import html
 import json
 import math
 from pathlib import Path
+import unicodedata
 
 try:
-    from .check import load_json, ROOT
+    from .check import load_json, load_json_snapshot, ROOT
     from .contracts import violations
+    from .author import write_new_text
 except ImportError:
-    from check import load_json, ROOT
+    from check import load_json, load_json_snapshot, ROOT
     from contracts import violations
+    from author import write_new_text
 
 MAX_EXACT_INTEGER = 2 ** 53 - 1
 
@@ -81,18 +85,53 @@ def summarize(run: object, suite: dict) -> dict:
             'interpretation': 'Descriptive totals for this supplied run only. No general superiority or causal claim.'}
 
 
+def markdown_cell(value: object) -> str:
+    text = str(value)
+    text = ''.join(' ' if char in '\r\n\t' else
+                   f'\\u{ord(char):04x}' if unicodedata.category(char).startswith('C') else char for char in text)
+    text = html.escape(text, quote=False)
+    return ''.join('\\' + char if char in '\\|`*_[]()!#' else char for char in text)
+
+
+def markdown_report(summary: dict) -> str:
+    lines = ['# Paired evaluation report', '', 'Status: ' + markdown_cell(summary['status']), '',
+             summary['interpretation'], '', '| Arm | Passed | Failed | Unverified | Tokens | Seconds |',
+             '| --- | --- | --- | --- | --- | --- |']
+    for arm in ('solo', 'current'):
+        totals = summary['arms'][arm]
+        lines.append('| ' + ' | '.join(markdown_cell(value) for value in [arm, totals['passed'], totals['failed'],
+                     totals['unverified'], totals['tokens'], totals['duration_seconds']]) + ' |')
+    lines.extend(['', '| Task | Acceptance criterion | Solo | Current |', '| --- | --- | --- | --- |'])
+    for task in summary['tasks']:
+        for check in task['checks']:
+            lines.append('| ' + ' | '.join(markdown_cell(value) for value in
+                         [task['task_id'], check['criterion'], check['solo'], check['current']]) + ' |')
+    lines.extend(['', 'Input SHA-256: ' + summary['input_sha256'],
+                  'Suite SHA-256: ' + summary['suite_sha256'],
+                  'Package version: ' + markdown_cell(summary['package_version']), ''])
+    return '\n'.join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('file', type=Path)
+    parser.add_argument('--format', choices=['json', 'markdown'], default='json')
+    parser.add_argument('--output', type=Path, help='new output file; never replace existing work')
     args = parser.parse_args()
     try:
-        result = summarize(load_json(args.file), load_json(ROOT / 'evals/tasks.json'))
-        rendered = json.dumps({'ok': True, **result}, indent=2, allow_nan=False)
+        run, input_digest = load_json_snapshot(args.file)
+        suite, suite_digest = load_json_snapshot(ROOT / 'evals/tasks.json')
+        result = summarize(run, suite)
+        result.update(input_sha256=input_digest, suite_sha256=suite_digest,
+                      package_version=(ROOT / 'VERSION').read_text(encoding='utf-8').strip())
+        rendered = markdown_report(result) if args.format == 'markdown' else json.dumps({'ok': True, **result}, indent=2, allow_nan=False)
+        if args.output is not None:
+            write_new_text(args.output, rendered + ('\n' if not rendered.endswith('\n') else ''))
     except (OSError, ValueError, OverflowError, RecursionError):
         # Schema diagnostics may contain field names; never include source values.
         print(json.dumps({'ok': False, 'error': 'evaluation record is invalid or unreadable'}, allow_nan=False))
         return 1
-    print(rendered)
+    print(json.dumps({'ok': True, 'format': args.format}) if args.output is not None else rendered)
     return 0
 
 

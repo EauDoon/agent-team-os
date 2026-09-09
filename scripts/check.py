@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -30,8 +31,8 @@ CONNECT_CONTRACTS = {
 MAX_BYTES = 1024 * 1024
 
 
-def load_json(path: Path) -> object:
-    """Bound reads and reject duplicate keys and non-JSON numeric constants."""
+def parse_json_bytes(raw: bytes) -> object:
+    """Decode bounded bytes, rejecting duplicate keys and non-JSON numbers."""
     def pairs(items):
         result = {}
         for key, value in items:
@@ -49,14 +50,23 @@ def load_json(path: Path) -> object:
             raise ValueError('non-finite JSON number')
         return number
 
-    with path.open('rb') as handle:
-        raw = handle.read(MAX_BYTES + 1)
     if len(raw) > MAX_BYTES:
         raise ValueError('JSON input exceeds 1 MiB')
     try:
         return json.loads(raw.decode('utf-8'), object_pairs_hook=pairs, parse_constant=constant, parse_float=finite_float)
     except (UnicodeError, json.JSONDecodeError, RecursionError) as exc:
         raise ValueError('input must be a bounded UTF-8 JSON document') from exc
+
+
+def load_json_snapshot(path: Path) -> tuple[object, str]:
+    """Parse and hash the same bounded byte snapshot, without a second read."""
+    with path.open('rb') as handle:
+        raw = handle.read(MAX_BYTES + 1)
+    return parse_json_bytes(raw), hashlib.sha256(raw).hexdigest()
+
+
+def load_json(path: Path) -> object:
+    return load_json_snapshot(path)[0]
 
 
 def check_document(kind: str, document: object, *, schema_root: Path = ROOT) -> list[str]:
