@@ -6,9 +6,11 @@ import json
 from pathlib import Path
 
 try:
-    from .check import check_document, load_json
+    from .check import check_document, load_json, ROOT
+    from .contracts import violations
 except ImportError:
-    from check import check_document, load_json
+    from check import check_document, load_json, ROOT
+    from contracts import violations
 
 
 def require_record(kind: str, document: object) -> None:
@@ -103,6 +105,33 @@ def inspect_evidence(ledger: object, changed_sources: list[str] | None = None) -
             'note': 'Affected claims need reinspection; their recorded status has not been changed.'}
 
 
+def inspect_audit(report: object, target_revision: str | None = None) -> dict:
+    if violations(report, load_json(ROOT / 'schemas/audit-closure.schema.json')):
+        raise ValueError('audit report shape is invalid')
+    target = report['target_revision'] if target_revision is None else target_revision
+    if not isinstance(target, str) or not target.strip():
+        raise ValueError('target revision must not be blank')
+    failures = check_document('audit', report)
+    revision_changed = target != report['target_revision']
+    queue = []
+    accepted_risks = []
+    severity_order = {'blocking': 0, 'material': 1, 'minor': 2}
+    for finding in sorted(report['findings'], key=lambda item: (severity_order[item['severity']], item['id'])):
+        stale = finding['disposition'] == 'resolved' and (finding['checked_revision'] != target or not finding['recheck_evidence'].strip())
+        if finding['disposition'] == 'open' or stale:
+            queue.append({'id': finding['id'], 'severity': finding['severity'], 'owner': finding['owner'],
+                          'finding': finding['finding'], 'evidence': finding['evidence'],
+                          'action': 'recheck-current-revision' if stale else 'address-finding'})
+        elif finding['disposition'] == 'accepted_risk':
+            accepted_risks.append({'id': finding['id'], 'severity': finding['severity'], 'owner': finding['owner']})
+    return {'contract_valid': not failures, 'contract_failures': failures,
+            'recorded_revision': report['target_revision'], 'requested_revision': target,
+            'revision_changed': revision_changed,
+            'closure_ready': not failures and not revision_changed and report['recommendation'] == 'pass',
+            'recommendation': report['recommendation'], 'remediation_queue': queue, 'accepted_risks': accepted_risks,
+            'note': 'Readiness reflects supplied audit bookkeeping, not independent verification or release authority.'}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -115,20 +144,25 @@ def main() -> int:
     evidence = commands.add_parser('evidence')
     evidence.add_argument('file', type=Path)
     evidence.add_argument('--changed-source', action='append', default=[])
+    audit = commands.add_parser('audit')
+    audit.add_argument('file', type=Path)
+    audit.add_argument('--target-revision')
     args = parser.parse_args()
     try:
         if args.command == 'compare-plans':
             result = compare_plans(load_json(args.before), load_json(args.after))
         elif args.command == 'evidence':
             result = inspect_evidence(load_json(args.file), args.changed_source)
+        elif args.command == 'audit':
+            result = inspect_audit(load_json(args.file), args.target_revision)
         else:
             result = inspect_plan(load_json(args.file), args.accepted)
-        rendered = json.dumps({'ok': True, 'inspection': result}, indent=2, allow_nan=False)
+        rendered = json.dumps({'ok': result.get('contract_valid', True), 'inspection': result}, indent=2, allow_nan=False)
     except (OSError, ValueError, RecursionError, OverflowError):
         print(json.dumps({'ok': False, 'error': 'records or inspection arguments are invalid or unreadable'}))
         return 1
     print(rendered)
-    return 0
+    return 0 if result.get('contract_valid', True) else 1
 
 
 if __name__ == '__main__':

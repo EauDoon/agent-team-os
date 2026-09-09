@@ -46,3 +46,18 @@ Repeat `--changed-source` for multiple sources, or omit it for a coverage view.
 Unknown or duplicate source IDs fail. An affected supported claim is flagged
 for reinspection, not silently relabeled unsupported. The ledger stays unchanged;
 the operator must inspect the new evidence and revise claims deliberately.
+
+## Inspect audit remediation and stale closure
+
+```sh
+python3 scripts/inspect_records.py audit templates/audit-closure.json
+python3 scripts/inspect_records.py audit templates/audit-closure.json --target-revision fictional-tool-r3
+```
+
+The severity-ordered queue names each open or stale finding, its owner, evidence
+and next action. Resolved findings become recheck work when the requested target
+revision differs. Accepted risks stay visible separately. A pass recommendation
+with an unresolved significant finding returns `ok: false` and exit status 1
+while retaining the actionable queue. Structurally malformed reports receive
+the generic input error. `closure_ready` refers only to supplied bookkeeping;
+the command does not independently verify the artifact or authorize release.

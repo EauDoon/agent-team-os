@@ -6,12 +6,37 @@ import sys
 import tempfile
 import unittest
 
-from scripts.inspect_records import inspect_plan, compare_plans, inspect_evidence
+from scripts.inspect_records import inspect_plan, compare_plans, inspect_evidence, inspect_audit
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_audit_inspection_exposes_stale_closure_and_significant_failures(self):
+        report = json.loads((ROOT / 'templates/audit-closure.json').read_text())
+        self.assertTrue(inspect_audit(report)['closure_ready'])
+        result = inspect_audit(report, 'fictional-tool-r3')
+        self.assertFalse(result['closure_ready'])
+        self.assertEqual(result['remediation_queue'][0]['action'], 'recheck-current-revision')
+        report['findings'][0]['disposition'] = 'open'
+        result = inspect_audit(report)
+        self.assertFalse(result['contract_valid'])
+        self.assertFalse(result['closure_ready'])
+        self.assertEqual(result['remediation_queue'][0]['owner'], 'maker')
+
+    def test_invalid_audit_cli_keeps_actionable_queue_with_failure_exit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = json.loads((ROOT / 'templates/audit-closure.json').read_text())
+            report['findings'][0]['disposition'] = 'open'
+            path = Path(directory) / 'audit.json'
+            path.write_text(json.dumps(report))
+            result = subprocess.run([sys.executable, '-m', 'scripts.inspect_records', 'audit', str(path)],
+                                    cwd=ROOT, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 1)
+            payload = json.loads(result.stdout)
+            self.assertFalse(payload['ok'])
+            self.assertTrue(payload['inspection']['remediation_queue'])
+
     def test_evidence_impact_preserves_status_and_tracks_unused_sources(self):
         ledger = json.loads((ROOT / 'templates/evidence-ledger.json').read_text())
         extra = copy.deepcopy(ledger['sources'][0])
