@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from itertools import product
 from pathlib import Path
 from unittest.mock import patch
 
@@ -93,17 +94,16 @@ class ValidateTests(unittest.TestCase):
             self.assertEqual((archive.read_bytes(), checksum.read_bytes()), previous)
 
     def test_second_promotion_failure_restores_release_pair(self) -> None:
-        for archive_existed, checksum_existed in (
-            (True, True),
-            (True, False),
-            (False, True),
-            (False, False),
-        ):
+        for archive_existed, checksum_existed, aliased_output in product((True, False), repeat=3):
             with self.subTest(
                 archive_existed=archive_existed,
                 checksum_existed=checksum_existed,
+                aliased_output=aliased_output,
             ), tempfile.TemporaryDirectory() as directory:
-                output = Path(directory)
+                # The builder resolves its output path. Windows temporary paths
+                # can be short-name aliases, so compare canonical destinations.
+                output = Path(directory).resolve()
+                requested_output = output / '..' / output.name if aliased_output else Path(directory)
                 version = version_for(Path(__file__).resolve().parents[1])
                 archive = output / f"agent-team-{version}.zip"
                 checksum = archive.with_suffix(".zip.sha256")
@@ -119,14 +119,14 @@ class ValidateTests(unittest.TestCase):
 
                 def fail_checksum_once(source: Path, target: Path) -> Path:
                     nonlocal checksum_failure_raised
-                    if Path(target) == checksum and not checksum_failure_raised:
+                    if Path(target).resolve() == checksum and not checksum_failure_raised:
                         checksum_failure_raised = True
                         raise PermissionError("checksum is locked")
                     return original_replace(source, target)
 
                 with patch(
                     "sys.argv",
-                    ["package.py", "--output", str(output)],
+                    ["package.py", "--output", str(requested_output)],
                 ), patch.object(
                     Path,
                     "replace",
