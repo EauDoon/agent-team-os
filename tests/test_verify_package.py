@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import lzma
 from pathlib import Path
 import struct
 import subprocess
@@ -8,16 +9,62 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-from zipfile import ZipFile, ZIP_DEFLATED
+from zipfile import BadZipFile, ZipFile, ZipInfo, ZIP_STORED, ZIP_DEFLATED, ZIP_BZIP2, ZIP_LZMA
 import zlib
 
-from scripts.package import main as package_main
+from scripts.package import main as package_main, files_for, version_for
 from scripts.verify_package import verify
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class PackageVerificationTests(unittest.TestCase):
+    def test_supported_and_rejected_codecs_with_real_valid_and_corrupt_members(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archive = Path(directory) / 'codec.zip'
+            for method, decoding_error in [(ZIP_LZMA, lzma.LZMAError), (ZIP_BZIP2, OSError),
+                                            (ZIP_STORED, BadZipFile), (ZIP_DEFLATED, zlib.error)]:
+                with ZipFile(archive, 'w') as handle:
+                    for index, path in enumerate(files_for(ROOT)):
+                        info = ZipInfo(f'agent-team-{version_for(ROOT)}/' + path.relative_to(ROOT).as_posix())
+                        info.external_attr = 0o100644 << 16
+                        info.compress_type = method if index == 0 else ZIP_DEFLATED
+                        handle.writestr(info, path.read_bytes())
+                original = archive.read_bytes()
+                with ZipFile(archive) as handle:
+                    first = handle.infolist()[0]
+                    # Establish that each unmodified codec fixture is valid.
+                    self.assertEqual(handle.read(first), files_for(ROOT)[0].read_bytes())
+                name_length, extra_length = struct.unpack_from('<HH', original, first.header_offset + 26)
+                compressed_start = first.header_offset + 30 + name_length + extra_length
+                corrupt = bytearray(original)
+                if method == ZIP_LZMA:
+                    corrupt[compressed_start + 4] = 255  # Invalid LZMA filter properties.
+                elif method == ZIP_DEFLATED:
+                    corrupt[compressed_start] = 7  # Reserved deflate block type.
+                else:
+                    corrupt[compressed_start] ^= 255  # BZIP2 header or stored-content CRC failure.
+                archive.write_bytes(corrupt)
+                with ZipFile(archive) as handle, self.assertRaises(decoding_error):
+                    handle.read(handle.infolist()[0])
+                for raw, corrupted in [(corrupt, True), (original, False)]:
+                    archive.write_bytes(raw)
+                    accepted = not corrupted and method in {ZIP_STORED, ZIP_DEFLATED}
+                    for entry in [['scripts/verify_package.py'], ['-m', 'scripts.verify_package']]:
+                        result = subprocess.run([sys.executable, *entry, str(archive)], cwd=ROOT,
+                                                capture_output=True, text=True, timeout=5)
+                        self.assertEqual(result.returncode, 0 if accepted else 1)
+                        self.assertEqual(result.stderr, '')
+                        payload = json.loads(result.stdout)
+                        if accepted:
+                            self.assertTrue(payload['ok'])
+                        else:
+                            self.assertEqual(payload, {'ok': False, 'error': 'archive could not be verified against the current source tree'})
+                    if method not in {ZIP_STORED, ZIP_DEFLATED}:
+                        with patch.object(ZipFile, 'open', side_effect=AssertionError('decoder must not be opened')):
+                            with self.assertRaisesRegex(ValueError, 'compression method'):
+                                verify(archive, ROOT)
+
     def test_archive_decoding_failures_return_generic_json_in_both_cli_modes(self):
         with tempfile.TemporaryDirectory() as directory:
             with patch('sys.argv', ['package.py', '--output', directory]), contextlib.redirect_stdout(io.StringIO()):
@@ -41,7 +88,7 @@ class PackageVerificationTests(unittest.TestCase):
             struct.pack_into('<H', unsupported_method, local + 8, 99)
             struct.pack_into('<H', unsupported_method, central_start + 10, 99)
             for raw, error in [(original, None), (corrupt_deflate, zlib.error),
-                               (unsupported_method, NotImplementedError)]:
+                               (unsupported_method, ValueError)]:
                 archive.write_bytes(raw)
                 if error is not None:
                     with self.assertRaises(error):

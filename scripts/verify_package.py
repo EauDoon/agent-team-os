@@ -6,7 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
-from zipfile import BadZipFile, ZipFile
+from zipfile import BadZipFile, ZipFile, ZIP_STORED, ZIP_DEFLATED
 import zlib
 
 try:
@@ -15,6 +15,7 @@ except ImportError:
     from package import files_for, version_for
 
 MAX_ARCHIVE_BYTES = 32 * 1024 * 1024
+SUPPORTED_COMPRESSION = {ZIP_STORED, ZIP_DEFLATED}
 
 
 def verify(archive: Path, root: Path, expected_sha256: str | None = None) -> dict:
@@ -35,6 +36,11 @@ def verify(archive: Path, root: Path, expected_sha256: str | None = None) -> dic
         if len(names) != len(set(names)) or set(names) != set(expected):
             raise ValueError('archive entries differ from the source manifest')
         for info in entries:
+            # Keep the decoder surface explicit across Python versions. Official
+            # packages use Deflate; Stored needs no decoder. Other methods are
+            # rejected even if the host's zipfile module happens to support them.
+            if info.compress_type not in SUPPORTED_COMPRESSION:
+                raise ValueError('archive compression method is not supported')
             path = expected[info.filename]
             if info.is_dir() or (info.external_attr >> 16) & 0o170000 != 0o100000:
                 raise ValueError('archive entry is not a regular file')
@@ -61,8 +67,8 @@ def main() -> int:
     args = parser.parse_args()
     try:
         result = verify(args.archive, Path(__file__).resolve().parents[1], args.sha256)
-    # RuntimeError includes unsupported-method NotImplementedError; malformed
-    # compressed streams can raise zlib.error directly while reading a member.
+    # Stored data has no decoder. Malformed Deflate streams can raise zlib.error
+    # directly while reading a member; every other codec is rejected above.
     except (OSError, ValueError, BadZipFile, RuntimeError, EOFError, zlib.error):
         print(json.dumps({'ok': False, 'error': 'archive could not be verified against the current source tree'}))
         return 1

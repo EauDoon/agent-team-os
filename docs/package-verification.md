@@ -13,6 +13,15 @@ encrypted entries, changed content and oversized archives. It reads the ZIP
 without extracting or executing any member. Archives are limited to 32 MiB;
 decompression is bounded to each expected source file's size.
 
+Supported member methods are Stored (0) and Deflate (8). The included builder
+uses Deflate. The verifier deliberately rejects BZIP2, LZMA, Zstandard and all
+other methods before opening their members, even when the installed Python
+supports those codecs. This narrows acceptance of custom recompressed archives;
+rebuild from reviewed source with the included builder to obtain a supported
+package. Valid and corrupt members using a rejected method receive the same
+generic JSON failure and exit status 1. No codec is enabled automatically by a
+Python upgrade.
+
 If you obtained an expected digest through a trusted channel, pass it with
 `--sha256` followed by the 64-character digest. The result includes the computed
 SHA-256, source version and file count. Exit status 0 means verification passed;
