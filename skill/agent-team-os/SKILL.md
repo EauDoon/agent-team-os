@@ -78,6 +78,12 @@ Require the Auditor to check:
 
 Require the Auditor to distinguish blocking, material, and minor findings. Trace each finding to evidence or a reproducible check. Send material findings to the owning role for correction, then recheck the changed result. Do not treat silence, confidence, or role labels as proof.
 
+Give the Auditor original criteria and the exact target revision. Preserve an
+independent first assessment when it matters. Keep stable finding IDs, owners
+and dispositions. Close findings only with a recorded recheck of the delivered
+revision. Reopen affected findings after changes. Do not recommend pass while
+blocking or material findings remain unresolved.
+
 ## Deliver one result
 
 Have the Orchestrator summarize the outcome, evidence basis, assumptions, unresolved risks, and any uncompleted request. Preserve uncertainty instead of filling gaps. Obtain explicit authorization before any consequential external action that was not already authorized.

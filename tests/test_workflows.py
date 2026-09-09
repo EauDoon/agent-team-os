@@ -20,6 +20,19 @@ class WorkflowTests(unittest.TestCase):
             broken['claims'][0].update(source_ids=refs, status=status, next_step=next_step)
             self.assertTrue(check_document('evidence', broken))
 
+    def test_audit_closure_requires_current_recheck_and_independence(self):
+        report = json.loads((ROOT / 'templates/audit-closure.json').read_text())
+        self.assertEqual(check_document('audit', report), [])
+        for mutation in ['stale', 'open', 'risk', 'author']:
+            broken = copy.deepcopy(report)
+            if mutation == 'stale':
+                broken['target_revision'] = 'next-revision'
+            elif mutation == 'author':
+                broken['auditor'] = broken['author']
+            else:
+                broken['findings'][0]['disposition'] = 'open' if mutation == 'open' else 'accepted_risk'
+            self.assertTrue(check_document('audit', broken))
+
     def test_valid_plan(self):
         self.assertEqual(check_document('plan', self.plan()), [])
 

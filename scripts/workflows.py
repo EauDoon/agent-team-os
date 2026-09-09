@@ -55,3 +55,19 @@ def evidence_violations(ledger: dict) -> list[str]:
         if claim['status'] in {'conflicting', 'unsupported'} and not claim['next_step'].strip():
             errors.append(f"{claim['id']}: unresolved evidence needs a next step")
     return errors
+
+
+def audit_violations(report: dict) -> list[str]:
+    errors = []
+    if report['author'] == report['auditor']:
+        errors.append('audit: author and independent auditor must be distinct')
+    ids = [finding['id'] for finding in report['findings']]
+    if len(set(ids)) != len(ids):
+        errors.append('findings: duplicate ID')
+    for finding in report['findings']:
+        if finding['disposition'] == 'resolved':
+            if finding['checked_revision'] != report['target_revision'] or not finding['recheck_evidence'].strip():
+                errors.append(f"{finding['id']}: resolution needs a recheck of the target revision")
+        elif report['recommendation'] == 'pass' and finding['severity'] in {'blocking', 'material'}:
+            errors.append(f"{finding['id']}: unresolved significant finding prevents pass")
+    return errors

@@ -1,0 +1,92 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "audit_version",
+    "target_revision",
+    "author",
+    "auditor",
+    "findings",
+    "recommendation"
+  ],
+  "properties": {
+    "audit_version": {
+      "const": "agent-team-audit/v0.1"
+    },
+    "target_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1
+    },
+    "auditor": {
+      "type": "string",
+      "minLength": 1
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "severity",
+          "finding",
+          "owner",
+          "evidence",
+          "disposition",
+          "checked_revision",
+          "recheck_evidence"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "enum": [
+              "blocking",
+              "material",
+              "minor"
+            ]
+          },
+          "finding": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "string",
+            "minLength": 1
+          },
+          "disposition": {
+            "enum": [
+              "open",
+              "resolved",
+              "accepted_risk"
+            ]
+          },
+          "checked_revision": {
+            "type": "string"
+          },
+          "recheck_evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "recommendation": {
+      "enum": [
+        "pass",
+        "revise",
+        "blocked"
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

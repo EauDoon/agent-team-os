@@ -9,13 +9,13 @@ from pathlib import Path
 
 try:
     from .contracts import violations
-    from .workflows import routing_violations, evidence_violations
+    from .workflows import routing_violations, evidence_violations, audit_violations
 except ImportError:
     from contracts import violations
-    from workflows import routing_violations, evidence_violations
+    from workflows import routing_violations, evidence_violations, audit_violations
 
 ROOT = Path(__file__).resolve().parents[1]
-CONTRACTS = {'evidence': 'schemas/evidence-ledger.schema.json', 'plan': 'schemas/routing-plan.schema.json', 'brief': 'schemas/role-brief.schema.json', 'connect': 'schemas/connect.schema.json'}
+CONTRACTS = {'audit': 'schemas/audit-closure.schema.json', 'evidence': 'schemas/evidence-ledger.schema.json', 'plan': 'schemas/routing-plan.schema.json', 'brief': 'schemas/role-brief.schema.json', 'connect': 'schemas/connect.schema.json'}
 MAX_BYTES = 1024 * 1024
 
 
@@ -49,6 +49,8 @@ def check_document(kind: str, document: object) -> list[str]:
         errors.extend(routing_violations(document))
     if not errors and kind == 'evidence':
         errors.extend(evidence_violations(document))
+    if not errors and kind == 'audit':
+        errors.extend(audit_violations(document))
     return errors
 
 
