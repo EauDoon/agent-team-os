@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import re
 from zipfile import BadZipFile, ZipFile
+import zlib
 
 try:
     from .package import files_for, version_for
@@ -60,7 +61,9 @@ def main() -> int:
     args = parser.parse_args()
     try:
         result = verify(args.archive, Path(__file__).resolve().parents[1], args.sha256)
-    except (OSError, ValueError, BadZipFile, RuntimeError, EOFError):
+    # RuntimeError includes unsupported-method NotImplementedError; malformed
+    # compressed streams can raise zlib.error directly while reading a member.
+    except (OSError, ValueError, BadZipFile, RuntimeError, EOFError, zlib.error):
         print(json.dumps({'ok': False, 'error': 'archive could not be verified against the current source tree'}))
         return 1
     print(json.dumps(result, indent=2))
