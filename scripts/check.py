@@ -60,9 +60,16 @@ def parse_json_bytes(raw: bytes) -> object:
 
 def load_json_snapshot(path: Path) -> tuple[object, str]:
     """Parse and hash the same bounded byte snapshot, without a second read."""
+    raw = read_json_bytes(path)
+    return parse_json_bytes(raw), hashlib.sha256(raw).hexdigest()
+
+
+def read_json_bytes(path: Path) -> bytes:
     with path.open('rb') as handle:
         raw = handle.read(MAX_BYTES + 1)
-    return parse_json_bytes(raw), hashlib.sha256(raw).hexdigest()
+    if len(raw) > MAX_BYTES:
+        raise ValueError('JSON input exceeds 1 MiB')
+    return raw
 
 
 def load_json(path: Path) -> object:

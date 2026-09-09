@@ -20,6 +20,7 @@
   "docs/handoffs.md",
   "docs/operator-quickstart.md",
   "docs/package-verification.md",
+  "docs/packets.md",
   "docs/record-inspection.md",
   "docs/release-notes-0.1.0.md",
   "docs/release-notes-0.2.0.md",
@@ -35,6 +36,7 @@
   "schemas/connect-v0.2.schema.json",
   "schemas/connect.schema.json",
   "schemas/evidence-ledger.schema.json",
+  "schemas/packet.schema.json",
   "schemas/role-brief.schema.json",
   "schemas/routing-plan.schema.json",
   "scripts/author.py",
@@ -43,6 +45,7 @@
   "scripts/evaluate.py",
   "scripts/inspect_records.py",
   "scripts/package.py",
+  "scripts/packet.py",
   "scripts/validate.py",
   "scripts/verify_package.py",
   "scripts/workflows.py",
@@ -53,6 +56,7 @@
   "templates/evidence-ledger.json",
   "templates/execution-checkpoint.md",
   "templates/handoff-receipt.md",
+  "templates/operator-packet.json",
   "templates/role-brief.md",
   "templates/routing-plan.json"
 ]
