@@ -44,15 +44,51 @@ def inspect_plan(plan: object, accepted: list[str] | None = None) -> dict:
             'note': 'Readiness means dependency acceptance only; it does not authorize or start work.'}
 
 
+def compare_plans(before: object, after: object) -> dict:
+    require_record('plan', before)
+    require_record('plan', after)
+    old = {item['id']: item for item in before['assignments']}
+    new = {item['id']: item for item in after['assignments']}
+    normalize = lambda values: {value.replace('\\', '/').strip('/').casefold() for value in values}
+    changes = []
+    for key in sorted(old.keys() & new.keys()):
+        left, right = old[key], new[key]
+        entry = {'id': key,
+                 'write_resources_added': sorted(normalize(right['write_resources']) - normalize(left['write_resources'])),
+                 'write_resources_removed': sorted(normalize(left['write_resources']) - normalize(right['write_resources'])),
+                 'dependencies_added': sorted(set(right['depends_on']) - set(left['depends_on'])),
+                 'dependencies_removed': sorted(set(left['depends_on']) - set(right['depends_on'])),
+                 'brief_changes': {field: {'before': left['brief'].get(field), 'after': right['brief'].get(field)}
+                                   for field in sorted(left['brief'].keys() | right['brief'].keys())
+                                   if left['brief'].get(field) != right['brief'].get(field)}}
+        if left['output'] != right['output']:
+            entry['output_change'] = {'before': left['output'], 'after': right['output']}
+        if any(value for field, value in entry.items() if field != 'id'):
+            changes.append(entry)
+    global_changes = {field: {'before': before.get(field), 'after': after.get(field)}
+                      for field in sorted(before.keys() | after.keys()) if field != 'assignments'
+                      and before.get(field) != after.get(field)}
+    added, removed = sorted(new.keys() - old.keys()), sorted(old.keys() - new.keys())
+    return {'changed': bool(added or removed or changes or global_changes), 'assignments_added': added,
+            'assignments_removed': removed, 'assignment_changes': changes, 'plan_changes': global_changes,
+            'note': 'Compare scope and ownership before continuing; a delta grants no new authorization.'}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
     plan = commands.add_parser('plan')
     plan.add_argument('file', type=Path)
     plan.add_argument('--accepted', action='append', default=[])
+    comparison = commands.add_parser('compare-plans')
+    comparison.add_argument('before', type=Path)
+    comparison.add_argument('after', type=Path)
     args = parser.parse_args()
     try:
-        result = inspect_plan(load_json(args.file), args.accepted)
+        if args.command == 'compare-plans':
+            result = compare_plans(load_json(args.before), load_json(args.after))
+        else:
+            result = inspect_plan(load_json(args.file), args.accepted)
         rendered = json.dumps({'ok': True, 'inspection': result}, indent=2, allow_nan=False)
     except (OSError, ValueError, RecursionError, OverflowError):
         print(json.dumps({'ok': False, 'error': 'records or inspection arguments are invalid or unreadable'}))
