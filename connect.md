@@ -393,3 +393,9 @@ The examples below are synthetic. Each is a full envelope conforming to the sche
   correctness.
 - Versioning is a policy in this document, not enforced by a registry.
 - Consequential actions still require explicit authorization outside this contract.
+
+## Operator acceptance and resumption
+
+Use the [handoff acceptance workflow](docs/handoffs.md) to distinguish sender
+completion from recipient acceptance and to reconcile uncertain effects before
+retrying. This workflow adds no wire message types or transport guarantees.

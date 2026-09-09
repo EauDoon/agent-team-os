@@ -54,6 +54,18 @@ Reject a brief that omits a field, duplicates another role, or gives broader acc
 
 Stop a role when it completes its contract, exhausts permitted evidence, encounters conflicting instructions, requires wider scope, or reaches diminishing returns. Require a concise partial result with status, evidence inspected, gaps, and the decision needed to continue. Do not keep a role active after its useful work ends.
 
+## Accept handoffs and resume
+
+Match each returned output to its assignment and brief revision. Inspect the
+exact output against its acceptance criteria before releasing dependent work.
+Distinguish sender completion from recipient acceptance. Record accepted,
+correction required, or blocked with evidence and the receiving owner.
+
+On interruption, retain the last accepted revision, completed effects, pending
+work, gaps and the event required to resume. Reconcile current state before
+retrying uncertain writes. Stop obsolete workers before transferring ownership.
+Do not infer new authority or trusted continuity from a saved checkpoint.
+
 ## Audit independently
 
 Require the Auditor to check:

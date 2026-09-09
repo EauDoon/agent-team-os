@@ -12,6 +12,7 @@
   "connect.md",
   "docs/contract-checking.md",
   "docs/evidence-ledgers.md",
+  "docs/handoffs.md",
   "docs/release-notes-0.1.0.md",
   "docs/routing-plans.md",
   "evals/README.md",
@@ -33,6 +34,7 @@
   "skill/agent-team-os/agents/openai.yaml",
   "templates/audit-report.md",
   "templates/evidence-ledger.json",
+  "templates/handoff-receipt.md",
   "templates/role-brief.md",
   "templates/routing-plan.json"
 ]
