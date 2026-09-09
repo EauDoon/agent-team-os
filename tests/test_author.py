@@ -5,12 +5,46 @@ import sys
 import tempfile
 import unittest
 
-from scripts.author import compose_brief, write_new_json
+from scripts.author import compose_brief, compose_message, write_new_json
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class AuthorTests(unittest.TestCase):
+    def test_message_composition_keeps_explicit_version_and_copied_scope(self):
+        payload = {'role_brief': self.brief()}
+        message = compose_message('handoff', 'agent-team-connect/v0.2', 'owner', 'maker', 'm1', 'task1', payload)
+        payload['role_brief']['access_scope'] = 'changed after composition'
+        self.assertEqual(message['payload']['role_brief']['access_scope'], 'Supplied files only.')
+        with self.assertRaises(ValueError):
+            compose_message('handoff', 'agent-team-connect/v0.1', 'owner', 'maker', 'm1', 'task1', payload)
+        with self.assertRaises(ValueError):
+            compose_message('response', 'agent-team-connect/v0.2', 'owner', 'maker', 'm1', 'task1',
+                            {'accepted': False, 'refusal_reason': ' ', 'next_step': 'Clarify scope.'})
+
+    def test_actual_message_authoring_and_invalid_handoff_does_not_write(self):
+        with tempfile.TemporaryDirectory() as directory:
+            brief = Path(directory) / 'brief.json'
+            write_new_json(brief, self.brief())
+            for index, kind in enumerate(('handoff', 'refusal')):
+                target = Path(directory) / f'{kind}.json'
+                flags = ['--brief', str(brief)] if kind == 'handoff' else ['--reason', 'Outside scope.', '--next-step', 'Request scoped approval.']
+                entry = ['scripts/author.py'] if index == 0 else ['-m', 'scripts.author']
+                command = [sys.executable, *entry, kind, '--version', 'agent-team-connect/v0.2',
+                           '--from', 'owner', '--to', 'maker', '--message-id', 'm1', '--correlation-id', 'task1',
+                           '--output', str(target), *flags]
+                result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=5)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(json.loads(target.read_text())['connect_version'], 'agent-team-connect/v0.2')
+            brief.write_text('{}')
+            missing = Path(directory) / 'invalid-handoff.json'
+            command = [sys.executable, 'scripts/author.py', 'handoff', '--version', 'agent-team-connect/v0.2',
+                       '--from', 'owner', '--to', 'maker', '--message-id', 'm1', '--correlation-id', 'task1',
+                       '--brief', str(brief), '--output', str(missing)]
+            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 1)
+            self.assertFalse(missing.exists())
+
     def brief(self):
         return compose_brief('Maker', 'Supplied files only.', 'Build a fictional tool.',
                              'Supplied requirements.', 'Tool and acceptance checks.',

@@ -19,3 +19,18 @@ to 1 MiB. Success returns JSON with `ok: true`; invalid input or an unavailable
 output returns generic JSON with `ok: false` and exit status 1. No role is started
 and no message is sent. Module invocation via `python3 -m scripts.author` is also
 supported.
+
+## Compose a handoff or an actionable refusal
+
+After both participants agree to v0.2, wrap an inspected brief or write a refusal:
+
+```sh
+python3 scripts/author.py handoff --version agent-team-connect/v0.2 --from owner --to maker --message-id m1 --correlation-id task1 --brief brief.json --output handoff.json
+python3 scripts/author.py refusal --version agent-team-connect/v0.2 --from owner --to initiator --message-id m2 --correlation-id task1 --reason "Requested action is outside scope." --next-step "Request a bounded scope decision." --output refusal.json
+```
+
+The composer copies the brief without widening access or rewriting its fields.
+It validates the complete message before publication. A missing or malformed
+brief produces no output file. Newly composed messages require the explicit
+version flag; the existing v0.1 validation contract remains unchanged. Files are
+draft messages only, and producing one neither negotiates a connection nor sends it.

@@ -2,15 +2,16 @@
 """Author bounded local records without overwriting existing files."""
 
 import argparse
+import copy
 import json
 import os
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 try:
-    from .check import check_document, MAX_BYTES
+    from .check import check_document, load_json, MAX_BYTES
 except ImportError:
-    from check import check_document, MAX_BYTES
+    from check import check_document, load_json, MAX_BYTES
 
 
 def write_new_text(path: Path, text: str) -> None:
@@ -47,6 +48,23 @@ def compose_brief(role: str, scope: str, task: str, evidence: str, deliver: str,
     return brief
 
 
+def compose_message(kind: str, version: str, sender: str, recipient: str,
+                    message_id: str, correlation_id: str, payload: dict) -> dict:
+    if version != 'agent-team-connect/v0.2' or kind not in {'handoff', 'response'}:
+        raise ValueError('new messages require the explicit v0.2 authoring contract')
+    if any(not isinstance(value, str) or not value.strip()
+           for value in (sender, recipient, message_id, correlation_id)):
+        raise ValueError('message identifiers must not be blank')
+    message = {'connect_version': version, 'type': kind, 'from': sender, 'to': recipient,
+               'message_id': message_id, 'correlation_id': correlation_id, 'payload': copy.deepcopy(payload)}
+    if check_document('connect', message):
+        raise ValueError('message does not conform')
+    if kind == 'response' and (payload.get('accepted') is not False or
+            any(not payload[field].strip() for field in ('refusal_reason', 'next_step'))):
+        raise ValueError('refusal needs an actionable reason and next step')
+    return message
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -54,9 +72,29 @@ def main() -> int:
     for field in ('role', 'scope', 'task', 'evidence', 'deliver', 'stop'):
         brief.add_argument('--' + field, required=True)
     brief.add_argument('--output', type=Path, required=True)
+    for name in ('handoff', 'refusal'):
+        command = commands.add_parser(name, help='compose an explicitly negotiated v0.2 message')
+        command.add_argument('--version', choices=['agent-team-connect/v0.2'], required=True)
+        command.add_argument('--from', dest='sender', required=True)
+        command.add_argument('--to', dest='recipient', required=True)
+        command.add_argument('--message-id', required=True)
+        command.add_argument('--correlation-id', required=True)
+        command.add_argument('--output', type=Path, required=True)
+        if name == 'handoff':
+            command.add_argument('--brief', type=Path, required=True)
+        else:
+            command.add_argument('--reason', required=True)
+            command.add_argument('--next-step', required=True)
     args = parser.parse_args()
     try:
-        document = compose_brief(args.role, args.scope, args.task, args.evidence, args.deliver, args.stop)
+        if args.command == 'brief':
+            document = compose_brief(args.role, args.scope, args.task, args.evidence, args.deliver, args.stop)
+        else:
+            payload = {'role_brief': load_json(args.brief)} if args.command == 'handoff' else {
+                'accepted': False, 'refusal_reason': args.reason, 'next_step': args.next_step}
+            document = compose_message('handoff' if args.command == 'handoff' else 'response',
+                                       args.version, args.sender, args.recipient, args.message_id,
+                                       args.correlation_id, payload)
         write_new_json(args.output, document)
     except (OSError, ValueError, UnicodeError, RecursionError):
         print(json.dumps({'ok': False, 'error': 'record could not be authored; check fields and a new writable output path'}))
