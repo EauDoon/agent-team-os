@@ -54,6 +54,13 @@ Reject a brief that omits a field, duplicates another role, or gives broader acc
 
 Stop a role when it completes its contract, exhausts permitted evidence, encounters conflicting instructions, requires wider scope, or reaches diminishing returns. Require a concise partial result with status, evidence inspected, gaps, and the decision needed to continue. Do not keep a role active after its useful work ends.
 
+For expensive or open-ended work, agree on observable work units, assignment and
+concurrency limits, and a correction-round limit before dispatch. Reserve work
+for integration and review. Count retries and delegated activity. At a limit,
+cancel pending work, obtain active workers' stop acknowledgments and reconcile
+uncertain effects before reassigning resources. Preserve partial results and
+name the decision needed to resume. Budget exhaustion is not completion.
+
 ## Accept handoffs and resume
 
 Match each returned output to its assignment and brief revision. Inspect the

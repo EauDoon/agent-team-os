@@ -33,6 +33,14 @@ def routing_violations(plan: dict) -> list[str]:
             owners.append((normalized, item['id']))
     if plan['route'] == 'solo' and len(assignments) != 1:
         errors.append('solo route requires exactly one assignment')
+    budget = plan.get('budget')
+    if budget:
+        if len(assignments) > budget['max_assignments']:
+            errors.append('budget: plan exceeds assignment limit')
+        if budget['max_parallel'] > budget['max_assignments']:
+            errors.append('budget: concurrency exceeds assignment limit')
+        if budget['review_reserve'] >= budget['total_work_units']:
+            errors.append('budget: review reserve must leave capacity for task work')
     return errors
 
 

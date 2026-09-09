@@ -77,6 +77,46 @@
           }
         }
       }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "work_unit",
+        "total_work_units",
+        "review_reserve",
+        "max_assignments",
+        "max_parallel",
+        "max_correction_rounds"
+      ],
+      "properties": {
+        "work_unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "total_work_units": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "review_reserve": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_assignments": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "max_parallel": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "max_correction_rounds": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
     }
   },
   "$defs": {

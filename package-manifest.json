@@ -13,6 +13,7 @@
   "docs/audit-closure.md",
   "docs/contract-checking.md",
   "docs/evidence-ledgers.md",
+  "docs/execution-budgets.md",
   "docs/handoffs.md",
   "docs/release-notes-0.1.0.md",
   "docs/routing-plans.md",
@@ -39,6 +40,7 @@
   "templates/audit-closure.json",
   "templates/audit-report.md",
   "templates/evidence-ledger.json",
+  "templates/execution-checkpoint.md",
   "templates/handoff-receipt.md",
   "templates/role-brief.md",
   "templates/routing-plan.json"

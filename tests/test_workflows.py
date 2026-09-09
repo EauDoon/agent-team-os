@@ -33,6 +33,15 @@ class WorkflowTests(unittest.TestCase):
                 broken['findings'][0]['disposition'] = 'open' if mutation == 'open' else 'accepted_risk'
             self.assertTrue(check_document('audit', broken))
 
+    def test_budget_inconsistency_fails(self):
+        for key, value in [('max_assignments', 2), ('max_parallel', 4), ('review_reserve', 8), ('total_work_units', -1)]:
+            plan = self.plan()
+            plan['budget'][key] = value
+            self.assertTrue(check_document('plan', plan))
+        plan = self.plan()
+        del plan['budget']
+        self.assertEqual(check_document('plan', plan), [])
+
     def test_valid_plan(self):
         self.assertEqual(check_document('plan', self.plan()), [])
 

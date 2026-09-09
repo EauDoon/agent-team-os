@@ -53,5 +53,13 @@
         "stop_condition": "Stop after contracted checks or an authorization gap."
       }
     }
-  ]
+  ],
+  "budget": {
+    "work_unit": "One bounded role attempt, including review and integration attempts.",
+    "total_work_units": 8,
+    "review_reserve": 2,
+    "max_assignments": 3,
+    "max_parallel": 2,
+    "max_correction_rounds": 1
+  }
 }
