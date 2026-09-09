@@ -12,6 +12,14 @@ class WorkflowTests(unittest.TestCase):
     def plan(self):
         return json.loads((ROOT / 'templates/routing-plan.json').read_text())
 
+    def test_evidence_references_and_uncertainty(self):
+        ledger = json.loads((ROOT / 'templates/evidence-ledger.json').read_text())
+        self.assertEqual(check_document('evidence', ledger), [])
+        for refs, status, next_step in [(['missing'], 'supported', ''), ([], 'supported', ''), (['brief-a'], 'conflicting', 'Resolve'), ([], 'unsupported', '')]:
+            broken = copy.deepcopy(ledger)
+            broken['claims'][0].update(source_ids=refs, status=status, next_step=next_step)
+            self.assertTrue(check_document('evidence', broken))
+
     def test_valid_plan(self):
         self.assertEqual(check_document('plan', self.plan()), [])
 

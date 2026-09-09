@@ -1,0 +1,30 @@
+{
+  "ledger_version": "agent-team-evidence/v0.1",
+  "sources": [
+    {
+      "id": "brief-a",
+      "locator": "Fictional supplied brief A, support section",
+      "revision": "fixture-1",
+      "inspected_on": "09-09-2026"
+    },
+    {
+      "id": "brief-b",
+      "locator": "Fictional supplied brief B, support section",
+      "revision": "fixture-1",
+      "inspected_on": "09-09-2026"
+    }
+  ],
+  "claims": [
+    {
+      "id": "support-hours",
+      "statement": "The fictional option covers the required support hours.",
+      "status": "conflicting",
+      "source_ids": [
+        "brief-a",
+        "brief-b"
+      ],
+      "reasoning": "The two supplied briefs report different coverage windows.",
+      "next_step": "Ask the owner to reconcile the source revisions before ranking support coverage."
+    }
+  ]
+}

@@ -34,3 +34,24 @@ def routing_violations(plan: dict) -> list[str]:
     if plan['route'] == 'solo' and len(assignments) != 1:
         errors.append('solo route requires exactly one assignment')
     return errors
+
+
+def evidence_violations(ledger: dict) -> list[str]:
+    errors = []
+    source_ids = [source['id'] for source in ledger['sources']]
+    claim_ids = [claim['id'] for claim in ledger['claims']]
+    if len(set(source_ids)) != len(source_ids):
+        errors.append('sources: duplicate ID')
+    if len(set(claim_ids)) != len(claim_ids):
+        errors.append('claims: duplicate ID')
+    for claim in ledger['claims']:
+        for reference in claim['source_ids']:
+            if reference not in source_ids:
+                errors.append(f"{claim['id']}: unknown source {reference}")
+        if claim['status'] == 'supported' and not claim['source_ids']:
+            errors.append(f"{claim['id']}: supported claim needs an inspected source")
+        if claim['status'] == 'conflicting' and len(claim['source_ids']) < 2:
+            errors.append(f"{claim['id']}: conflicting claim needs both source references")
+        if claim['status'] in {'conflicting', 'unsupported'} and not claim['next_step'].strip():
+            errors.append(f"{claim['id']}: unresolved evidence needs a next step")
+    return errors

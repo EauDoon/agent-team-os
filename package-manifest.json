@@ -11,6 +11,7 @@
   "conformance/connect/cases.json",
   "connect.md",
   "docs/contract-checking.md",
+  "docs/evidence-ledgers.md",
   "docs/release-notes-0.1.0.md",
   "docs/routing-plans.md",
   "evals/README.md",
@@ -20,6 +21,7 @@
   "examples/routing-scenarios.md",
   "package-manifest.json",
   "schemas/connect.schema.json",
+  "schemas/evidence-ledger.schema.json",
   "schemas/role-brief.schema.json",
   "schemas/routing-plan.schema.json",
   "scripts/check.py",
@@ -30,6 +32,7 @@
   "skill/agent-team-os/SKILL.md",
   "skill/agent-team-os/agents/openai.yaml",
   "templates/audit-report.md",
+  "templates/evidence-ledger.json",
   "templates/role-brief.md",
   "templates/routing-plan.json"
 ]

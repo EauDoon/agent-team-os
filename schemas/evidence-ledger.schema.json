@@ -1,0 +1,95 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ledger_version",
+    "sources",
+    "claims"
+  ],
+  "properties": {
+    "ledger_version": {
+      "const": "agent-team-evidence/v0.1"
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "locator",
+          "revision",
+          "inspected_on"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1
+          },
+          "revision": {
+            "type": "string",
+            "minLength": 1
+          },
+          "inspected_on": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "statement",
+          "status",
+          "source_ids",
+          "reasoning",
+          "next_step"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "supported",
+              "assumption",
+              "unsupported",
+              "conflicting"
+            ]
+          },
+          "source_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "reasoning": {
+            "type": "string",
+            "minLength": 1
+          },
+          "next_step": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
