@@ -12,6 +12,29 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class EvaluationTests(unittest.TestCase):
+    def test_task_details_reconcile_to_totals_without_hiding_unverified_checks(self):
+        self.run['records'][1]['checks'] = ['fail', 'unverified']
+        result = summarize(self.run, self.suite)
+        self.assertEqual(len(result['tasks']), 6)
+        first = result['tasks'][0]
+        self.assertEqual(first['checks'][1]['current'], 'unverified')
+        self.assertEqual(first['checks'][1]['solo'], 'pass')
+        self.assertEqual(first['checks'][1]['criterion'], self.suite['tasks'][0]['acceptance'][1])
+        self.assertEqual(first['passed_check_difference_current_minus_solo'], -2)
+        self.assertEqual(sum(task['passed_check_difference_current_minus_solo'] for task in result['tasks']),
+                         result['passed_check_difference_current_minus_solo'])
+
+    def test_cli_exports_actual_per_task_scores(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'run.json'
+            path.write_text(json.dumps(self.run), encoding='utf-8')
+            result = subprocess.run([sys.executable, '-m', 'scripts.evaluate', str(path)],
+                                    cwd=ROOT, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual(report['tasks'][0]['task_id'], self.suite['tasks'][0]['id'])
+            self.assertEqual(report['tasks'][0]['checks'][0]['solo'], 'pass')
+
     def setUp(self):
         self.suite = json.loads((ROOT / 'evals/tasks.json').read_text())
         self.run = {'run_version': 'agent-team-run/v0.1', 'suite_version': self.suite['suite_version'],

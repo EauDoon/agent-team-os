@@ -57,3 +57,15 @@ Measurements and per-arm totals must remain representable: durations must be
 finite binary64 values, and token counts must be exact JSON integers from 0 to
 9007199254740991. An overflowing aggregate fails the run instead of emitting
 Infinity or rounded token counts. Successful CLI output is strict JSON.
+
+## Inspect the task-level comparison
+
+Successful summaries also include `tasks` in suite order. Each entry shows both
+arms' recorded result for every named acceptance criterion, the shared prompt
+and evidence revisions, each output revision and the difference in passed
+checks. These task differences reconcile to the overall difference. Failures
+and unverified checks remain visible even when total scores are equal.
+
+Use the breakdown to inspect where the supplied run differs, not to infer why
+it differs. Task-level counts remain descriptive and are not a significance
+test, causal attribution or general performance claim.

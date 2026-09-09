@@ -64,7 +64,19 @@ def summarize(run: object, suite: dict) -> dict:
             'tokens': tokens,
             'duration_seconds': duration_total(selected),
         }
+    task_details = []
+    for task in suite['tasks']:
+        solo, current = rows[(task['id'], 'solo')], rows[(task['id'], 'current')]
+        task_details.append({
+            'task_id': task['id'],
+            'checks': [{'criterion': criterion, 'solo': solo['checks'][index], 'current': current['checks'][index]}
+                       for index, criterion in enumerate(task['acceptance'])],
+            'passed_check_difference_current_minus_solo': current['checks'].count('pass') - solo['checks'].count('pass'),
+            'prompt_revision': solo['prompt_revision'], 'evidence_revision': solo['evidence_revision'],
+            'output_revisions': {'solo': solo['output_revision'], 'current': current['output_revision']},
+        })
     return {'status': run['status'], 'arms': totals,
+            'tasks': task_details,
             'passed_check_difference_current_minus_solo': totals['current']['passed'] - totals['solo']['passed'],
             'interpretation': 'Descriptive totals for this supplied run only. No general superiority or causal claim.'}
 
