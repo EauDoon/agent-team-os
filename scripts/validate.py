@@ -10,6 +10,11 @@ import sys
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 
+try:
+    from .contracts import violations as schema_violations
+except ImportError:
+    from contracts import violations as schema_violations
+
 
 FIELDS = [
     "Role",
@@ -308,7 +313,7 @@ class Checker:
             violations.append(f"type must be one of {sorted(enum['type'])}")
         message_type = message.get("type")
         payload = message.get("payload")
-        if message_type in payload_required and isinstance(payload, dict):
+        if isinstance(message_type, str) and message_type in payload_required and isinstance(payload, dict):
             for key in payload_required[message_type]:
                 if key not in payload:
                     violations.append(f"payload missing required field {key}")
@@ -317,6 +322,7 @@ class Checker:
             for key in role_brief_required:
                 if not (isinstance(role_brief, dict) and key in role_brief):
                     violations.append(f"role_brief missing required field {key}")
+        violations.extend(schema_violations(message, schema))
         return violations
 
     def check_connect_examples(self) -> None:

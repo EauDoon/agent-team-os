@@ -21,7 +21,13 @@
     },
     "type": {
       "type": "string",
-      "enum": ["request", "response", "handoff", "status", "result"]
+      "enum": [
+        "request",
+        "response",
+        "handoff",
+        "status",
+        "result"
+      ]
     },
     "message_id": {
       "type": "string",
@@ -49,44 +55,145 @@
     },
     "capabilities": {
       "type": "array",
-      "items": { "type": "string", "minLength": 1 },
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
       "uniqueItems": true,
       "description": "Capabilities the sender advertises, or that the connection supports."
     },
-    "payload": { "type": "object" }
+    "payload": {
+      "type": "object"
+    }
   },
   "allOf": [
     {
-      "if": { "properties": { "type": { "const": "request" } }, "required": ["type"] },
-      "then": { "properties": { "payload": { "$ref": "#/$defs/request" } } }
+      "if": {
+        "properties": {
+          "type": {
+            "const": "request"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/request"
+          }
+        }
+      }
     },
     {
-      "if": { "properties": { "type": { "const": "response" } }, "required": ["type"] },
-      "then": { "properties": { "payload": { "$ref": "#/$defs/response" } } }
+      "if": {
+        "properties": {
+          "type": {
+            "const": "response"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/response"
+          }
+        }
+      }
     },
     {
-      "if": { "properties": { "type": { "const": "handoff" } }, "required": ["type"] },
-      "then": { "properties": { "payload": { "$ref": "#/$defs/handoff" } } }
+      "if": {
+        "properties": {
+          "type": {
+            "const": "handoff"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/handoff"
+          }
+        }
+      }
     },
     {
-      "if": { "properties": { "type": { "const": "status" } }, "required": ["type"] },
-      "then": { "properties": { "payload": { "$ref": "#/$defs/status" } } }
+      "if": {
+        "properties": {
+          "type": {
+            "const": "status"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/status"
+          }
+        }
+      }
     },
     {
-      "if": { "properties": { "type": { "const": "result" } }, "required": ["type"] },
-      "then": { "properties": { "payload": { "$ref": "#/$defs/result" } } }
+      "if": {
+        "properties": {
+          "type": {
+            "const": "result"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/result"
+          }
+        }
+      }
     }
   ],
   "$defs": {
     "request": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["objective", "completion_test"],
+      "required": [
+        "objective",
+        "completion_test"
+      ],
       "properties": {
-        "objective": { "type": "string", "minLength": 1 },
-        "constraints": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "completion_test": { "type": "string", "minLength": 1 },
-        "required_capabilities": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "completion_test": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
         "context": {
           "type": "object",
           "description": "Optional key/value context, for example supplied evidence references."
@@ -96,58 +203,167 @@
     "response": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["accepted"],
+      "required": [
+        "accepted"
+      ],
       "properties": {
-        "accepted": { "type": "boolean" },
+        "accepted": {
+          "type": "boolean"
+        },
         "negotiated_capabilities": {
           "type": "array",
-          "items": { "type": "string", "minLength": 1 },
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
           "uniqueItems": true
         },
         "refusal_reason": {
           "type": "string",
           "description": "Present when accepted is false. Name the missing capability, scope conflict, or authorization gap."
         },
-        "next_step": { "type": "string" }
+        "next_step": {
+          "type": "string"
+        }
       }
     },
     "handoff": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["role_brief"],
+      "required": [
+        "role_brief"
+      ],
       "properties": {
         "role_brief": {
           "type": "object",
           "description": "The six-field role brief for the delegated role; see role-brief.schema.json.",
-          "required": ["role", "access_scope", "task", "evidence", "output_contract", "stop_condition"]
+          "required": [
+            "role",
+            "access_scope",
+            "task",
+            "evidence",
+            "output_contract",
+            "stop_condition"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "role_brief_version": {
+              "type": "string",
+              "const": "agent-team-role-brief/v0.1"
+            },
+            "role": {
+              "type": "string",
+              "minLength": 1
+            },
+            "access_scope": {
+              "type": "string",
+              "minLength": 1
+            },
+            "task": {
+              "type": "string",
+              "minLength": 1
+            },
+            "evidence": {
+              "type": "string",
+              "minLength": 1
+            },
+            "output_contract": {
+              "type": "string",
+              "minLength": 1
+            },
+            "stop_condition": {
+              "type": "string",
+              "minLength": 1
+            },
+            "prohibited_actions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         },
-        "evidence": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
       }
     },
     "status": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["state"],
+      "required": [
+        "state"
+      ],
       "properties": {
         "state": {
           "type": "string",
-          "enum": ["working", "gap", "blocked", "done"]
+          "enum": [
+            "working",
+            "gap",
+            "blocked",
+            "done"
+          ]
         },
-        "evidence_inspected": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "gaps": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "decision_needed": { "type": "string" }
+        "evidence_inspected": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "gaps": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "decision_needed": {
+          "type": "string"
+        }
       }
     },
     "result": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["summary", "request_satisfied"],
+      "required": [
+        "summary",
+        "request_satisfied"
+      ],
       "properties": {
-        "summary": { "type": "string", "minLength": 1 },
-        "evidence_basis": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "assumptions": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "unresolved_risks": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-        "request_satisfied": { "type": "boolean" }
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_basis": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "unresolved_risks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "request_satisfied": {
+          "type": "boolean"
+        }
       }
     }
   }
