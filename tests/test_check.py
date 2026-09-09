@@ -5,16 +5,32 @@ import sys
 import tempfile
 import unittest
 
-from scripts.check import load_json, MAX_BYTES
+from scripts.check import check_document, load_json, MAX_BYTES
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class CheckTests(unittest.TestCase):
+    def test_schema_root_is_the_requested_checkout(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'schemas').mkdir()
+            (root / 'schemas/role-brief.schema.json').write_text('{"const": "alternate"}')
+            self.assertEqual(check_document('brief', 'alternate', schema_root=root), [])
+            self.assertTrue(check_document('brief', 'other', schema_root=root))
+
+    def test_bundled_operator_fixtures_in_both_cli_modes(self):
+        for kind, name in [('plan', 'routing-plan'), ('evidence', 'evidence-ledger'), ('audit', 'audit-closure')]:
+            for entry in [['scripts/check.py'], ['-m', 'scripts.check']]:
+                result = subprocess.run([sys.executable, *entry, kind, f'templates/{name}.json', '--json'],
+                                        cwd=ROOT, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+                self.assertTrue(json.loads(result.stdout)['ok'])
+
     def test_rejects_duplicate_nonfinite_oversize_and_bad_encoding(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'input.json'
-            for raw in [b'{"x":1,"x":2}', b'NaN', b'Infinity', b'\xff', b' ' * (MAX_BYTES + 1)]:
+            for raw in [b'{"x":1,"x":2}', b'NaN', b'Infinity', b'1e999', b'\xff', b' ' * (MAX_BYTES + 1)]:
                 path.write_bytes(raw)
                 with self.assertRaises(ValueError):
                     load_json(path)

@@ -29,7 +29,9 @@ Record `run_version` as `agent-team-run/v0.1`, the suite version, status
 (`synthetic` for tool checks or `reviewed` for an independently reviewed run),
 and distinct runner and reviewer IDs. Each record names the task ID, arm (`solo`
 or `current`), prompt revision, evidence revision, ordered acceptance `checks`,
-total `tokens`, and `duration_seconds`. Each check is `pass`, `fail`, or
+total `tokens`, and `duration_seconds`. Also record `output_revision`,
+`review_evidence` (the scoring record locator), and `configuration` (model,
+tools, routing instructions and relevant run settings). Each check is `pass`, `fail`, or
 `unverified`, in the same order as the task's acceptance list. Include failed
 and interrupted runs; mark checks unverified rather than silently dropping them.
 Measure whole-task usage consistently, including delegated work and integration.

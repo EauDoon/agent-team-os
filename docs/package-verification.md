@@ -4,7 +4,7 @@ Run verification from a source checkout whose revision you have reviewed:
 
 ```sh
 python3 scripts/package.py --output dist
-python3 scripts/verify_package.py dist/agent-team-0.1.10.zip
+python3 scripts/verify_package.py dist/agent-team-0.2.0.zip
 ```
 
 The verifier compares every archive entry with the current source manifest and

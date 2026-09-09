@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 
 try:
@@ -15,7 +16,13 @@ except ImportError:
     from workflows import routing_violations, evidence_violations, audit_violations
 
 ROOT = Path(__file__).resolve().parents[1]
-CONTRACTS = {'audit': 'schemas/audit-closure.schema.json', 'evidence': 'schemas/evidence-ledger.schema.json', 'plan': 'schemas/routing-plan.schema.json', 'brief': 'schemas/role-brief.schema.json', 'connect': 'schemas/connect.schema.json'}
+CONTRACTS = {
+    'audit': 'schemas/audit-closure.schema.json',
+    'evidence': 'schemas/evidence-ledger.schema.json',
+    'plan': 'schemas/routing-plan.schema.json',
+    'brief': 'schemas/role-brief.schema.json',
+    'connect': 'schemas/connect.schema.json',
+}
 MAX_BYTES = 1024 * 1024
 
 
@@ -32,18 +39,24 @@ def load_json(path: Path) -> object:
     def constant(_value):
         raise ValueError('non-finite JSON number')
 
+    def finite_float(value):
+        number = float(value)
+        if not math.isfinite(number):
+            raise ValueError('non-finite JSON number')
+        return number
+
     with path.open('rb') as handle:
         raw = handle.read(MAX_BYTES + 1)
     if len(raw) > MAX_BYTES:
         raise ValueError('JSON input exceeds 1 MiB')
     try:
-        return json.loads(raw.decode('utf-8'), object_pairs_hook=pairs, parse_constant=constant)
+        return json.loads(raw.decode('utf-8'), object_pairs_hook=pairs, parse_constant=constant, parse_float=finite_float)
     except (UnicodeError, json.JSONDecodeError, RecursionError) as exc:
         raise ValueError('input must be a bounded UTF-8 JSON document') from exc
 
 
-def check_document(kind: str, document: object) -> list[str]:
-    schema = load_json(ROOT / CONTRACTS[kind])
+def check_document(kind: str, document: object, *, schema_root: Path = ROOT) -> list[str]:
+    schema = load_json(schema_root / CONTRACTS[kind])
     errors = violations(document, schema)
     if not errors and kind == 'plan':
         errors.extend(routing_violations(document))

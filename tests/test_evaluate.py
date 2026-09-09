@@ -16,6 +16,7 @@ class EvaluationTests(unittest.TestCase):
         for task in self.suite['tasks']:
             for arm in ['solo', 'current']:
                 self.run['records'].append({'task_id': task['id'], 'arm': arm,
+                    'output_revision': 'fixture-o1', 'review_evidence': 'Synthetic check record.', 'configuration': 'Synthetic runner configuration.',
                     'prompt_revision': 'fixture-p1', 'evidence_revision': 'fixture-e1',
                     'checks': ['pass'] * len(task['acceptance']), 'tokens': 10, 'duration_seconds': 2.5})
 

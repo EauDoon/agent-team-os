@@ -398,6 +398,25 @@ class Checker:
             "CHANGELOG top entry matches VERSION",
         )
 
+    def check_operator_fixtures(self) -> None:
+        try:
+            from .check import check_document
+        except ImportError:
+            from check import check_document
+        for kind, relative in (
+            ('plan', 'templates/routing-plan.json'),
+            ('evidence', 'templates/evidence-ledger.json'),
+            ('audit', 'templates/audit-closure.json'),
+        ):
+            document = self.json_file(relative)
+            if document is not None:
+                try:
+                    errors = check_document(kind, document, schema_root=self.root)
+                except (OSError, ValueError, RecursionError):
+                    errors = ['operator schema is unreadable or unsupported']
+                self.ok(not errors, f'operator fixture conforms: {relative}')
+                self.failures.extend(f'{relative}: {error}' for error in errors)
+
     def run(self) -> None:
         skill = self.text("skill/agent-team-os/SKILL.md")
         readme = self.text("README.md")
@@ -447,6 +466,7 @@ class Checker:
         self.check_connect()
         self.check_connect_examples()
         self.check_connect_conformance()
+        self.check_operator_fixtures()
 
         for path in sorted(self.root.rglob("*")):
             if not path.is_file() or ".git" in path.parts or "dist" in path.parts:
