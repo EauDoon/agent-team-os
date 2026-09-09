@@ -7,6 +7,7 @@ loads remote references. Unsupported assertion keywords fail explicitly.
 from __future__ import annotations
 
 import json
+import math
 
 
 KEYWORDS = {
@@ -22,6 +23,8 @@ def violations(value: object, schema: dict, *, root: dict | None = None,
     """Return located violations; reject excessive nesting and unknown rules."""
     if depth > 64:
         return [f"{path}: maximum contract depth exceeded"]
+    if isinstance(value, float) and not math.isfinite(value):
+        return [f"{path}: number must be finite"]
     root = schema if root is None else root
     unknown = set(schema) - KEYWORDS
     if unknown:
@@ -52,7 +55,7 @@ def violations(value: object, schema: dict, *, root: dict | None = None,
     if "type" in schema and not kinds.get(schema["type"], False):
         return errors + [f"{path}: expected {schema['type']}"]
     # JSON equality must distinguish true from 1, including inside collections.
-    canonical = lambda item: json.dumps(item, sort_keys=True, ensure_ascii=True)
+    canonical = lambda item: json.dumps(item, sort_keys=True, ensure_ascii=True, allow_nan=False)
     if "const" in schema and canonical(value) != canonical(schema["const"]):
         errors.append(f"{path}: does not match const")
     if "enum" in schema and canonical(value) not in [canonical(x) for x in schema["enum"]]:

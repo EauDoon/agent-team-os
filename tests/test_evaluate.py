@@ -1,6 +1,9 @@
 import copy
 import json
 from pathlib import Path
+import subprocess
+import sys
+import tempfile
 import unittest
 
 from scripts.evaluate import summarize
@@ -32,6 +35,41 @@ class EvaluationTests(unittest.TestCase):
         result = summarize(self.run, self.suite)
         self.assertEqual(result['arms']['solo']['passed'], 11)
         self.assertEqual(result['arms']['solo']['unverified'], 1)
+
+    def test_nonfinite_and_oversized_in_memory_measurements_fail(self):
+        for field, value in [('duration_seconds', float('nan')),
+                             ('duration_seconds', float('inf')),
+                             ('duration_seconds', -float('inf')),
+                             ('duration_seconds', 10 ** 400), ('tokens', 10 ** 400)]:
+            run = copy.deepcopy(self.run)
+            run['records'][0][field] = value
+            with self.assertRaises(ValueError):
+                summarize(run, self.suite)
+
+    def test_finite_measurements_with_overflowing_totals_fail(self):
+        for field, value in [('duration_seconds', 1e308), ('tokens', 2 ** 53 - 1)]:
+            run = copy.deepcopy(self.run)
+            for row in run['records']:
+                row[field] = value
+            with self.assertRaises(ValueError):
+                summarize(run, self.suite)
+
+    def test_cli_rejects_overflow_with_strict_json_in_both_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'run.json'
+            for field, value in [('duration_seconds', 1e308), ('duration_seconds', 10 ** 400), ('tokens', 10 ** 400)]:
+                run = copy.deepcopy(self.run)
+                for row in run['records']:
+                    row[field] = value
+                path.write_text(json.dumps(run, allow_nan=False), encoding='utf-8')
+                for entry in [['scripts/evaluate.py'], ['-m', 'scripts.evaluate']]:
+                    result = subprocess.run([sys.executable, *entry, str(path)], cwd=ROOT,
+                                            capture_output=True, text=True, timeout=5)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    def reject_constant(value):
+                        self.fail('non-JSON constant emitted: ' + value)
+                    self.assertFalse(json.loads(result.stdout, parse_constant=reject_constant)['ok'])
+                    self.assertEqual(result.stderr, '')
 
     def test_incomplete_unpaired_duplicate_and_invalid_scores_fail(self):
         for mutation in ['missing', 'duplicate', 'evidence', 'checks', 'negative', 'reviewer']:

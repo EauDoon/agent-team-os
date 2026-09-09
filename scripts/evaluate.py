@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import math
 from pathlib import Path
 
 try:
@@ -11,6 +12,19 @@ try:
 except ImportError:
     from check import load_json, ROOT
     from contracts import violations
+
+MAX_EXACT_INTEGER = 2 ** 53 - 1
+
+
+def duration_total(rows: list[dict]) -> float:
+    """Reject aggregate overflow even when every input measurement is finite."""
+    try:
+        total = math.fsum(row['duration_seconds'] for row in rows)
+    except (OverflowError, ValueError) as exc:
+        raise ValueError('duration total is not representable as a finite number') from exc
+    if not math.isfinite(total):
+        raise ValueError('duration total must be finite')
+    return total
 
 
 def summarize(run: object, suite: dict) -> dict:
@@ -41,11 +55,14 @@ def summarize(run: object, suite: dict) -> dict:
     for arm in ('solo', 'current'):
         selected = [row for row in rows.values() if row['arm'] == arm]
         checks = [check for row in selected for check in row['checks']]
+        tokens = sum(row['tokens'] for row in selected)
+        if tokens > MAX_EXACT_INTEGER:
+            raise ValueError('token total exceeds the interoperable JSON integer limit')
         totals[arm] = {
             'tasks': len(selected), 'passed': checks.count('pass'),
             'failed': checks.count('fail'), 'unverified': checks.count('unverified'),
-            'tokens': sum(row['tokens'] for row in selected),
-            'duration_seconds': sum(row['duration_seconds'] for row in selected),
+            'tokens': tokens,
+            'duration_seconds': duration_total(selected),
         }
     return {'status': run['status'], 'arms': totals,
             'passed_check_difference_current_minus_solo': totals['current']['passed'] - totals['solo']['passed'],
@@ -58,11 +75,12 @@ def main() -> int:
     args = parser.parse_args()
     try:
         result = summarize(load_json(args.file), load_json(ROOT / 'evals/tasks.json'))
-    except (OSError, ValueError, RecursionError) as exc:
+        rendered = json.dumps({'ok': True, **result}, indent=2, allow_nan=False)
+    except (OSError, ValueError, OverflowError, RecursionError):
         # Schema diagnostics may contain field names; never include source values.
-        print(json.dumps({'ok': False, 'error': 'evaluation record is invalid or unreadable'}))
+        print(json.dumps({'ok': False, 'error': 'evaluation record is invalid or unreadable'}, allow_nan=False))
         return 1
-    print(json.dumps({'ok': True, **result}, indent=2))
+    print(rendered)
     return 0
 
 

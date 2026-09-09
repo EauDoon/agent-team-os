@@ -52,3 +52,8 @@ not proof of independent review. The summary is descriptive for the supplied
 run, with no statistical significance, causal attribution, general superiority
 or optimality claim. Repeated runs and an independently held-out comparison
 remain necessary for broader conclusions.
+
+Measurements and per-arm totals must remain representable: durations must be
+finite binary64 values, and token counts must be exact JSON integers from 0 to
+9007199254740991. An overflowing aggregate fails the run instead of emitting
+Infinity or rounded token counts. Successful CLI output is strict JSON.
