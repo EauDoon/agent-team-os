@@ -26,3 +26,25 @@ returns `ok: false` and exit status 1 while retaining unaffected record results.
 A malformed index or exceeded packet limit returns a generic failure. Passing
 all record checks does not verify relationships between natural-language claims,
 complete the task, authorize actions or prove an independent audit occurred.
+
+## Preserve and recheck the exact packet
+
+```sh
+python3 scripts/packet.py templates/operator-packet.json --receipt packet-receipt.json
+python3 scripts/packet.py templates/operator-packet.json --verify-receipt packet-receipt.json
+```
+
+A [receipt](../schemas/packet-receipt.schema.json) records the task ID, index
+digest, and each record's ID, kind, path, digest and byte length. Creation requires
+every record to pass. It uses the same exclusively published new-file behavior as
+[authoring](authoring.md), including the hard-link filesystem requirement.
+Existing files are never overwritten. Receipt output and verification are
+mutually exclusive.
+
+Verification checks the current packet with the current bundled validators before
+comparing its captured bytes with the receipt. Even whitespace-only edits cause
+a mismatch. A failed check or mismatch returns `ok: false` and exit status 1.
+Only paths from the explicitly supplied packet are read; a receipt never drives
+file access. Receipts do not freeze validator implementations, authenticate their
+author or record approval. Keep the reviewed package revision alongside them when
+reproducibility across tool upgrades matters.

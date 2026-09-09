@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Author complete briefs and explicit v0.2 handoffs or actionable refusals.
+- Inspect dependency readiness, plan changes, evidence impact and audit remediation.
+- Export per-task paired evaluation evidence and escaped Markdown reports.
+- Check bounded local record packets and preserve exact-byte receipts for drift checks.
+- Preserve v0.1 wire compatibility and existing independent evaluation boundaries.
+
 ## 0.2.0
 
 - Add local JSON contract checking for authored briefs, messages, routing plans,
