@@ -9,11 +9,13 @@ from pathlib import Path
 
 try:
     from .contracts import violations
+    from .workflows import routing_violations
 except ImportError:
     from contracts import violations
+    from workflows import routing_violations
 
 ROOT = Path(__file__).resolve().parents[1]
-CONTRACTS = {'brief': 'schemas/role-brief.schema.json', 'connect': 'schemas/connect.schema.json'}
+CONTRACTS = {'plan': 'schemas/routing-plan.schema.json', 'brief': 'schemas/role-brief.schema.json', 'connect': 'schemas/connect.schema.json'}
 MAX_BYTES = 1024 * 1024
 
 
@@ -42,7 +44,10 @@ def load_json(path: Path) -> object:
 
 def check_document(kind: str, document: object) -> list[str]:
     schema = load_json(ROOT / CONTRACTS[kind])
-    return violations(document, schema)
+    errors = violations(document, schema)
+    if not errors and kind == 'plan':
+        errors.extend(routing_violations(document))
+    return errors
 
 
 def main() -> int:
