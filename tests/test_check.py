@@ -11,6 +11,21 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class CheckTests(unittest.TestCase):
+    def test_connection_cli_selects_declared_wire_version(self):
+        suite = json.loads((ROOT / 'conformance/connect/cases.json').read_text())
+        message = next(case['message'] for case in suite['cases'] if case['name'] == 'handoff-valid')
+        message['payload']['role_brief']['consumer_note'] = 'Existing v0.1 extension.'
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'message.json'
+            for version, expected in [('v0.1', 0), ('v0.2', 1), ('v999', 1)]:
+                message['connect_version'] = 'agent-team-connect/' + version
+                path.write_text(json.dumps(message), encoding='utf-8')
+                for entry in [['scripts/check.py'], ['-m', 'scripts.check']]:
+                    result = subprocess.run([sys.executable, *entry, 'connect', str(path), '--json'],
+                                            cwd=ROOT, capture_output=True, text=True, timeout=5)
+                    self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+                    self.assertEqual(json.loads(result.stdout)['ok'], expected == 0)
+
     def test_schema_root_is_the_requested_checkout(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

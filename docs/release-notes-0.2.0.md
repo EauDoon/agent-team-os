@@ -11,10 +11,10 @@ instruction-only skill and the six-field role brief.
 - Summarize paired evaluations with shared inputs and no dropped task arms.
 - Verify ZIP contents against a reviewed source checkout without extraction.
 
-Existing valid connection examples remain valid. Invalid documents previously
-accepted by the partial checker now fail, including wrong payload types, empty
-IDs, unknown properties and malformed role briefs. The wire contract version
-remains `agent-team-connect/v0.1`.
+Existing v0.1 connection acceptance is preserved against its unchanged schema.
+The new opt-in `agent-team-connect/v0.2` wire version enforces the complete
+role-brief contract. The CLI checks the declared version without upgrading it.
+Wrong envelope or payload types still fail the applicable published schema.
 
 The operator checker uses Python 3.11 or later and only the standard library.
 Direct script and module execution are supported. No runtime scheduler,

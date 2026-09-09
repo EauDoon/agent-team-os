@@ -23,6 +23,10 @@ CONTRACTS = {
     'brief': 'schemas/role-brief.schema.json',
     'connect': 'schemas/connect.schema.json',
 }
+CONNECT_CONTRACTS = {
+    'agent-team-connect/v0.1': 'schemas/connect.schema.json',
+    'agent-team-connect/v0.2': 'schemas/connect-v0.2.schema.json',
+}
 MAX_BYTES = 1024 * 1024
 
 
@@ -56,7 +60,12 @@ def load_json(path: Path) -> object:
 
 
 def check_document(kind: str, document: object, *, schema_root: Path = ROOT) -> list[str]:
-    schema = load_json(schema_root / CONTRACTS[kind])
+    relative = CONTRACTS[kind]
+    if kind == 'connect' and isinstance(document, dict):
+        version = document.get('connect_version')
+        if isinstance(version, str):
+            relative = CONNECT_CONTRACTS.get(version, relative)
+    schema = load_json(schema_root / relative)
     errors = violations(document, schema)
     if not errors and kind == 'plan':
         errors.extend(routing_violations(document))

@@ -325,16 +325,17 @@ class Checker:
         violations.extend(schema_violations(message, schema))
         return violations
 
-    def check_connect_examples(self) -> None:
-        """Verify the worked examples in connect.md are valid connect messages."""
-        content = self.text("connect.md")
+    def check_connect_examples(self, relative: str = "connect.md",
+                               schema_relative: str = "schemas/connect.schema.json") -> None:
+        """Verify worked examples against their declared versioned schema."""
+        content = self.text(relative)
         if not content:
             return
-        schema = self.json_file("schemas/connect.schema.json")
+        schema = self.json_file(schema_relative)
         if not isinstance(schema, dict):
             return
         blocks = re.findall(r"```json\s*(.*?)```", content, flags=re.DOTALL)
-        self.ok(bool(blocks), "connect.md contains worked JSON examples")
+        self.ok(bool(blocks), f"{relative} contains worked JSON examples")
         for index, block in enumerate(blocks, 1):
             try:
                 msg = json.loads(block)
@@ -348,14 +349,15 @@ class Checker:
             else:
                 self.ok(True, f"connect example {index} conforms to the connect schema")
 
-    def check_connect_conformance(self) -> None:
+    def check_connect_conformance(self, relative: str = "conformance/connect/cases.json",
+                                  schema_relative: str = "schemas/connect.schema.json") -> None:
         """Run the versioned connect conformance suite and check each outcome.
 
         conformance/connect/cases.json holds named messages with an expectation of
         valid or invalid. Each message is checked with connect_violations and the
         result must match the expectation, so the suite is machine-verified in CI.
         """
-        suite = self.json_file("conformance/connect/cases.json")
+        suite = self.json_file(relative)
         if not isinstance(suite, dict):
             return
         cases = suite.get("cases")
@@ -365,7 +367,7 @@ class Checker:
         )
         if not isinstance(cases, list):
             return
-        schema = self.json_file("schemas/connect.schema.json")
+        schema = self.json_file(schema_relative)
         if not isinstance(schema, dict):
             return
         names = [case.get("name") for case in cases if isinstance(case, dict)]
@@ -466,6 +468,8 @@ class Checker:
         self.check_connect()
         self.check_connect_examples()
         self.check_connect_conformance()
+        self.check_connect_examples("docs/connect-v0.2.md", "schemas/connect-v0.2.schema.json")
+        self.check_connect_conformance("conformance/connect-v0.2/cases.json", "schemas/connect-v0.2.schema.json")
         self.check_operator_fixtures()
 
         for path in sorted(self.root.rglob("*")):

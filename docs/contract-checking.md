@@ -23,3 +23,7 @@ unsupported assertion keywords rather than pretending to validate them.
 Passing checks establishes shape, not truthful evidence, useful scope, actual
 permission enforcement, authenticated identity or successful execution. Review
 all six brief fields for meaningful content before delegation.
+
+Connection checks select v0.1 or v0.2 by the explicit `connect_version`. The
+original v0.1 handoff acceptance remains compatible; use the negotiated
+[v0.2 contract](connect-v0.2.md) for strict role-brief field validation.

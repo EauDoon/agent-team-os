@@ -10,9 +10,12 @@ security boundaries that any two conforming agents must follow to interoperate.
 If you build a transport (queue, RPC, files, a channel), the transport is not
 part of this contract; only the message content and its rules are.
 
-The machine-readable message shape is [`schemas/connect.schema.json`](schemas/connect.schema.json).
-A conforming message must validate against it. The delegation inside a handoff
-reuses the six-field role brief in [`schemas/role-brief.schema.json`](schemas/role-brief.schema.json).
+The original v0.1 message shape remains in
+[`schemas/connect.schema.json`](schemas/connect.schema.json). The optional
+[v0.2 authoring contract](docs/connect-v0.2.md) adds stronger handoff validation
+under its own explicit version. A message must validate against its declared
+version. Both use the six-field role-brief model; v0.2 enforces the complete
+[role-brief schema](schemas/role-brief.schema.json).
 
 ## Why a connect contract
 
@@ -227,7 +230,10 @@ See [`SECURITY.md`](SECURITY.md) for safe-use and reporting guidance.
 
 ## Versioning and compatibility
 
-- The contract is versioned by `connect_version`, currently `agent-team-connect/v0.1`.
+- The contract is versioned by `connect_version`, with supported values `agent-team-connect/v0.1` and `agent-team-connect/v0.2`.
+- Preserve the original v0.1 schema for existing consumers. Negotiate v0.2
+  explicitly before using its stronger handoff rules. The checker never silently
+  upgrades messages. The worked examples below retain their original v0.1 version.
 - A receiver should ignore unknown **payload** keys it does not understand where the
   schema allows it, and reject a message whose `connect_version` it does not
   support rather than guess at meaning.
