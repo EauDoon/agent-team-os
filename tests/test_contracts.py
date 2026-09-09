@@ -30,6 +30,25 @@ class ContractTests(unittest.TestCase):
         message['connect_version'] = 'agent-team-connect/v999'
         self.assertTrue(check_document('connect', message))
 
+    def test_v02_refusals_require_both_actionable_fields(self):
+        suite = json.loads((ROOT / 'conformance/connect-v0.2/cases.json').read_text())
+        refused = next(case['message'] for case in suite['cases'] if case['name'] == 'response-refuse-valid')
+        self.assertEqual(check_document('connect', refused), [])
+        for field in ('refusal_reason', 'next_step'):
+            for missing in (True, False):
+                message = copy.deepcopy(refused)
+                if missing:
+                    del message['payload'][field]
+                else:
+                    message['payload'][field] = ''
+                self.assertTrue(check_document('connect', message))
+                # The previous published wire contract remains unchanged.
+                message['connect_version'] = 'agent-team-connect/v0.1'
+                self.assertEqual(check_document('connect', message), [])
+        accepted = copy.deepcopy(refused)
+        accepted['payload'] = {'accepted': True}
+        self.assertEqual(check_document('connect', accepted), [])
+
     def test_connection_rejects_malformed_envelope_and_nested_values(self):
         schema = json.loads((ROOT / 'schemas/connect.schema.json').read_text())
         suite = json.loads((ROOT / 'conformance/connect/cases.json').read_text())

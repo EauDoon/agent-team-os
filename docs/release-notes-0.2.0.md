@@ -13,7 +13,8 @@ instruction-only skill and the six-field role brief.
 
 Existing v0.1 connection acceptance is preserved against its unchanged schema.
 The new opt-in `agent-team-connect/v0.2` wire version enforces the complete
-role-brief contract. The CLI checks the declared version without upgrading it.
+role-brief contract and requires actionable refusal fields. The CLI checks the
+declared version without upgrading it.
 Wrong envelope or payload types still fail the applicable published schema.
 
 The operator checker uses Python 3.11 or later and only the standard library.

@@ -51,3 +51,26 @@ This fictional handoff uses the stronger version explicitly:
 Both versions have independent conformance cases, run by the repository
 validator. A passing contract check does not authenticate participants, grant
 permissions or establish that the brief is useful or truthful.
+
+## Actionable refusals
+
+When `accepted` is false, v0.2 requires both `refusal_reason` and `next_step`
+as nonempty strings. Accepted responses may omit these fields. This enforces
+the existing workflow requirement under the new explicit version; the original
+v0.1 schema remains unchanged. Review reasons for useful content, not just shape.
+
+```json
+{
+  "connect_version": "agent-team-connect/v0.2",
+  "type": "response",
+  "message_id": "m3",
+  "correlation_id": "c1",
+  "from": "orch",
+  "to": "init",
+  "payload": {
+    "accepted": false,
+    "refusal_reason": "missing required capabilities: external-write",
+    "next_step": "authorize or remove: external-write"
+  }
+}
+```

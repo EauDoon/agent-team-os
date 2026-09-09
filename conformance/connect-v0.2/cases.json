@@ -264,6 +264,76 @@
         }
       },
       "violation": "The v0.2 role brief enforces its full authored contract."
+    },
+    {
+      "name": "refusal-refusal_reason-missing",
+      "expect": "invalid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.2",
+        "type": "response",
+        "message_id": "m3",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": false,
+          "next_step": "authorize or remove: external-write"
+        }
+      },
+      "violation": "A v0.2 refusal needs a nonempty reason and next step."
+    },
+    {
+      "name": "refusal-refusal_reason-empty",
+      "expect": "invalid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.2",
+        "type": "response",
+        "message_id": "m3",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": false,
+          "refusal_reason": "",
+          "next_step": "authorize or remove: external-write"
+        }
+      },
+      "violation": "A v0.2 refusal needs a nonempty reason and next step."
+    },
+    {
+      "name": "refusal-next_step-missing",
+      "expect": "invalid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.2",
+        "type": "response",
+        "message_id": "m3",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": false,
+          "refusal_reason": "missing required capabilities: external-write"
+        }
+      },
+      "violation": "A v0.2 refusal needs a nonempty reason and next step."
+    },
+    {
+      "name": "refusal-next_step-empty",
+      "expect": "invalid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.2",
+        "type": "response",
+        "message_id": "m3",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": false,
+          "refusal_reason": "missing required capabilities: external-write",
+          "next_step": ""
+        }
+      },
+      "violation": "A v0.2 refusal needs a nonempty reason and next step."
     }
   ]
 }

@@ -262,6 +262,21 @@
           ]
         }
       }
+    },
+    {
+      "name": "legacy-refusal-shape-valid",
+      "expect": "valid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "response",
+        "message_id": "m3",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": false
+        }
+      }
     }
   ]
 }
