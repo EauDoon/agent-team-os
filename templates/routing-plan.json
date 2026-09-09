@@ -1,0 +1,65 @@
+{
+  "plan_version": "agent-team-plan/v0.1",
+  "objective": "Create a fictional small internal tool.",
+  "completion_test": "Every approved requirement has a passing check or a reported gap.",
+  "route": "team",
+  "delegation_reason": "Separate construction from independent acceptance review.",
+  "assignments": [
+    {
+      "id": "requirements",
+      "output": "acceptance-checks",
+      "depends_on": [],
+      "write_resources": [],
+      "brief": {
+        "role": "Analyst",
+        "access_scope": "Read supplied requirements. Write only named resources. No external actions.",
+        "task": "Turn supplied requirements into acceptance checks.",
+        "evidence": "Supplied requirements and accepted dependency outputs.",
+        "output_contract": "acceptance-checks with evidence, assumptions and gaps.",
+        "stop_condition": "Stop after contracted checks or an authorization gap."
+      }
+    },
+    {
+      "id": "build",
+      "output": "internal-tool",
+      "depends_on": [
+        "requirements"
+      ],
+      "write_resources": [
+        "src"
+      ],
+      "brief": {
+        "role": "Maker",
+        "access_scope": "Read supplied requirements. Write only named resources. No external actions.",
+        "task": "Build the requested small internal tool.",
+        "evidence": "Supplied requirements and accepted dependency outputs.",
+        "output_contract": "internal-tool with evidence, assumptions and gaps.",
+        "stop_condition": "Stop after contracted checks or an authorization gap."
+      }
+    },
+    {
+      "id": "review",
+      "output": "audit-findings",
+      "depends_on": [
+        "build"
+      ],
+      "write_resources": [],
+      "brief": {
+        "role": "Auditor",
+        "access_scope": "Read supplied requirements. Write only named resources. No external actions.",
+        "task": "Check the tool against the original acceptance checks.",
+        "evidence": "Supplied requirements and accepted dependency outputs.",
+        "output_contract": "audit-findings with evidence, assumptions and gaps.",
+        "stop_condition": "Stop after contracted checks or an authorization gap."
+      }
+    }
+  ],
+  "budget": {
+    "work_unit": "One bounded role attempt, including review and integration attempts.",
+    "total_work_units": 8,
+    "review_reserve": 2,
+    "max_assignments": 3,
+    "max_parallel": 2,
+    "max_correction_rounds": 1
+  }
+}

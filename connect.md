@@ -10,9 +10,12 @@ security boundaries that any two conforming agents must follow to interoperate.
 If you build a transport (queue, RPC, files, a channel), the transport is not
 part of this contract; only the message content and its rules are.
 
-The machine-readable message shape is [`schemas/connect.schema.json`](schemas/connect.schema.json).
-A conforming message must validate against it. The delegation inside a handoff
-reuses the six-field role brief in [`schemas/role-brief.schema.json`](schemas/role-brief.schema.json).
+The original v0.1 message shape remains in
+[`schemas/connect.schema.json`](schemas/connect.schema.json). The optional
+[v0.2 authoring contract](docs/connect-v0.2.md) adds stronger handoff validation
+under its own explicit version. A message must validate against its declared
+version. Both use the six-field role-brief model; v0.2 enforces the complete
+[role-brief schema](schemas/role-brief.schema.json).
 
 ## Why a connect contract
 
@@ -73,11 +76,12 @@ connection.
 ## Message envelope
 
 Every message is a single JSON object conforming to
-[`schemas/connect.schema.json`](schemas/connect.schema.json).
+the agreed version's schema: [v0.1](schemas/connect.schema.json) or
+[v0.2](schemas/connect-v0.2.schema.json).
 
 | Field | Required | Meaning |
 | --- | --- | --- |
-| `connect_version` | yes | Must be `agent-team-connect/v0.1`. |
+| `connect_version` | yes | The explicitly agreed `agent-team-connect/v0.1` or `agent-team-connect/v0.2`. |
 | `type` | yes | One of `request`, `response`, `handoff`, `status`, `result`. |
 | `message_id` | yes | Unique id for this message; delivery should be idempotent on it. |
 | `correlation_id` | yes | The connection or request this message belongs to. |
@@ -208,6 +212,10 @@ internal delegation. A conforming Orchestrator must not accept a handoff whose r
 brief omits a field, duplicates another role, or grants broader access than the task
 requires.
 
+The original v0.1 schema checks that all six keys exist. The v0.2 schema also
+checks their value types and permitted optional fields. Shape validation alone
+does not establish that a role is necessary or its access is appropriately scoped.
+
 ## Authorization and security boundaries
 
 A connection is a coordination protocol, **not** an access-control mechanism.
@@ -227,7 +235,10 @@ See [`SECURITY.md`](SECURITY.md) for safe-use and reporting guidance.
 
 ## Versioning and compatibility
 
-- The contract is versioned by `connect_version`, currently `agent-team-connect/v0.1`.
+- The contract is versioned by `connect_version`, with supported values `agent-team-connect/v0.1` and `agent-team-connect/v0.2`.
+- Preserve the original v0.1 schema for existing consumers. Negotiate v0.2
+  explicitly before using its stronger handoff rules. The checker never silently
+  upgrades messages. The worked examples below retain their original v0.1 version.
 - A receiver should ignore unknown **payload** keys it does not understand where the
   schema allows it, and reject a message whose `connect_version` it does not
   support rather than guess at meaning.
@@ -244,7 +255,8 @@ drop a message silently. Use:
 
 - **Refused connection** - a `response` with `accepted: false` and a
   `refusal_reason` naming the missing capability, scope conflict, or authorization
-  gap, plus a `next_step`.
+  gap, plus a `next_step`. The v0.2 schema enforces nonempty values for both;
+  the v0.1 schema retains its original more permissive acceptance.
 - **Invalid handoff** - reject a handoff with an incomplete role brief; state the
   missing field.
 - **Gap** - a `status` with `state: gap` and the `decision_needed` to resolve it.
@@ -393,3 +405,9 @@ The examples below are synthetic. Each is a full envelope conforming to the sche
   correctness.
 - Versioning is a policy in this document, not enforced by a registry.
 - Consequential actions still require explicit authorization outside this contract.
+
+## Operator acceptance and resumption
+
+Use the [handoff acceptance workflow](docs/handoffs.md) to distinguish sender
+completion from recipient acceptance and to reconcile uncertain effects before
+retrying. This workflow adds no wire message types or transport guarantees.

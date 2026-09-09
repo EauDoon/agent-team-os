@@ -10,6 +10,11 @@ import sys
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 
+try:
+    from .contracts import violations as schema_violations
+except ImportError:
+    from contracts import violations as schema_violations
+
 
 FIELDS = [
     "Role",
@@ -308,7 +313,7 @@ class Checker:
             violations.append(f"type must be one of {sorted(enum['type'])}")
         message_type = message.get("type")
         payload = message.get("payload")
-        if message_type in payload_required and isinstance(payload, dict):
+        if isinstance(message_type, str) and message_type in payload_required and isinstance(payload, dict):
             for key in payload_required[message_type]:
                 if key not in payload:
                     violations.append(f"payload missing required field {key}")
@@ -317,18 +322,20 @@ class Checker:
             for key in role_brief_required:
                 if not (isinstance(role_brief, dict) and key in role_brief):
                     violations.append(f"role_brief missing required field {key}")
+        violations.extend(schema_violations(message, schema))
         return violations
 
-    def check_connect_examples(self) -> None:
-        """Verify the worked examples in connect.md are valid connect messages."""
-        content = self.text("connect.md")
+    def check_connect_examples(self, relative: str = "connect.md",
+                               schema_relative: str = "schemas/connect.schema.json") -> None:
+        """Verify worked examples against their declared versioned schema."""
+        content = self.text(relative)
         if not content:
             return
-        schema = self.json_file("schemas/connect.schema.json")
+        schema = self.json_file(schema_relative)
         if not isinstance(schema, dict):
             return
         blocks = re.findall(r"```json\s*(.*?)```", content, flags=re.DOTALL)
-        self.ok(bool(blocks), "connect.md contains worked JSON examples")
+        self.ok(bool(blocks), f"{relative} contains worked JSON examples")
         for index, block in enumerate(blocks, 1):
             try:
                 msg = json.loads(block)
@@ -342,14 +349,15 @@ class Checker:
             else:
                 self.ok(True, f"connect example {index} conforms to the connect schema")
 
-    def check_connect_conformance(self) -> None:
+    def check_connect_conformance(self, relative: str = "conformance/connect/cases.json",
+                                  schema_relative: str = "schemas/connect.schema.json") -> None:
         """Run the versioned connect conformance suite and check each outcome.
 
         conformance/connect/cases.json holds named messages with an expectation of
         valid or invalid. Each message is checked with connect_violations and the
         result must match the expectation, so the suite is machine-verified in CI.
         """
-        suite = self.json_file("conformance/connect/cases.json")
+        suite = self.json_file(relative)
         if not isinstance(suite, dict):
             return
         cases = suite.get("cases")
@@ -359,7 +367,7 @@ class Checker:
         )
         if not isinstance(cases, list):
             return
-        schema = self.json_file("schemas/connect.schema.json")
+        schema = self.json_file(schema_relative)
         if not isinstance(schema, dict):
             return
         names = [case.get("name") for case in cases if isinstance(case, dict)]
@@ -391,6 +399,25 @@ class Checker:
             bool(versions) and versions[0] == current,
             "CHANGELOG top entry matches VERSION",
         )
+
+    def check_operator_fixtures(self) -> None:
+        try:
+            from .check import check_document
+        except ImportError:
+            from check import check_document
+        for kind, relative in (
+            ('plan', 'templates/routing-plan.json'),
+            ('evidence', 'templates/evidence-ledger.json'),
+            ('audit', 'templates/audit-closure.json'),
+        ):
+            document = self.json_file(relative)
+            if document is not None:
+                try:
+                    errors = check_document(kind, document, schema_root=self.root)
+                except (OSError, ValueError, RecursionError):
+                    errors = ['operator schema is unreadable or unsupported']
+                self.ok(not errors, f'operator fixture conforms: {relative}')
+                self.failures.extend(f'{relative}: {error}' for error in errors)
 
     def run(self) -> None:
         skill = self.text("skill/agent-team-os/SKILL.md")
@@ -441,6 +468,9 @@ class Checker:
         self.check_connect()
         self.check_connect_examples()
         self.check_connect_conformance()
+        self.check_connect_examples("docs/connect-v0.2.md", "schemas/connect-v0.2.schema.json")
+        self.check_connect_conformance("conformance/connect-v0.2/cases.json", "schemas/connect-v0.2.schema.json")
+        self.check_operator_fixtures()
 
         for path in sorted(self.root.rglob("*")):
             if not path.is_file() or ".git" in path.parts or "dist" in path.parts:

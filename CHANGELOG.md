@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0
+
+- Add local JSON contract checking for authored briefs, messages, routing plans,
+  evidence ledgers and audit closure records.
+- Enforce the complete shipped connection schema, including nested payloads.
+- Add revision-aware handoff, resumption and bounded execution workflows.
+- Summarize complete paired evaluation records without performance claims.
+- Verify package content against reviewed source before extraction.
+- Include operator guidance and checked examples in deterministic packages.
+
 ## 0.1.10
 
 - Added a deterministic **capability negotiation** algorithm to `connect.md`

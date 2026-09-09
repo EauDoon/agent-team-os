@@ -1,0 +1,109 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_version",
+    "suite_version",
+    "status",
+    "runner",
+    "reviewer",
+    "records"
+  ],
+  "properties": {
+    "run_version": {
+      "const": "agent-team-run/v0.1"
+    },
+    "suite_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "synthetic",
+        "reviewed"
+      ]
+    },
+    "runner": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reviewer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "records": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "task_id",
+          "arm",
+          "prompt_revision",
+          "evidence_revision",
+          "checks",
+          "tokens",
+          "duration_seconds",
+          "output_revision",
+          "review_evidence",
+          "configuration"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "arm": {
+            "enum": [
+              "solo",
+              "current"
+            ]
+          },
+          "prompt_revision": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence_revision": {
+            "type": "string",
+            "minLength": 1
+          },
+          "checks": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "enum": [
+                "pass",
+                "fail",
+                "unverified"
+              ]
+            }
+          },
+          "tokens": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "duration_seconds": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1.7976931348623157e+308
+          },
+          "output_revision": {
+            "type": "string",
+            "minLength": 1
+          },
+          "review_evidence": {
+            "type": "string",
+            "minLength": 1
+          },
+          "configuration": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

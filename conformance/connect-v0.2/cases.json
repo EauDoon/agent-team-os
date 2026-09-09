@@ -1,12 +1,12 @@
 {
-  "suite_version": "agent-team-connect-conformance/v0.1",
+  "suite_version": "agent-team-connect-conformance/v0.2",
   "purpose": "Versioned conformance cases for the connect message contract in schemas/connect.schema.json.",
   "cases": [
     {
       "name": "request-valid",
       "expect": "valid",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "request",
         "message_id": "m1",
         "correlation_id": "c1",
@@ -29,7 +29,7 @@
       "name": "response-accept-valid",
       "expect": "valid",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "response",
         "message_id": "m2",
         "correlation_id": "c1",
@@ -48,7 +48,7 @@
       "name": "response-refuse-valid",
       "expect": "valid",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "response",
         "message_id": "m3",
         "correlation_id": "c1",
@@ -65,7 +65,7 @@
       "name": "handoff-valid",
       "expect": "valid",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "handoff",
         "message_id": "m4",
         "correlation_id": "c1",
@@ -91,7 +91,7 @@
       "name": "status-gap-valid",
       "expect": "valid",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "status",
         "message_id": "m5",
         "correlation_id": "c1",
@@ -110,7 +110,7 @@
       "name": "result-valid",
       "expect": "valid",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "result",
         "message_id": "m6",
         "correlation_id": "c1",
@@ -130,7 +130,7 @@
       "expect": "invalid",
       "violation": "payload missing required field objective",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "request",
         "message_id": "m7",
         "correlation_id": "c1",
@@ -146,7 +146,7 @@
       "expect": "invalid",
       "violation": "role_brief missing required field task",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "handoff",
         "message_id": "m8",
         "correlation_id": "c1",
@@ -185,7 +185,7 @@
       "expect": "invalid",
       "violation": "type must be a known message type",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "ping",
         "message_id": "m10",
         "correlation_id": "c1",
@@ -199,7 +199,7 @@
       "expect": "invalid",
       "violation": "missing required field correlation_id",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "request",
         "message_id": "m11",
         "from": "init",
@@ -211,10 +211,10 @@
       }
     },
     {
-      "name": "handoff-v01-extension-valid",
-      "expect": "valid",
+      "name": "handoff-v02-extension-invalid",
+      "expect": "invalid",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "handoff",
         "message_id": "m4",
         "correlation_id": "c1",
@@ -235,13 +235,14 @@
             "brief-b.txt"
           ]
         }
-      }
+      },
+      "violation": "The v0.2 role brief enforces its full authored contract."
     },
     {
-      "name": "handoff-v01-legacy-value-valid",
-      "expect": "valid",
+      "name": "handoff-v02-legacy-value-invalid",
+      "expect": "invalid",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "handoff",
         "message_id": "m4",
         "correlation_id": "c1",
@@ -261,22 +262,78 @@
             "brief-b.txt"
           ]
         }
-      }
+      },
+      "violation": "The v0.2 role brief enforces its full authored contract."
     },
     {
-      "name": "legacy-refusal-shape-valid",
-      "expect": "valid",
+      "name": "refusal-refusal_reason-missing",
+      "expect": "invalid",
       "message": {
-        "connect_version": "agent-team-connect/v0.1",
+        "connect_version": "agent-team-connect/v0.2",
         "type": "response",
         "message_id": "m3",
         "correlation_id": "c1",
         "from": "orch",
         "to": "init",
         "payload": {
-          "accepted": false
+          "accepted": false,
+          "next_step": "authorize or remove: external-write"
         }
-      }
+      },
+      "violation": "A v0.2 refusal needs a nonempty reason and next step."
+    },
+    {
+      "name": "refusal-refusal_reason-empty",
+      "expect": "invalid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.2",
+        "type": "response",
+        "message_id": "m3",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": false,
+          "refusal_reason": "",
+          "next_step": "authorize or remove: external-write"
+        }
+      },
+      "violation": "A v0.2 refusal needs a nonempty reason and next step."
+    },
+    {
+      "name": "refusal-next_step-missing",
+      "expect": "invalid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.2",
+        "type": "response",
+        "message_id": "m3",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": false,
+          "refusal_reason": "missing required capabilities: external-write"
+        }
+      },
+      "violation": "A v0.2 refusal needs a nonempty reason and next step."
+    },
+    {
+      "name": "refusal-next_step-empty",
+      "expect": "invalid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.2",
+        "type": "response",
+        "message_id": "m3",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": false,
+          "refusal_reason": "missing required capabilities: external-write",
+          "next_step": ""
+        }
+      },
+      "violation": "A v0.2 refusal needs a nonempty reason and next step."
     }
   ]
 }

@@ -31,9 +31,17 @@ observed evidence from assumptions.
 Group findings as **blocking**, **material**, or **minor**. Every finding must
 include a source or reproducible check and the owning role.
 
-| Severity | Finding | Evidence or check | Owner | Disposition |
-| --- | --- | --- | --- | --- |
-| blocking/material/minor |  |  |  |  |
+| ID | Severity | Finding | Evidence or check | Owner | Disposition |
+| --- | --- | --- | --- | --- | --- |
+| Stable ID | blocking/material/minor | Describe observed issue | Source or reproducible check | Responsible role | open/resolved/accepted risk |
+
+## Closure checks
+
+For every resolved finding, record its ID, corrected artifact revision, recheck
+method, observed result and reviewer. Match the rechecked revision to the audit
+target. Reopen affected findings when the target changes. Keep unresolved
+blocking or material findings visible and do not recommend pass while they
+remain. Distinguish the original independent assessment from later discussion.
 
 ## Contradictions and uncertainty
 

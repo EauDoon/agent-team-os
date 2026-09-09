@@ -1,0 +1,19 @@
+{
+  "audit_version": "agent-team-audit/v0.1",
+  "target_revision": "fictional-tool-r2",
+  "author": "maker",
+  "auditor": "auditor",
+  "findings": [
+    {
+      "id": "missing-input-check",
+      "severity": "material",
+      "finding": "The fictional tool accepted an empty required value.",
+      "owner": "maker",
+      "evidence": "Fixture acceptance case empty-name.",
+      "disposition": "resolved",
+      "checked_revision": "fictional-tool-r2",
+      "recheck_evidence": "Synthetic example only: empty-name case now reports the required validation error."
+    }
+  ],
+  "recommendation": "pass"
+}
