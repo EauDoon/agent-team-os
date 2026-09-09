@@ -419,6 +419,17 @@ class Checker:
                 self.ok(not errors, f'operator fixture conforms: {relative}')
                 self.failures.extend(f'{relative}: {error}' for error in errors)
 
+    def check_packet_fixture(self) -> None:
+        try:
+            from .packet import inspect_packet
+        except ImportError:
+            from packet import inspect_packet
+        try:
+            result = inspect_packet(self.root / 'templates/operator-packet.json', schema_root=self.root)
+            self.ok(result['ok'], 'operator packet references conforming records')
+        except (OSError, ValueError, RecursionError, OverflowError):
+            self.ok(False, 'operator packet references conforming records')
+
     def run(self) -> None:
         skill = self.text("skill/agent-team-os/SKILL.md")
         readme = self.text("README.md")
@@ -471,6 +482,7 @@ class Checker:
         self.check_connect_examples("docs/connect-v0.2.md", "schemas/connect-v0.2.schema.json")
         self.check_connect_conformance("conformance/connect-v0.2/cases.json", "schemas/connect-v0.2.schema.json")
         self.check_operator_fixtures()
+        self.check_packet_fixture()
 
         for path in sorted(self.root.rglob("*")):
             if not path.is_file() or ".git" in path.parts or "dist" in path.parts:

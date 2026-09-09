@@ -4,6 +4,10 @@ Use only the records the task needs. A simple self-contained task can stay solo
 with a concise inline brief. The skill is instruction-only; the optional Python
 tools read local files, check records and print results.
 
+The [authoring commands](authoring.md) can create complete JSON briefs and
+explicit v0.2 handoffs from supplied fields. They never infer an access scope or
+send a message. Output files must be new.
+
 ## Before dispatch
 
 1. Write the outcome, original acceptance criteria and exact permitted actions.
@@ -20,6 +24,9 @@ The bundled plan is a complete fictional small-internal-tool example. Inspect it
 python3 scripts/check.py plan templates/routing-plan.json --json
 python3 scripts/check.py evidence templates/evidence-ledger.json --json
 python3 scripts/check.py audit templates/audit-closure.json --json
+python3 scripts/inspect_records.py plan templates/routing-plan.json
+python3 scripts/inspect_records.py evidence templates/evidence-ledger.json
+python3 scripts/inspect_records.py audit templates/audit-closure.json
 ```
 
 On Windows, use your verified Python launcher or interpreter in place of
@@ -36,6 +43,15 @@ Use [audit closure](audit-closure.md) for important work. Give the Auditor the
 original criteria and exact output revision. Correct significant findings and
 recheck the delivered revision. The final answer must state incomplete work and
 unresolved risks even if a record passes structural validation.
+
+Use [record inspection](record-inspection.md) to compare a revised plan, mark
+explicitly accepted dependencies, or identify claims affected by a changed source.
+For a related set of records, use a [packet](packets.md) and preserve checked bytes:
+
+```sh
+python3 scripts/packet.py templates/operator-packet.json --receipt packet-receipt.json
+python3 scripts/packet.py templates/operator-packet.json --verify-receipt packet-receipt.json
+```
 
 ## Evaluate and distribute
 

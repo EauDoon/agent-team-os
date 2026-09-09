@@ -57,3 +57,33 @@ Measurements and per-arm totals must remain representable: durations must be
 finite binary64 values, and token counts must be exact JSON integers from 0 to
 9007199254740991. An overflowing aggregate fails the run instead of emitting
 Infinity or rounded token counts. Successful CLI output is strict JSON.
+
+## Inspect the task-level comparison
+
+Successful summaries also include `tasks` in suite order. Each entry shows both
+arms' recorded result for every named acceptance criterion, the shared prompt
+and evidence revisions, each output revision and the difference in passed
+checks. These task differences reconcile to the overall difference. Failures
+and unverified checks remain visible even when total scores are equal.
+
+Use the breakdown to inspect where the supplied run differs, not to infer why
+it differs. Task-level counts remain descriptive and are not a significance
+test, causal attribution or general performance claim.
+
+## Export a reproducible review report
+
+```sh
+python3 scripts/evaluate.py my-reviewed-run.json --format markdown --output evaluation-report.md
+```
+
+Reports include the recorded status, arm totals and every acceptance check.
+JSON and Markdown output both identify the exact input and suite bytes with
+SHA-256 and record the package version. Input parsing and hashing use the same
+bounded read. A digest identifies supplied bytes; it does not authenticate the
+runner or establish evidence truth.
+
+Markdown table cells escape supplied markup and control characters. Without
+`--output`, the report prints to standard output. With `--output`, the new file
+uses the author's exclusive publication behavior and requires filesystem
+hard-link support. Existing files are never replaced. A synthetic run remains
+labeled synthetic in every format, and export performs no publication.

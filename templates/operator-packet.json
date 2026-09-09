@@ -1,0 +1,16 @@
+{
+  "packet_version": "agent-team-packet/v0.1",
+  "task_id": "fictional-internal-tool",
+  "records": [
+    {
+      "id": "plan",
+      "kind": "plan",
+      "path": "routing-plan.json"
+    },
+    {
+      "id": "audit",
+      "kind": "audit",
+      "path": "audit-closure.json"
+    }
+  ]
+}

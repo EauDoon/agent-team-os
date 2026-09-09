@@ -54,9 +54,9 @@ It uses only the Python standard library:
 ```powershell
 python .\scripts\validate.py
 python .\scripts\package.py --output .\dist
-Get-FileHash .\dist\agent-team-0.2.0.zip -Algorithm SHA256
-Expand-Archive .\dist\agent-team-0.2.0.zip -DestinationPath .\dist\expanded
-Copy-Item .\dist\expanded\agent-team-0.2.0\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
+Get-FileHash .\dist\agent-team-0.3.0.zip -Algorithm SHA256
+Expand-Archive .\dist\agent-team-0.3.0.zip -DestinationPath .\dist\expanded
+Copy-Item .\dist\expanded\agent-team-0.3.0\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
 ```
 
 On Bash:
@@ -64,13 +64,13 @@ On Bash:
 ```bash
 python3 scripts/validate.py
 python3 scripts/package.py --output dist
-sha256sum dist/agent-team-0.2.0.zip
-unzip -q dist/agent-team-0.2.0.zip -d dist/expanded
-cp -R dist/expanded/agent-team-0.2.0/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
+sha256sum dist/agent-team-0.3.0.zip
+unzip -q dist/agent-team-0.3.0.zip -d dist/expanded
+cp -R dist/expanded/agent-team-0.3.0/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
 ```
 
 Verify the checksum before copying. From the reviewed source checkout, run
-`python3 scripts/verify_package.py dist/agent-team-0.2.0.zip` to compare
+`python3 scripts/verify_package.py dist/agent-team-0.3.0.zip` to compare
 archive members with source bytes before extraction. The package contains the skill, templates,
 schemas, examples, validator, and release documentation. It does not publish
 or change remote metadata.
@@ -83,14 +83,19 @@ Use only the records that help the task.
 
 | Tool | Local outcome |
 | --- | --- |
+| `scripts/author.py` | Compose complete briefs, explicit v0.2 handoffs and actionable refusals. |
+| `scripts/inspect_records.py` | Inspect readiness, plan changes, evidence impact and audit remediation. |
 | `scripts/check.py brief` or `connect` | Validate authored JSON before handing off work. |
 | `scripts/check.py plan` | Catch dependency cycles, duplicate output ownership and inconsistent budgets. |
 | `scripts/check.py evidence` | Catch missing claim sources and unresolved evidence gaps. |
 | `scripts/check.py audit` | Require current-revision rechecks before significant findings close. |
-| `scripts/evaluate.py` | Check complete paired runs and print descriptive totals. |
+| `scripts/evaluate.py` | Check complete paired runs, inspect each task and export escaped reports. |
+| `scripts/packet.py` | Check related records and create or verify exact-byte receipts. |
 | `scripts/verify_package.py` | Compare a ZIP with reviewed source bytes before extraction. |
 
-All tools are read-only except the existing package builder. They do not send
+Checks and inspections are read-only. Authoring, report exports and packet receipts
+write only explicitly requested new files; the package builder writes its archive
+and checksum. They do not send
 messages, execute role instructions, authenticate agents or enforce permissions.
 See [contract checking](docs/contract-checking.md) for input limits and exit codes.
 
@@ -198,7 +203,7 @@ agent-team-os/
 |   |-- validate.py                 # Dependency-light contract and link checker
 |   `-- package.py                  # Deterministic ZIP and checksum builder
 |-- docs/
-|   `-- release-notes-0.2.0.md      # Versioned release notes (one per release)
+|   `-- release-notes-0.3.0.md      # Versioned release notes (one per release)
 |-- .github/workflows/ci.yml        # Pull request and push checks
 |-- examples/
 |   `-- routing-scenarios.md        # Three synthetic end-to-end scenarios

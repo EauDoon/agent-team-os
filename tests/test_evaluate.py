@@ -1,17 +1,64 @@
 import copy
 import json
+import hashlib
 from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
 
-from scripts.evaluate import summarize
+from scripts.evaluate import summarize, markdown_cell
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class EvaluationTests(unittest.TestCase):
+    def test_markdown_cells_escape_markup_and_control_characters(self):
+        escaped = markdown_cell('<script>|[open](https://example.invalid)\n\x1b')
+        self.assertNotIn('<script>', escaped)
+        self.assertNotIn('[open](', escaped)
+        self.assertNotIn('\n', escaped)
+        self.assertNotIn('\x1b', escaped)
+        self.assertIn('\\|', escaped)
+
+    def test_report_export_pins_input_bytes_and_refuses_replacement(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source, target = Path(directory) / 'run.json', Path(directory) / 'report.md'
+            source.write_text(json.dumps(self.run, indent=1), encoding='utf-8')
+            command = [sys.executable, 'scripts/evaluate.py', str(source), '--format', 'markdown', '--output', str(target)]
+            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            report = target.read_text(encoding='utf-8')
+            self.assertIn('Status: synthetic', report)
+            self.assertIn(hashlib.sha256(source.read_bytes()).hexdigest(), report)
+            original = target.read_bytes()
+            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(target.read_bytes(), original)
+
+    def test_task_details_reconcile_to_totals_without_hiding_unverified_checks(self):
+        self.run['records'][1]['checks'] = ['fail', 'unverified']
+        result = summarize(self.run, self.suite)
+        self.assertEqual(len(result['tasks']), 6)
+        first = result['tasks'][0]
+        self.assertEqual(first['checks'][1]['current'], 'unverified')
+        self.assertEqual(first['checks'][1]['solo'], 'pass')
+        self.assertEqual(first['checks'][1]['criterion'], self.suite['tasks'][0]['acceptance'][1])
+        self.assertEqual(first['passed_check_difference_current_minus_solo'], -2)
+        self.assertEqual(sum(task['passed_check_difference_current_minus_solo'] for task in result['tasks']),
+                         result['passed_check_difference_current_minus_solo'])
+
+    def test_cli_exports_actual_per_task_scores(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'run.json'
+            path.write_text(json.dumps(self.run), encoding='utf-8')
+            result = subprocess.run([sys.executable, '-m', 'scripts.evaluate', str(path)],
+                                    cwd=ROOT, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            report = json.loads(result.stdout)
+            self.assertEqual(report['tasks'][0]['task_id'], self.suite['tasks'][0]['id'])
+            self.assertEqual(report['tasks'][0]['checks'][0]['solo'], 'pass')
+
     def setUp(self):
         self.suite = json.loads((ROOT / 'evals/tasks.json').read_text())
         self.run = {'run_version': 'agent-team-run/v0.1', 'suite_version': self.suite['suite_version'],
