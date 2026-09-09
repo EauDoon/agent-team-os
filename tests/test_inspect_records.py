@@ -6,12 +6,35 @@ import sys
 import tempfile
 import unittest
 
-from scripts.inspect_records import inspect_plan, compare_plans
+from scripts.inspect_records import inspect_plan, compare_plans, inspect_evidence
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_evidence_impact_preserves_status_and_tracks_unused_sources(self):
+        ledger = json.loads((ROOT / 'templates/evidence-ledger.json').read_text())
+        extra = copy.deepcopy(ledger['sources'][0])
+        extra['id'] = 'unused'
+        ledger['sources'].append(extra)
+        before = copy.deepcopy(ledger)
+        result = inspect_evidence(ledger, ['brief-a'])
+        self.assertEqual(result['source_claims']['brief-a'], ['support-hours'])
+        self.assertEqual(result['affected_claims'][0]['status'], 'conflicting')
+        self.assertEqual(result['unused_sources'], ['unused'])
+        self.assertEqual(ledger, before)
+        with self.assertRaises(ValueError):
+            inspect_evidence(ledger, ['unknown'])
+
+    def test_evidence_cli_shows_reinspection_work(self):
+        result = subprocess.run([sys.executable, 'scripts/inspect_records.py', 'evidence',
+                                 'templates/evidence-ledger.json', '--changed-source', 'brief-b'],
+                                cwd=ROOT, capture_output=True, text=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        report = json.loads(result.stdout)['inspection']
+        self.assertEqual(report['affected_claims'][0]['id'], 'support-hours')
+        self.assertTrue(report['unresolved_claims'][0]['next_step'])
+
     def test_plan_comparison_surfaces_scope_changes_and_ignores_order(self):
         before = self.plan()
         after = copy.deepcopy(before)

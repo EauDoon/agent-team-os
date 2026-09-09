@@ -33,3 +33,16 @@ Resource names use the validator's case and separator normalization. Natural
 language scope is shown as before/after text; the tool cannot decide whether a
 rewrite grants permission or is semantically equivalent. Review changed scope
 and stop obsolete owners before resuming work under a revised plan.
+
+## Trace changed evidence to affected claims
+
+```sh
+python3 scripts/inspect_records.py evidence templates/evidence-ledger.json --changed-source brief-a
+```
+
+The report maps sources to claim IDs and lists unresolved claims, assumptions,
+unused sources and claims affected by the explicitly named source changes.
+Repeat `--changed-source` for multiple sources, or omit it for a coverage view.
+Unknown or duplicate source IDs fail. An affected supported claim is flagged
+for reinspection, not silently relabeled unsupported. The ledger stays unchanged;
+the operator must inspect the new evidence and revise claims deliberately.

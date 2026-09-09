@@ -74,6 +74,35 @@ def compare_plans(before: object, after: object) -> dict:
             'note': 'Compare scope and ownership before continuing; a delta grants no new authorization.'}
 
 
+def inspect_evidence(ledger: object, changed_sources: list[str] | None = None) -> dict:
+    require_record('evidence', ledger)
+    changed_sources = [] if changed_sources is None else changed_sources
+    sources = {source['id']: source for source in ledger['sources']}
+    if any(not isinstance(item, str) for item in changed_sources) or len(set(changed_sources)) != len(changed_sources):
+        raise ValueError('changed source IDs must be unique strings')
+    if not set(changed_sources) <= sources.keys():
+        raise ValueError('unknown changed source')
+    references = {key: [] for key in sources}
+    affected = []
+    unresolved = []
+    assumptions = []
+    for claim in sorted(ledger['claims'], key=lambda item: item['id']):
+        for source in claim['source_ids']:
+            references[source].append(claim['id'])
+        if set(claim['source_ids']) & set(changed_sources):
+            affected.append({'id': claim['id'], 'status': claim['status'],
+                             'changed_sources': sorted(set(claim['source_ids']) & set(changed_sources)),
+                             'statement': claim['statement'], 'next_step': claim['next_step']})
+        if claim['status'] in {'unsupported', 'conflicting'}:
+            unresolved.append({'id': claim['id'], 'status': claim['status'], 'next_step': claim['next_step']})
+        if claim['status'] == 'assumption':
+            assumptions.append(claim['id'])
+    return {'source_claims': dict(sorted(references.items())), 'affected_claims': affected,
+            'unresolved_claims': unresolved, 'assumptions': assumptions,
+            'unused_sources': sorted(key for key, claims in references.items() if not claims),
+            'note': 'Affected claims need reinspection; their recorded status has not been changed.'}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -83,10 +112,15 @@ def main() -> int:
     comparison = commands.add_parser('compare-plans')
     comparison.add_argument('before', type=Path)
     comparison.add_argument('after', type=Path)
+    evidence = commands.add_parser('evidence')
+    evidence.add_argument('file', type=Path)
+    evidence.add_argument('--changed-source', action='append', default=[])
     args = parser.parse_args()
     try:
         if args.command == 'compare-plans':
             result = compare_plans(load_json(args.before), load_json(args.after))
+        elif args.command == 'evidence':
+            result = inspect_evidence(load_json(args.file), args.changed_source)
         else:
             result = inspect_plan(load_json(args.file), args.accepted)
         rendered = json.dumps({'ok': True, 'inspection': result}, indent=2, allow_nan=False)
