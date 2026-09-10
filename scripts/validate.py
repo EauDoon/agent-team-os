@@ -111,7 +111,7 @@ class Checker:
         self.ok(not missing, f"{label} contains six fields" if not missing else f"{label} missing: {', '.join(missing)}")
 
     @staticmethod
-    def _field_label(field: str) -> "re.Pattern[str]":
+    def _field_label(field: str) -> re.Pattern[str]:
         """Match a field as a label, not as a prose mention.
 
         The six field names appear in three controlled shapes: a markdown

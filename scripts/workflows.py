@@ -52,7 +52,7 @@ def routing_violations(plan: dict) -> list[str]:
                 visited.append(current)
             conflicts.update(current['owners'] - {item['id']})
             if conflicts:
-                errors.append(f"write resource has multiple owners: {sorted(conflicts)[0]}, {item['id']}")
+                errors.append(f"write resource has multiple owners: {min(conflicts)}, {item['id']}")
             current['exact'].add(item['id'])
             for prefix in visited:
                 prefix['owners'].add(item['id'])

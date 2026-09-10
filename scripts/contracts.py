@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import math
 
-
 KEYWORDS = {
     "$schema", "$id", "$defs", "$ref", "title", "description", "default",
     "type", "const", "enum", "required", "properties", "additionalProperties",

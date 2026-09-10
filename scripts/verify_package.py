@@ -4,10 +4,10 @@
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import re
-from zipfile import BadZipFile, ZipFile, ZIP_STORED, ZIP_DEFLATED
 import zlib
+from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZIP_STORED, BadZipFile, ZipFile
 
 try:
     from .package import files_for, version_for
