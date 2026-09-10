@@ -2,17 +2,26 @@ import contextlib
 import io
 import json
 import lzma
-from pathlib import Path
 import struct
 import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
-from zipfile import BadZipFile, ZipFile, ZipInfo, ZIP_STORED, ZIP_DEFLATED, ZIP_BZIP2, ZIP_LZMA
 import zlib
+from pathlib import Path
+from unittest.mock import patch
+from zipfile import (
+    ZIP_BZIP2,
+    ZIP_DEFLATED,
+    ZIP_LZMA,
+    ZIP_STORED,
+    BadZipFile,
+    ZipFile,
+    ZipInfo,
+)
 
-from scripts.package import main as package_main, files_for, version_for
+from scripts.package import files_for, version_for
+from scripts.package import main as package_main
 from scripts.verify_package import verify
 
 ROOT = Path(__file__).resolve().parents[1]

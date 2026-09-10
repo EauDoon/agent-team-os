@@ -8,7 +8,13 @@ from pathlib import Path, PurePosixPath
 
 try:
     from .author import write_new_json
-    from .check import ROOT, check_document, load_json, parse_json_bytes, read_json_bytes
+    from .check import (
+        ROOT,
+        check_document,
+        load_json,
+        parse_json_bytes,
+        read_json_bytes,
+    )
     from .contracts import violations
     from .evaluate import summarize
 except ImportError:

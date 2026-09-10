@@ -1,11 +1,11 @@
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
-from scripts.check import check_document, load_json, MAX_BYTES
+from scripts.check import MAX_BYTES, check_document, load_json
 
 ROOT = Path(__file__).resolve().parents[1]
 

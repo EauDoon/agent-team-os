@@ -1,13 +1,13 @@
 import copy
-import json
 import hashlib
-from pathlib import Path
+import json
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
-from scripts.evaluate import summarize, markdown_cell
+from scripts.evaluate import markdown_cell, summarize
 
 ROOT = Path(__file__).resolve().parents[1]
 

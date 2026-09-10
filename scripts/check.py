@@ -11,10 +11,10 @@ from pathlib import Path
 
 try:
     from .contracts import violations
-    from .workflows import routing_violations, evidence_violations, audit_violations
+    from .workflows import audit_violations, evidence_violations, routing_violations
 except ImportError:
     from contracts import violations
-    from workflows import routing_violations, evidence_violations, audit_violations
+    from workflows import audit_violations, evidence_violations, routing_violations
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = {

@@ -5,17 +5,17 @@ import argparse
 import html
 import json
 import math
-from pathlib import Path
 import unicodedata
+from pathlib import Path
 
 try:
-    from .check import load_json, load_json_snapshot, ROOT
-    from .contracts import violations
     from .author import write_new_text
+    from .check import ROOT, load_json, load_json_snapshot
+    from .contracts import violations
 except ImportError:
-    from check import load_json, load_json_snapshot, ROOT
-    from contracts import violations
     from author import write_new_text
+    from check import ROOT, load_json, load_json_snapshot
+    from contracts import violations
 
 MAX_EXACT_INTEGER = 2 ** 53 - 1
 

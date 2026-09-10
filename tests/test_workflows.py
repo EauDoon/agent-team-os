@@ -1,10 +1,10 @@
 import copy
 import json
-from pathlib import Path
-import unittest
 import subprocess
 import sys
 import tempfile
+import unittest
+from pathlib import Path
 
 from scripts.check import check_document
 

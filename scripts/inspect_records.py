@@ -6,10 +6,10 @@ import json
 from pathlib import Path
 
 try:
-    from .check import check_document, load_json, ROOT
+    from .check import ROOT, check_document, load_json
     from .contracts import violations
 except ImportError:
-    from check import check_document, load_json, ROOT
+    from check import ROOT, check_document, load_json
     from contracts import violations
 
 

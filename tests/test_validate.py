@@ -1,6 +1,6 @@
-import json
 import contextlib
 import io
+import json
 import shutil
 import subprocess
 import sys
@@ -10,8 +10,10 @@ from itertools import product
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.package import files_for, main as package_main, version_for
-from scripts.validate import Checker, _display_path, main as validate_main
+from scripts.package import files_for, version_for
+from scripts.package import main as package_main
+from scripts.validate import Checker, _display_path
+from scripts.validate import main as validate_main
 
 
 def _symlinks_supported() -> bool:
@@ -132,9 +134,8 @@ class ValidateTests(unittest.TestCase):
                     "replace",
                     autospec=True,
                     side_effect=fail_checksum_once,
-                ):
-                    with self.assertRaisesRegex(PermissionError, "checksum is locked"):
-                        package_main()
+                ), self.assertRaisesRegex(PermissionError, "checksum is locked"):
+                    package_main()
 
                 self.assertTrue(checksum_failure_raised)
                 self.assertEqual(archive.exists(), archive_existed)
@@ -569,14 +570,7 @@ class ValidateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "README.md").write_text(
-                "\n".join(
-                    (
-                        "[script](javascript:README.md)",
-                        "[data](data:README.md)",
-                        "[network](//server/share)",
-                        "[file](file://server/share)",
-                    )
-                ),
+                "[script](javascript:README.md)\n[data](data:README.md)\n[network](//server/share)\n[file](file://server/share)",
                 encoding="utf-8",
             )
 

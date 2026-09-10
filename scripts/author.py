@@ -9,9 +9,9 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 try:
-    from .check import check_document, load_json, MAX_BYTES
+    from .check import MAX_BYTES, check_document, load_json
 except ImportError:
-    from check import check_document, load_json, MAX_BYTES
+    from check import MAX_BYTES, check_document, load_json
 
 
 def write_new_text(path: Path, text: str) -> None:

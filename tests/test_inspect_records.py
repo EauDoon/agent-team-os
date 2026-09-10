@@ -1,12 +1,17 @@
 import copy
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
-from scripts.inspect_records import inspect_plan, compare_plans, inspect_evidence, inspect_audit
+from scripts.inspect_records import (
+    compare_plans,
+    inspect_audit,
+    inspect_evidence,
+    inspect_plan,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 

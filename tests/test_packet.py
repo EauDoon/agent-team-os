@@ -1,11 +1,11 @@
 import copy
 import hashlib
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 from scripts.packet import inspect_packet, make_receipt, record_path, verify_receipt
 
