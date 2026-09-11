@@ -98,3 +98,9 @@ with an unresolved significant finding returns `ok: false` and exit status 1
 while retaining the actionable queue. Structurally malformed reports receive
 the generic input error. `closure_ready` refers only to supplied bookkeeping;
 the command does not independently verify the artifact or authorize release.
+
+Use `audit FILE --owner maker` to give one recorded owner their remediation
+queue and accepted risks. Unknown or blank owners fail rather than silently
+returning no work. `total_remediation_count`, contract failures, exit status and
+`closure_ready` still reflect the complete report, so filtering cannot hide a
+blocking finding owned by someone else.

@@ -18,6 +18,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_audit_owner_filter_cannot_hide_global_closure_failures(self):
+        report = json.loads((ROOT / 'templates/audit-closure.json').read_text())
+        report['findings'][0]['disposition'] = 'open'
+        other = copy.deepcopy(report['findings'][0])
+        other.update(id='second', owner='analyst', disposition='resolved')
+        report['findings'].append(other)
+        result = inspect_audit(report, owner='analyst')
+        self.assertEqual(result['remediation_queue'], [])
+        self.assertEqual(result['total_remediation_count'], 1)
+        self.assertFalse(result['closure_ready'])
+        self.assertFalse(result['contract_valid'])
+        with self.assertRaises(ValueError):
+            inspect_audit(report, owner='unknown')
+
     def test_evidence_freshness_is_explicit_and_flags_unknown_or_future_dates(self):
         ledger = json.loads((ROOT / 'templates/evidence-ledger.json').read_text())
         self.assertEqual(inspect_evidence(ledger, as_of='11-09-2026', max_age_days=2)['freshness']['stale_sources'], [])

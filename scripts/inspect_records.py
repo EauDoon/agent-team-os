@@ -191,9 +191,12 @@ def compare_evidence(before: object, after: object) -> dict:
     return result
 
 
-def inspect_audit(report: object, target_revision: str | None = None) -> dict:
+def inspect_audit(report: object, target_revision: str | None = None, *, owner: str | None = None) -> dict:
     if violations(report, load_json(ROOT / 'schemas/audit-closure.schema.json')):
         raise ValueError('audit report shape is invalid')
+    if owner is not None and (not isinstance(owner, str) or not owner.strip()
+                              or owner not in {finding['owner'] for finding in report['findings']}):
+        raise ValueError('owner must match a recorded finding owner')
     target = report['target_revision'] if target_revision is None else target_revision
     if not isinstance(target, str) or not target.strip():
         raise ValueError('target revision must not be blank')
@@ -211,10 +214,13 @@ def inspect_audit(report: object, target_revision: str | None = None) -> dict:
         elif finding['disposition'] == 'accepted_risk':
             accepted_risks.append({'id': finding['id'], 'severity': finding['severity'], 'owner': finding['owner']})
     return {'contract_valid': not failures, 'contract_failures': failures,
+            'owner_filter': owner, 'total_remediation_count': len(queue),
             'recorded_revision': report['target_revision'], 'requested_revision': target,
             'revision_changed': revision_changed,
             'closure_ready': not failures and not revision_changed and report['recommendation'] == 'pass',
-            'recommendation': report['recommendation'], 'remediation_queue': queue, 'accepted_risks': accepted_risks,
+            'recommendation': report['recommendation'],
+            'remediation_queue': [item for item in queue if owner is None or item['owner'] == owner],
+            'accepted_risks': [item for item in accepted_risks if owner is None or item['owner'] == owner],
             'note': 'Readiness reflects supplied audit bookkeeping, not independent verification or release authority.'}
 
 
@@ -240,6 +246,7 @@ def main() -> int:
     audit = commands.add_parser('audit')
     audit.add_argument('file', type=Path)
     audit.add_argument('--target-revision')
+    audit.add_argument('--owner')
     args = parser.parse_args()
     try:
         if args.command == 'compare-plans':
@@ -250,7 +257,7 @@ def main() -> int:
             result = inspect_evidence(load_json(args.file), args.changed_source,
                                       as_of=args.as_of, max_age_days=args.max_age_days)
         elif args.command == 'audit':
-            result = inspect_audit(load_json(args.file), args.target_revision)
+            result = inspect_audit(load_json(args.file), args.target_revision, owner=args.owner)
         else:
             result = inspect_plan(load_json(args.file), args.accepted, blocked=args.blocked, invalidate=args.invalidate)
         rendered = json.dumps({'ok': result.get('contract_valid', True), 'inspection': result}, indent=2, allow_nan=False)
