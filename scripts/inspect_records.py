@@ -98,8 +98,13 @@ def compare_plans(before: object, after: object) -> dict:
                       for field in sorted(before.keys() | after.keys()) if field != 'assignments'
                       and before.get(field) != after.get(field)}
     added, removed = sorted(new.keys() - old.keys()), sorted(old.keys() - new.keys())
+    seeds = set(added + removed + [item['id'] for item in changes])
+    affected = downstream(old, seeds) | downstream(new, seeds)
+    if global_changes:
+        affected |= new.keys()
     return {'changed': bool(added or removed or changes or global_changes), 'assignments_added': added,
             'assignments_removed': removed, 'assignment_changes': changes, 'plan_changes': global_changes,
+            'recheck_assignments': sorted(affected & new.keys()),
             'note': 'Compare scope and ownership before continuing; a delta grants no new authorization.'}
 
 

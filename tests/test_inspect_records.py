@@ -17,6 +17,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_plan_changes_trace_rework_through_old_and_new_dependencies(self):
+        before = self.plan()
+        after = copy.deepcopy(before)
+        after['assignments'][0]['brief']['task'] = 'Revise the acceptance checks.'
+        self.assertEqual(compare_plans(before, after)['recheck_assignments'], ['build', 'requirements', 'review'])
+        after = copy.deepcopy(before)
+        after['assignments'][1]['depends_on'] = []
+        self.assertEqual(compare_plans(before, after)['recheck_assignments'], ['build', 'review'])
+        after = copy.deepcopy(before)
+        after['objective'] = 'Create a revised fictional internal tool.'
+        self.assertEqual(len(compare_plans(before, after)['recheck_assignments']), 3)
+        self.assertEqual(compare_plans(before, before)['recheck_assignments'], [])
+
     def test_ready_batches_observe_declared_parallel_budget(self):
         plan = self.plan()
         for item in plan['assignments']:

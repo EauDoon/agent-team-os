@@ -51,6 +51,12 @@ language scope is shown as before/after text; the tool cannot decide whether a
 rewrite grants permission or is semantically equivalent. Review changed scope
 and stop obsolete owners before resuming work under a revised plan.
 
+`recheck_assignments` includes surviving changed assignments and transitive
+dependents in either the old or new dependency graph. Removed inputs still
+trigger rechecks of their former consumers. Global objective, completion or
+budget changes conservatively flag every surviving assignment. This is an
+impact review queue, not automatic rejection of previously accepted work.
+
 ## Trace changed evidence to affected claims
 
 ```sh
