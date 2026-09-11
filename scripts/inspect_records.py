@@ -61,12 +61,15 @@ def inspect_plan(plan: object, accepted: list[str] | None = None, *, blocked: li
         remaining = {key: dependencies - set(ready) for key, dependencies in remaining.items() if key not in ready}
     waiting = [{'id': key, 'unaccepted_dependencies': sorted(set(item['depends_on']) - accepted_ids)}
                for key, item in sorted(by_id.items()) if key not in accepted_ids]
+    ready = [item['id'] for item in waiting if not item['unaccepted_dependencies'] and item['id'] not in held]
+    limit = plan.get('budget', {}).get('max_parallel')
     return {'route': plan['route'], 'stages': stages, 'accepted': sorted(accepted_ids),
             'invalidated': sorted(invalidated),
-            'ready': [item['id'] for item in waiting if not item['unaccepted_dependencies'] and item['id'] not in held],
+            'ready': ready,
+            'ready_batches': [ready[start:start + limit] for start in range(0, len(ready), limit)] if limit else None,
             'waiting': [item for item in waiting if item['unaccepted_dependencies']],
             'blocked': sorted(blocked_ids), 'blocked_dependents': sorted(held - blocked_ids),
-            'max_parallel': plan.get('budget', {}).get('max_parallel'),
+            'max_parallel': limit,
             'note': 'Readiness means dependency acceptance only; it does not authorize or start work.'}
 
 

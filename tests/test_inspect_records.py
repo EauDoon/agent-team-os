@@ -17,6 +17,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_ready_batches_observe_declared_parallel_budget(self):
+        plan = self.plan()
+        for item in plan['assignments']:
+            item['depends_on'] = []
+        self.assertEqual(inspect_plan(plan)['ready_batches'], [['build', 'requirements'], ['review']])
+        plan['budget']['max_parallel'] = 1
+        self.assertEqual(inspect_plan(plan)['ready_batches'], [['build'], ['requirements'], ['review']])
+        del plan['budget']
+        self.assertIsNone(inspect_plan(plan)['ready_batches'])
+        self.assertEqual(inspect_plan(self.plan(), blocked=['requirements'])['ready_batches'], [])
+
     def test_invalidating_an_input_reopens_all_accepted_dependents(self):
         result = inspect_plan(self.plan(), ['requirements', 'build', 'review'], invalidate=['build'])
         self.assertEqual(result['accepted'], ['requirements'])

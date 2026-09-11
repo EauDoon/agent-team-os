@@ -22,6 +22,12 @@ input.
 
 ## Review a revised plan
 
+`ready_batches` groups currently ready IDs alphabetically into batches no larger
+than the declared `max_parallel`. With no concurrency budget it is `null`,
+not an assumed unlimited batch. Empty readiness produces no batches. These
+are review suggestions, not a scheduler or a claim that capacity is available;
+finish or stop existing work and inspect actual tool limits before dispatch.
+
 When an accepted output changes, repeat `--accepted` for the original accepted
 set and pass `--invalidate ID`. Inspection removes that acceptance and all
 accepted downstream dependents before recomputing readiness. `invalidated`
