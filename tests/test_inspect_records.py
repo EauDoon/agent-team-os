@@ -18,6 +18,23 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_evidence_freshness_is_explicit_and_flags_unknown_or_future_dates(self):
+        ledger = json.loads((ROOT / 'templates/evidence-ledger.json').read_text())
+        self.assertEqual(inspect_evidence(ledger, as_of='11-09-2026', max_age_days=2)['freshness']['stale_sources'], [])
+        result = inspect_evidence(ledger, as_of='12-09-2026', max_age_days=2)
+        self.assertEqual(result['freshness']['stale_sources'], ['brief-a', 'brief-b'])
+        self.assertEqual(result['affected_claims'][0]['id'], 'support-hours')
+        ledger['sources'][0]['inspected_on'] = 'yesterday'
+        ledger['sources'][1]['inspected_on'] = '13-09-2026'
+        result = inspect_evidence(ledger, as_of='12-09-2026', max_age_days=2)['freshness']
+        self.assertEqual(result['unknown_date_sources'], ['brief-a'])
+        self.assertEqual(result['future_sources'], ['brief-b'])
+        for options in [{'as_of': '12-09-2026'}, {'max_age_days': 2},
+                        {'as_of': '31-02-2026', 'max_age_days': 2},
+                        {'as_of': '12-09-2026', 'max_age_days': -1}]:
+            with self.assertRaises(ValueError):
+                inspect_evidence(ledger, **options)
+
     def test_evidence_comparison_tracks_revisions_and_claim_edits(self):
         before = json.loads((ROOT / 'templates/evidence-ledger.json').read_text())
         after = copy.deepcopy(before)

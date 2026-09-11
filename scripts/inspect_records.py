@@ -3,6 +3,7 @@
 
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
 
 try:
@@ -108,7 +109,17 @@ def compare_plans(before: object, after: object) -> dict:
             'note': 'Compare scope and ownership before continuing; a delta grants no new authorization.'}
 
 
-def inspect_evidence(ledger: object, changed_sources: list[str] | None = None) -> dict:
+def inspection_date(value: str):
+    if not isinstance(value, str):
+        raise ValueError('date must use DD-MM-YYYY')
+    parsed = datetime.strptime(value, '%d-%m-%Y').date()
+    if parsed.strftime('%d-%m-%Y') != value:
+        raise ValueError('date must use DD-MM-YYYY')
+    return parsed
+
+
+def inspect_evidence(ledger: object, changed_sources: list[str] | None = None, *,
+                     as_of: str | None = None, max_age_days: int | None = None) -> dict:
     require_record('evidence', ledger)
     changed_sources = [] if changed_sources is None else changed_sources
     sources = {source['id']: source for source in ledger['sources']}
@@ -116,6 +127,24 @@ def inspect_evidence(ledger: object, changed_sources: list[str] | None = None) -
         raise ValueError('changed source IDs must be unique strings')
     if not set(changed_sources) <= sources.keys():
         raise ValueError('unknown changed source')
+    freshness = None
+    review_sources = set(changed_sources)
+    if as_of is not None or max_age_days is not None:
+        if as_of is None or type(max_age_days) is not int or max_age_days < 0:
+            raise ValueError('freshness requires a date and nonnegative maximum age')
+        reference_date = inspection_date(as_of)
+        freshness = {'as_of': as_of, 'max_age_days': max_age_days, 'stale_sources': [],
+                     'future_sources': [], 'unknown_date_sources': []}
+        for key, source in sorted(sources.items()):
+            try:
+                age = (reference_date - inspection_date(source['inspected_on'])).days
+            except ValueError:
+                freshness['unknown_date_sources'].append(key)
+                review_sources.add(key)
+                continue
+            if age < 0 or age > max_age_days:
+                freshness['future_sources' if age < 0 else 'stale_sources'].append(key)
+                review_sources.add(key)
     references = {key: [] for key in sources}
     affected = []
     unresolved = []
@@ -123,15 +152,17 @@ def inspect_evidence(ledger: object, changed_sources: list[str] | None = None) -
     for claim in sorted(ledger['claims'], key=lambda item: item['id']):
         for source in claim['source_ids']:
             references[source].append(claim['id'])
-        if set(claim['source_ids']) & set(changed_sources):
+        if set(claim['source_ids']) & review_sources:
             affected.append({'id': claim['id'], 'status': claim['status'],
                              'changed_sources': sorted(set(claim['source_ids']) & set(changed_sources)),
+                             'review_sources': sorted(set(claim['source_ids']) & review_sources),
                              'statement': claim['statement'], 'next_step': claim['next_step']})
         if claim['status'] in {'unsupported', 'conflicting'}:
             unresolved.append({'id': claim['id'], 'status': claim['status'], 'next_step': claim['next_step']})
         if claim['status'] == 'assumption':
             assumptions.append(claim['id'])
     return {'source_claims': dict(sorted(references.items())), 'affected_claims': affected,
+            'freshness': freshness,
             'unresolved_claims': unresolved, 'assumptions': assumptions,
             'unused_sources': sorted(key for key, claims in references.items() if not claims),
             'note': 'Affected claims need reinspection; their recorded status has not been changed.'}
@@ -204,6 +235,8 @@ def main() -> int:
     evidence = commands.add_parser('evidence')
     evidence.add_argument('file', type=Path)
     evidence.add_argument('--changed-source', action='append', default=[])
+    evidence.add_argument('--as-of')
+    evidence.add_argument('--max-age-days', type=int)
     audit = commands.add_parser('audit')
     audit.add_argument('file', type=Path)
     audit.add_argument('--target-revision')
@@ -214,7 +247,8 @@ def main() -> int:
         elif args.command == 'compare-evidence':
             result = compare_evidence(load_json(args.before), load_json(args.after))
         elif args.command == 'evidence':
-            result = inspect_evidence(load_json(args.file), args.changed_source)
+            result = inspect_evidence(load_json(args.file), args.changed_source,
+                                      as_of=args.as_of, max_age_days=args.max_age_days)
         elif args.command == 'audit':
             result = inspect_audit(load_json(args.file), args.target_revision)
         else:

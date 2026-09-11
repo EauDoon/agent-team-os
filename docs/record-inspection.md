@@ -72,6 +72,14 @@ the operator must inspect the new evidence and revise claims deliberately.
 
 ## Inspect audit remediation and stale closure
 
+Add `evidence FILE --as-of 12-09-2026 --max-age-days 2` for reproducible date
+review. Dates use DD-MM-YYYY, both options are required, and age equal to the
+limit remains current. Older, future and unparseable inspection dates are
+separate lists and their claims enter `affected_claims` via `review_sources`.
+`changed_sources` still means only explicitly named changes. With no date
+options, `freshness` is `null`. No system clock, source retrieval or implicit
+freshness policy is used; success means the inspection ran, not fresh evidence.
+
 Compare two saved ledgers with `compare-evidence old.json new.json`. The report
 lists added, removed and changed sources and claims, ignoring record and source
 reference order. `recheck_claims` links changed source metadata to surviving
