@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0
+
+- Trace blocked work, invalidate dependent acceptance and group readiness by budget.
+- Identify downstream rework after plan changes and claim rechecks after evidence changes.
+- Review evidence age with an explicit date and route audit queues to owners.
+- Copy exact plan briefs and compare handoff/response envelopes while keeping
+  recorded response acceptance separate from unverified handoff binding.
+- Diagnose per-record packet drift while preserving exact-byte receipt checks.
+
 ## 0.3.0
 
 - Author complete briefs and explicit v0.2 handoffs or actionable refusals.

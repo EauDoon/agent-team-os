@@ -22,6 +22,17 @@ supported.
 
 ## Compose a handoff or an actionable refusal
 
+When a checked routing plan already contains the brief, avoid manual retyping:
+
+```sh
+python3 scripts/author.py plan-brief templates/routing-plan.json --assignment build --output brief.json
+```
+
+The entire plan must conform before extraction. The assignment ID must match
+exactly, and all brief fields including optional prohibitions are copied without
+alteration. Existing output files remain protected. Extraction does not establish
+dependency acceptance or permission to start the assignment.
+
 After both participants agree to v0.2, wrap an inspected brief or write a refusal:
 
 ```sh

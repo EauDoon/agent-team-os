@@ -98,7 +98,17 @@ def verify_receipt(result: dict, receipt: dict) -> dict:
     current = make_receipt(result) if result['ok'] else None
     differences = ['packet_conformance'] if current is None else [
         key for key in ('task_id', 'index_sha256', 'records') if receipt[key] != current[key]]
+    old = {item['id']: item for item in receipt['records']}
+    new = {item['id']: item for item in result['records']}
+    changes = []
+    for key in sorted(old.keys() & new.keys()):
+        fields = sorted(field for field in ('kind', 'path', 'sha256', 'bytes') if old[key][field] != new[key][field])
+        if fields:
+            changes.append({'id': key, 'fields': fields})
     return {'ok': not differences, 'matches': not differences, 'differences': differences,
+            'records_added': sorted(new.keys() - old.keys()), 'records_removed': sorted(old.keys() - new.keys()),
+            'record_changes': changes, 'invalid_records': sorted(item['id'] for item in result['records'] if not item['ok']),
+            'record_order_changed': set(old) == set(new) and list(old) != list(new),
             'note': 'A matching receipt establishes byte consistency, not authenticity, authorization or review.'}
 
 

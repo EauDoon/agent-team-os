@@ -8,15 +8,193 @@ from pathlib import Path
 
 from scripts.inspect_records import (
     compare_plans,
+    compare_evidence,
     inspect_audit,
     inspect_evidence,
     inspect_plan,
+    inspect_handoff,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_new_inspection_cli_workflows_in_script_and_module_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            handoff = {'connect_version': 'agent-team-connect/v0.2', 'type': 'handoff', 'message_id': 'h1',
+                       'correlation_id': 'tool-task', 'from': 'owner', 'to': 'maker',
+                       'payload': {'role_brief': self.plan()['assignments'][1]['brief']}}
+            response = {**handoff, 'type': 'response', 'message_id': 'r1', 'from': 'maker', 'to': 'owner',
+                        'payload': {'accepted': False, 'refusal_reason': 'Scope gap.', 'next_step': 'Clarify scope.'}}
+            for name, record in [('handoff', handoff), ('response', response)]:
+                (root / (name + '.json')).write_text(json.dumps(record))
+            cases = [(['plan', 'templates/routing-plan.json', '--blocked', 'requirements'], 'ready', []),
+                     (['plan', 'templates/routing-plan.json', '--accepted', 'requirements', '--accepted', 'build',
+                       '--invalidate', 'requirements'], 'invalidated', ['build', 'requirements']),
+                     (['compare-evidence', 'templates/evidence-ledger.json', 'templates/evidence-ledger.json'], 'changed', False),
+                     (['evidence', 'templates/evidence-ledger.json', '--as-of', '12-09-2026', '--max-age-days', '2'],
+                      'unused_sources', []),
+                     (['audit', 'templates/audit-closure.json', '--owner', 'maker'], 'owner_filter', 'maker'),
+                     (['handoff', str(root / 'handoff.json'), str(root / 'response.json')], 'recorded_acceptance', False)]
+            for entry in [['scripts/inspect_records.py'], ['-m', 'scripts.inspect_records']]:
+                for args, key, expected in cases:
+                    result = subprocess.run([sys.executable, *entry, *args], cwd=ROOT,
+                                            capture_output=True, text=True, timeout=5)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(json.loads(result.stdout)['inspection'][key], expected)
+            response['correlation_id'] = 'other'
+            (root / 'response.json').write_text(json.dumps(response))
+            result = subprocess.run([sys.executable, '-m', 'scripts.inspect_records', 'handoff',
+                                     str(root / 'handoff.json'), str(root / 'response.json')],
+                                    cwd=ROOT, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 1)
+            self.assertFalse(json.loads(result.stdout)['inspection']['contract_valid'])
+
+    def test_handoff_pair_requires_matching_version_correlation_and_endpoints(self):
+        handoff = {'connect_version': 'agent-team-connect/v0.2', 'type': 'handoff', 'message_id': 'h1',
+                   'correlation_id': 'tool-task', 'from': 'owner', 'to': 'maker',
+                   'payload': {'role_brief': self.plan()['assignments'][1]['brief']}}
+        response = {**handoff, 'type': 'response', 'message_id': 'r1', 'from': 'maker', 'to': 'owner',
+                    'payload': {'accepted': True}}
+        self.assertTrue(inspect_handoff(handoff, response)['contract_valid'])
+        for field, value in [('correlation_id', 'other'), ('from', 'other'), ('to', 'other'),
+                             ('message_id', 'h1'), ('connect_version', 'agent-team-connect/v0.1')]:
+            changed = {**response, field: value}
+            result = inspect_handoff(handoff, changed)
+            self.assertFalse(result['contract_valid'], field)
+            self.assertTrue(result['recorded_acceptance'], field)
+            self.assertEqual(result['handoff_binding'], 'unverified', field)
+            self.assertNotIn('accepted', result)
+        response['payload'] = {'accepted': False, 'refusal_reason': 'Outside scope.', 'next_step': 'Clarify scope.'}
+        result = inspect_handoff(handoff, response)
+        self.assertTrue(result['contract_valid'])
+        self.assertFalse(result['recorded_acceptance'])
+        self.assertEqual(result['handoff_binding'], 'unverified')
+        self.assertNotIn('accepted', result)
+        self.assertEqual(result['next_step'], 'Clarify scope.')
+
+    def test_shared_correlation_does_not_establish_handoff_acceptance(self):
+        for version in ('agent-team-connect/v0.1', 'agent-team-connect/v0.2'):
+            h1 = {'connect_version': version, 'type': 'handoff', 'message_id': 'h1',
+                  'correlation_id': 'c1', 'from': 'owner', 'to': 'maker',
+                  'payload': {'role_brief': self.plan()['assignments'][1]['brief']}}
+            h2 = copy.deepcopy(h1)
+            h2['message_id'] = 'h2'
+            h2['payload']['role_brief']['task'] = 'Build a different fictional tool.'
+            # r1 records acceptance in c1, but neither wire version identifies h1 or h2.
+            r1 = {**h1, 'type': 'response', 'message_id': 'r1', 'from': 'maker', 'to': 'owner',
+                  'payload': {'accepted': True}}
+            before = copy.deepcopy((h1, h2, r1))
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / 'response.json').write_text(json.dumps(r1))
+                for handoff in (h1, h2):
+                    result = inspect_handoff(handoff, r1)
+                    self.assertTrue(result['contract_valid'])
+                    self.assertNotIn('accepted', result)
+                    self.assertTrue(result['recorded_acceptance'])
+                    self.assertEqual(result['handoff_binding'], 'unverified')
+                    (root / 'handoff.json').write_text(json.dumps(handoff))
+                    for entry in (['scripts/inspect_records.py'], ['-m', 'scripts.inspect_records']):
+                        process = subprocess.run([sys.executable, *entry, 'handoff', str(root / 'handoff.json'),
+                                                  str(root / 'response.json')], cwd=ROOT,
+                                                 capture_output=True, text=True, timeout=5)
+                        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+                        self.assertEqual(json.loads(process.stdout), {'ok': True, 'inspection': result})
+            self.assertEqual((h1, h2, r1), before)
+
+    def test_audit_owner_filter_cannot_hide_global_closure_failures(self):
+        report = json.loads((ROOT / 'templates/audit-closure.json').read_text())
+        report['findings'][0]['disposition'] = 'open'
+        other = copy.deepcopy(report['findings'][0])
+        other.update(id='second', owner='analyst', disposition='resolved')
+        report['findings'].append(other)
+        result = inspect_audit(report, owner='analyst')
+        self.assertEqual(result['remediation_queue'], [])
+        self.assertEqual(result['total_remediation_count'], 1)
+        self.assertFalse(result['closure_ready'])
+        self.assertFalse(result['contract_valid'])
+        with self.assertRaises(ValueError):
+            inspect_audit(report, owner='unknown')
+
+    def test_evidence_freshness_is_explicit_and_flags_unknown_or_future_dates(self):
+        ledger = json.loads((ROOT / 'templates/evidence-ledger.json').read_text())
+        self.assertEqual(inspect_evidence(ledger, as_of='11-09-2026', max_age_days=2)['freshness']['stale_sources'], [])
+        result = inspect_evidence(ledger, as_of='12-09-2026', max_age_days=2)
+        self.assertEqual(result['freshness']['stale_sources'], ['brief-a', 'brief-b'])
+        self.assertEqual(result['affected_claims'][0]['id'], 'support-hours')
+        ledger['sources'][0]['inspected_on'] = 'yesterday'
+        ledger['sources'][1]['inspected_on'] = '13-09-2026'
+        result = inspect_evidence(ledger, as_of='12-09-2026', max_age_days=2)['freshness']
+        self.assertEqual(result['unknown_date_sources'], ['brief-a'])
+        self.assertEqual(result['future_sources'], ['brief-b'])
+        for options in [{'as_of': '12-09-2026'}, {'max_age_days': 2},
+                        {'as_of': '31-02-2026', 'max_age_days': 2},
+                        {'as_of': '12-09-2026', 'max_age_days': -1}]:
+            with self.assertRaises(ValueError):
+                inspect_evidence(ledger, **options)
+
+    def test_evidence_comparison_tracks_revisions_and_claim_edits(self):
+        before = json.loads((ROOT / 'templates/evidence-ledger.json').read_text())
+        after = copy.deepcopy(before)
+        after['sources'].reverse()
+        self.assertFalse(compare_evidence(before, after)['changed'])
+        after['sources'][0]['revision'] = 'fixture-2'
+        result = compare_evidence(before, after)
+        self.assertEqual(result['sources_changed'], ['brief-b'])
+        self.assertEqual(result['recheck_claims'], ['support-hours'])
+        after['claims'][0]['statement'] = 'Revised fictional support claim.'
+        self.assertEqual(compare_evidence(before, after)['claims_changed'], ['support-hours'])
+        after['sources'].pop(0)
+        after['claims'][0].update(status='unsupported', source_ids=[])
+        self.assertEqual(compare_evidence(before, after)['sources_removed'], ['brief-b'])
+
+    def test_plan_changes_trace_rework_through_old_and_new_dependencies(self):
+        before = self.plan()
+        after = copy.deepcopy(before)
+        after['assignments'][0]['brief']['task'] = 'Revise the acceptance checks.'
+        self.assertEqual(compare_plans(before, after)['recheck_assignments'], ['build', 'requirements', 'review'])
+        after = copy.deepcopy(before)
+        after['assignments'][1]['depends_on'] = []
+        self.assertEqual(compare_plans(before, after)['recheck_assignments'], ['build', 'review'])
+        after = copy.deepcopy(before)
+        after['objective'] = 'Create a revised fictional internal tool.'
+        self.assertEqual(len(compare_plans(before, after)['recheck_assignments']), 3)
+        self.assertEqual(compare_plans(before, before)['recheck_assignments'], [])
+
+    def test_ready_batches_observe_declared_parallel_budget(self):
+        plan = self.plan()
+        for item in plan['assignments']:
+            item['depends_on'] = []
+        self.assertEqual(inspect_plan(plan)['ready_batches'], [['build', 'requirements'], ['review']])
+        plan['budget']['max_parallel'] = 1
+        self.assertEqual(inspect_plan(plan)['ready_batches'], [['build'], ['requirements'], ['review']])
+        del plan['budget']
+        self.assertIsNone(inspect_plan(plan)['ready_batches'])
+        self.assertEqual(inspect_plan(self.plan(), blocked=['requirements'])['ready_batches'], [])
+
+    def test_invalidating_an_input_reopens_all_accepted_dependents(self):
+        result = inspect_plan(self.plan(), ['requirements', 'build', 'review'], invalidate=['build'])
+        self.assertEqual(result['accepted'], ['requirements'])
+        self.assertEqual(result['invalidated'], ['build', 'review'])
+        self.assertEqual(result['ready'], ['build'])
+        for invalid in [['unknown'], ['build', 'build'], ['review']]:
+            with self.assertRaises(ValueError):
+                inspect_plan(self.plan(), ['requirements', 'build'], invalidate=invalid)
+
+    def test_blocked_work_excludes_downstream_readiness(self):
+        plan = self.plan()
+        before = copy.deepcopy(plan)
+        result = inspect_plan(plan, blocked=['requirements'])
+        self.assertEqual(result['ready'], [])
+        self.assertEqual(result['blocked'], ['requirements'])
+        self.assertEqual(result['blocked_dependents'], ['build', 'review'])
+        self.assertEqual(plan, before)
+        for blocked in [['missing'], ['build', 'build'], ['requirements']]:
+            with self.assertRaises(ValueError):
+                inspect_plan(plan, ['requirements'], blocked=blocked)
+
     def test_audit_inspection_exposes_stale_closure_and_significant_failures(self):
         report = json.loads((ROOT / 'templates/audit-closure.json').read_text())
         self.assertTrue(inspect_audit(report)['closure_ready'])

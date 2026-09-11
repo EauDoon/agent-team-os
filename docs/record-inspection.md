@@ -1,5 +1,32 @@
 # Inspect records before the next decision
 
+## Compare a handoff and a response envelope
+
+Run `python3 scripts/inspect_records.py handoff handoff.json response.json`.
+Both messages must conform, share a version and correlation ID, reverse sender
+and recipient, and use distinct message IDs. `contract_valid`, top-level `ok`
+and exit status 0 mean only that these envelope checks passed. A mismatch
+returns exit status 1 with `contract_valid: false` and the failures.
+
+`recorded_acceptance` copies the response payload's `accepted` value even when
+the envelopes mismatch. It is a recorded connection claim, never acceptance of
+the supplied handoff. A refusal preserves its reason and next step.
+`handoff_binding` is always `"unverified"`: both wire versions allow multiple
+handoffs under one correlation ID, and responses identify no handoff message.
+For example, `h1` and `h2` can share endpoints and correlation `c1`; a response
+`r1` can pass the envelope checks with either handoff without establishing
+acceptance of either one.
+
+The new 0.4.0 inspection output has no inferred `accepted` field. Machine
+consumers must treat `recorded_acceptance` as response data and must not release
+dependent work from it, `contract_valid`, `ok` or exit status alone. Follow the
+[handoff acceptance workflow](handoffs.md) to inspect and accept the exact
+assignment and output revision. This command checks local bookkeeping only;
+transport authentication, replay protection and real permissions remain external
+duties. The v0.1 and v0.2 wire schemas are unchanged.
+
+## Inspect dependency readiness
+
 Show dependency stages and which assignments have accepted inputs:
 
 ```sh
@@ -20,6 +47,23 @@ dispatches work or writes acceptance state. Both script and module invocation
 are supported, with JSON output and exit status 0 for success or 1 for invalid
 input.
 
+`ready_batches` groups currently ready IDs alphabetically into batches no larger
+than the declared `max_parallel`. With no concurrency budget it is `null`,
+not an assumed unlimited batch. Empty readiness produces no batches. These
+are review suggestions, not a scheduler or a claim that capacity is available;
+finish or stop existing work and inspect actual tool limits before dispatch.
+
+When an accepted output changes, repeat `--accepted` for the original accepted
+set and pass `--invalidate ID`. Inspection removes that acceptance and all
+accepted downstream dependents before recomputing readiness. `invalidated`
+lists the resulting recheck scope. Unknown, duplicate and unaccepted seed IDs
+fail. No saved plan or acceptance record is rewritten.
+
+Use `plan FILE --blocked requirements` to identify a blocked assignment and all
+its transitive dependents. Repeat the flag for multiple blockers. Blocked work
+cannot appear ready; an accepted assignment cannot also be blocked. These are
+operator assertions for inspection and never change execution state.
+
 ## Review a revised plan
 
 ```sh
@@ -34,6 +78,12 @@ language scope is shown as before/after text; the tool cannot decide whether a
 rewrite grants permission or is semantically equivalent. Review changed scope
 and stop obsolete owners before resuming work under a revised plan.
 
+`recheck_assignments` includes surviving changed assignments and transitive
+dependents in either the old or new dependency graph. Removed inputs still
+trigger rechecks of their former consumers. Global objective, completion or
+budget changes conservatively flag every surviving assignment. This is an
+impact review queue, not automatic rejection of previously accepted work.
+
 ## Trace changed evidence to affected claims
 
 ```sh
@@ -46,6 +96,20 @@ Repeat `--changed-source` for multiple sources, or omit it for a coverage view.
 Unknown or duplicate source IDs fail. An affected supported claim is flagged
 for reinspection, not silently relabeled unsupported. The ledger stays unchanged;
 the operator must inspect the new evidence and revise claims deliberately.
+
+Add `evidence FILE --as-of 12-09-2026 --max-age-days 2` for reproducible date
+review. Dates use DD-MM-YYYY, both options are required, and age equal to the
+limit remains current. Older, future and unparseable inspection dates are
+separate lists and their claims enter `affected_claims` via `review_sources`.
+`changed_sources` still means only explicitly named changes. With no date
+options, `freshness` is `null`. No system clock, source retrieval or implicit
+freshness policy is used; success means the inspection ran, not fresh evidence.
+
+Compare two saved ledgers with `compare-evidence old.json new.json`. The report
+lists added, removed and changed sources and claims, ignoring record and source
+reference order. `recheck_claims` links changed source metadata to surviving
+claims from either snapshot, plus new or edited claims. Source locator,
+revision and inspection-date changes all count. No referenced source is opened.
 
 ## Inspect audit remediation and stale closure
 
@@ -61,3 +125,9 @@ with an unresolved significant finding returns `ok: false` and exit status 1
 while retaining the actionable queue. Structurally malformed reports receive
 the generic input error. `closure_ready` refers only to supplied bookkeeping;
 the command does not independently verify the artifact or authorize release.
+
+Use `audit FILE --owner maker` to give one recorded owner their remediation
+queue and accepted risks. Unknown or blank owners fail rather than silently
+returning no work. `total_remediation_count`, contract failures, exit status and
+`closure_ready` still reflect the complete report, so filtering cannot hide a
+blocking finding owned by someone else.

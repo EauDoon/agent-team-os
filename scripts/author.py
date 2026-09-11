@@ -65,6 +65,15 @@ def compose_message(kind: str, version: str, sender: str, recipient: str,
     return message
 
 
+def brief_from_plan(plan: object, assignment_id: str) -> dict:
+    if check_document('plan', plan):
+        raise ValueError('routing plan does not conform')
+    for assignment in plan['assignments']:
+        if assignment['id'] == assignment_id:
+            return copy.deepcopy(assignment['brief'])
+    raise ValueError('assignment is not in the routing plan')
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -72,6 +81,10 @@ def main() -> int:
     for field in ('role', 'scope', 'task', 'evidence', 'deliver', 'stop'):
         brief.add_argument('--' + field, required=True)
     brief.add_argument('--output', type=Path, required=True)
+    plan = commands.add_parser('plan-brief', help='copy one exact brief from a validated routing plan')
+    plan.add_argument('file', type=Path)
+    plan.add_argument('--assignment', required=True)
+    plan.add_argument('--output', type=Path, required=True)
     for name in ('handoff', 'refusal'):
         command = commands.add_parser(name, help='compose an explicitly negotiated v0.2 message')
         command.add_argument('--version', choices=['agent-team-connect/v0.2'], required=True)
@@ -89,6 +102,8 @@ def main() -> int:
     try:
         if args.command == 'brief':
             document = compose_brief(args.role, args.scope, args.task, args.evidence, args.deliver, args.stop)
+        elif args.command == 'plan-brief':
+            document = brief_from_plan(load_json(args.file), args.assignment)
         else:
             payload = {'role_brief': load_json(args.brief)} if args.command == 'handoff' else {
                 'accepted': False, 'refusal_reason': args.reason, 'next_step': args.next_step}

@@ -54,9 +54,9 @@ It uses only the Python standard library:
 ```powershell
 python .\scripts\validate.py
 python .\scripts\package.py --output .\dist
-Get-FileHash .\dist\agent-team-0.3.0.zip -Algorithm SHA256
-Expand-Archive .\dist\agent-team-0.3.0.zip -DestinationPath .\dist\expanded
-Copy-Item .\dist\expanded\agent-team-0.3.0\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
+Get-FileHash .\dist\agent-team-0.4.0.zip -Algorithm SHA256
+Expand-Archive .\dist\agent-team-0.4.0.zip -DestinationPath .\dist\expanded
+Copy-Item .\dist\expanded\agent-team-0.4.0\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
 ```
 
 On Bash:
@@ -64,13 +64,13 @@ On Bash:
 ```bash
 python3 scripts/validate.py
 python3 scripts/package.py --output dist
-sha256sum dist/agent-team-0.3.0.zip
-unzip -q dist/agent-team-0.3.0.zip -d dist/expanded
-cp -R dist/expanded/agent-team-0.3.0/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
+sha256sum dist/agent-team-0.4.0.zip
+unzip -q dist/agent-team-0.4.0.zip -d dist/expanded
+cp -R dist/expanded/agent-team-0.4.0/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
 ```
 
 Verify the checksum before copying. From the reviewed source checkout, run
-`python3 scripts/verify_package.py dist/agent-team-0.3.0.zip` to compare
+`python3 scripts/verify_package.py dist/agent-team-0.4.0.zip` to compare
 archive members with source bytes before extraction. The package contains the skill, templates,
 schemas, examples, validator, and release documentation. It does not publish
 or change remote metadata.
@@ -203,7 +203,7 @@ agent-team-os/
 |   |-- validate.py                 # Dependency-light contract and link checker
 |   `-- package.py                  # Deterministic ZIP and checksum builder
 |-- docs/
-|   `-- release-notes-0.3.0.md      # Versioned release notes (one per release)
+|   `-- release-notes-0.4.0.md      # Versioned release notes (one per release)
 |-- .github/workflows/ci.yml        # Pull request and push checks
 |-- examples/
 |   `-- routing-scenarios.md        # Three synthetic end-to-end scenarios

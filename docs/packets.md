@@ -1,5 +1,12 @@
 # Check a bounded handoff packet
 
+Receipt verification also reports `records_added`, `records_removed`, changed
+field names per record in `record_changes`, `invalid_records`, and whether
+record order changed. The existing strict byte and order comparison remains:
+formatting drift still fails. Diagnostics never read paths from the receipt and
+never print record contents. Invalid current records remain failures while the
+affected record IDs help direct repair.
+
 A packet is an explicit index of related local records. It does not copy them,
 execute instructions or establish that their claims are true.
 

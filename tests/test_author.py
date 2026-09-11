@@ -5,12 +5,37 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.author import compose_brief, compose_message, write_new_json
+from scripts.author import brief_from_plan, compose_brief, compose_message, write_new_json
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class AuthorTests(unittest.TestCase):
+    def test_extract_plan_brief_preserves_prohibitions_and_does_not_alias(self):
+        plan = json.loads((ROOT / 'templates/routing-plan.json').read_text())
+        plan['assignments'][1]['brief']['prohibited_actions'] = ['No external writes.']
+        brief = brief_from_plan(plan, 'build')
+        self.assertEqual(brief, plan['assignments'][1]['brief'])
+        brief['prohibited_actions'].append('Other restriction.')
+        self.assertEqual(len(plan['assignments'][1]['brief']['prohibited_actions']), 1)
+        with self.assertRaises(ValueError):
+            brief_from_plan(plan, 'missing')
+        plan['assignments'][0]['depends_on'] = ['review']
+        with self.assertRaises(ValueError):
+            brief_from_plan(plan, 'build')
+
+    def test_plan_brief_cli_is_checked_and_never_overwrites(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'brief.json'
+            command = [sys.executable, 'scripts/author.py', 'plan-brief', 'templates/routing-plan.json',
+                       '--assignment', 'build', '--output', str(output)]
+            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            original = output.read_bytes()
+            result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(output.read_bytes(), original)
+
     def test_message_composition_keeps_explicit_version_and_copied_scope(self):
         payload = {'role_brief': self.brief()}
         message = compose_message('handoff', 'agent-team-connect/v0.2', 'owner', 'maker', 'm1', 'task1', payload)
