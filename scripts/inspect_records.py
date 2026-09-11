@@ -224,6 +224,26 @@ def inspect_audit(report: object, target_revision: str | None = None, *, owner: 
             'note': 'Readiness reflects supplied audit bookkeeping, not independent verification or release authority.'}
 
 
+def inspect_handoff(handoff: object, response: object) -> dict:
+    require_record('connect', handoff)
+    require_record('connect', response)
+    failures = []
+    if handoff['type'] != 'handoff' or response['type'] != 'response':
+        raise ValueError('supply a handoff and its response')
+    for field in ('connect_version', 'correlation_id'):
+        if handoff[field] != response[field]:
+            failures.append(field + ' does not match')
+    if handoff['from'] != response['to'] or handoff['to'] != response['from']:
+        failures.append('response endpoints do not reverse the handoff endpoints')
+    if handoff['message_id'] == response['message_id']:
+        failures.append('response must have a distinct message ID')
+    payload = response['payload']
+    return {'contract_valid': not failures, 'contract_failures': failures,
+            'accepted': not failures and payload['accepted'], 'recorded_acceptance': payload['accepted'],
+            'refusal_reason': payload.get('refusal_reason'), 'next_step': payload.get('next_step'),
+            'note': 'Pairing checks supplied identifiers only; it does not authenticate senders, prevent replay, grant access or start work.'}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -247,6 +267,9 @@ def main() -> int:
     audit.add_argument('file', type=Path)
     audit.add_argument('--target-revision')
     audit.add_argument('--owner')
+    handoff = commands.add_parser('handoff')
+    handoff.add_argument('handoff', type=Path)
+    handoff.add_argument('response', type=Path)
     args = parser.parse_args()
     try:
         if args.command == 'compare-plans':
@@ -258,6 +281,8 @@ def main() -> int:
                                       as_of=args.as_of, max_age_days=args.max_age_days)
         elif args.command == 'audit':
             result = inspect_audit(load_json(args.file), args.target_revision, owner=args.owner)
+        elif args.command == 'handoff':
+            result = inspect_handoff(load_json(args.handoff), load_json(args.response))
         else:
             result = inspect_plan(load_json(args.file), args.accepted, blocked=args.blocked, invalidate=args.invalidate)
         rendered = json.dumps({'ok': result.get('contract_valid', True), 'inspection': result}, indent=2, allow_nan=False)

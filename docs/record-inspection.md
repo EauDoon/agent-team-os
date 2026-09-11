@@ -1,5 +1,15 @@
 # Inspect records before the next decision
 
+## Pair a handoff with its response
+
+Run `python3 scripts/inspect_records.py handoff handoff.json response.json`.
+Both messages must conform, share a version and correlation ID, reverse sender
+and recipient, and use distinct message IDs. A mismatch returns exit status 1
+and cannot produce `accepted: true`. A valid refusal returns status 0 with
+`accepted: false`, its reason and next step. Recorded acceptance is shown
+separately from pair validity. This checks local bookkeeping only; transport
+authentication, replay protection and real permissions remain external duties.
+
 Show dependency stages and which assignments have accepted inputs:
 
 ```sh

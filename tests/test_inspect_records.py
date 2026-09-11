@@ -12,12 +12,32 @@ from scripts.inspect_records import (
     inspect_audit,
     inspect_evidence,
     inspect_plan,
+    inspect_handoff,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_handoff_pair_requires_matching_version_correlation_and_endpoints(self):
+        handoff = {'connect_version': 'agent-team-connect/v0.2', 'type': 'handoff', 'message_id': 'h1',
+                   'correlation_id': 'tool-task', 'from': 'owner', 'to': 'maker',
+                   'payload': {'role_brief': self.plan()['assignments'][1]['brief']}}
+        response = {**handoff, 'type': 'response', 'message_id': 'r1', 'from': 'maker', 'to': 'owner',
+                    'payload': {'accepted': True}}
+        self.assertTrue(inspect_handoff(handoff, response)['accepted'])
+        for field, value in [('correlation_id', 'other'), ('from', 'other'), ('to', 'other'),
+                             ('message_id', 'h1'), ('connect_version', 'agent-team-connect/v0.1')]:
+            changed = {**response, field: value}
+            result = inspect_handoff(handoff, changed)
+            self.assertFalse(result['contract_valid'], field)
+            self.assertFalse(result['accepted'], field)
+        response['payload'] = {'accepted': False, 'refusal_reason': 'Outside scope.', 'next_step': 'Clarify scope.'}
+        result = inspect_handoff(handoff, response)
+        self.assertTrue(result['contract_valid'])
+        self.assertFalse(result['accepted'])
+        self.assertEqual(result['next_step'], 'Clarify scope.')
+
     def test_audit_owner_filter_cannot_hide_global_closure_failures(self):
         report = json.loads((ROOT / 'templates/audit-closure.json').read_text())
         report['findings'][0]['disposition'] = 'open'
