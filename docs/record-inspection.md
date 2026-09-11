@@ -22,6 +22,11 @@ input.
 
 ## Review a revised plan
 
+Use `plan FILE --blocked requirements` to identify a blocked assignment and all
+its transitive dependents. Repeat the flag for multiple blockers. Blocked work
+cannot appear ready; an accepted assignment cannot also be blocked. These are
+operator assertions for inspection and never change execution state.
+
 ```sh
 python3 scripts/inspect_records.py compare-plans accepted-plan.json revised-plan.json
 ```

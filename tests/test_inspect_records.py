@@ -17,6 +17,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_blocked_work_excludes_downstream_readiness(self):
+        plan = self.plan()
+        before = copy.deepcopy(plan)
+        result = inspect_plan(plan, blocked=['requirements'])
+        self.assertEqual(result['ready'], [])
+        self.assertEqual(result['blocked'], ['requirements'])
+        self.assertEqual(result['blocked_dependents'], ['build', 'review'])
+        self.assertEqual(plan, before)
+        for blocked in [['missing'], ['build', 'build'], ['requirements']]:
+            with self.assertRaises(ValueError):
+                inspect_plan(plan, ['requirements'], blocked=blocked)
+
     def test_audit_inspection_exposes_stale_closure_and_significant_failures(self):
         report = json.loads((ROOT / 'templates/audit-closure.json').read_text())
         self.assertTrue(inspect_audit(report)['closure_ready'])
