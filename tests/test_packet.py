@@ -13,6 +13,28 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PacketTests(unittest.TestCase):
+    def test_receipt_differences_identify_records_and_fields_without_reading_receipt_paths(self):
+        result = inspect_packet(ROOT / 'templates/operator-packet.json')
+        receipt = make_receipt(result)
+        changed = copy.deepcopy(result)
+        changed['records'][0]['sha256'] = '0' * 64
+        report = verify_receipt(changed, receipt)
+        self.assertEqual(report['record_changes'], [{'id': result['records'][0]['id'], 'fields': ['sha256']}])
+        changed['records'].pop()
+        self.assertEqual(verify_receipt(changed, receipt)['records_removed'], [result['records'][-1]['id']])
+        changed = copy.deepcopy(result)
+        changed['records'][0].update(ok=False, sha256=None, bytes=None)
+        changed['ok'] = False
+        report = verify_receipt(changed, receipt)
+        self.assertEqual(report['differences'], ['packet_conformance'])
+        self.assertEqual(report['invalid_records'], [result['records'][0]['id']])
+        self.assertEqual(report['record_changes'][0]['fields'], ['bytes', 'sha256'])
+        changed = copy.deepcopy(result)
+        changed['records'].reverse()
+        report = verify_receipt(changed, receipt)
+        self.assertTrue(report['record_order_changed'])
+        self.assertEqual(report['record_changes'], [])
+
     def test_bundled_packet_checks_actual_bytes(self):
         result = inspect_packet(ROOT / 'templates/operator-packet.json')
         self.assertTrue(result['ok'])

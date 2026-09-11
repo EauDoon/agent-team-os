@@ -10,6 +10,8 @@ and cannot produce `accepted: true`. A valid refusal returns status 0 with
 separately from pair validity. This checks local bookkeeping only; transport
 authentication, replay protection and real permissions remain external duties.
 
+## Inspect dependency readiness
+
 Show dependency stages and which assignments have accepted inputs:
 
 ```sh
@@ -30,8 +32,6 @@ dispatches work or writes acceptance state. Both script and module invocation
 are supported, with JSON output and exit status 0 for success or 1 for invalid
 input.
 
-## Review a revised plan
-
 `ready_batches` groups currently ready IDs alphabetically into batches no larger
 than the declared `max_parallel`. With no concurrency budget it is `null`,
 not an assumed unlimited batch. Empty readiness produces no batches. These
@@ -48,6 +48,8 @@ Use `plan FILE --blocked requirements` to identify a blocked assignment and all
 its transitive dependents. Repeat the flag for multiple blockers. Blocked work
 cannot appear ready; an accepted assignment cannot also be blocked. These are
 operator assertions for inspection and never change execution state.
+
+## Review a revised plan
 
 ```sh
 python3 scripts/inspect_records.py compare-plans accepted-plan.json revised-plan.json
@@ -80,8 +82,6 @@ Unknown or duplicate source IDs fail. An affected supported claim is flagged
 for reinspection, not silently relabeled unsupported. The ledger stays unchanged;
 the operator must inspect the new evidence and revise claims deliberately.
 
-## Inspect audit remediation and stale closure
-
 Add `evidence FILE --as-of 12-09-2026 --max-age-days 2` for reproducible date
 review. Dates use DD-MM-YYYY, both options are required, and age equal to the
 limit remains current. Older, future and unparseable inspection dates are
@@ -95,6 +95,8 @@ lists added, removed and changed sources and claims, ignoring record and source
 reference order. `recheck_claims` links changed source metadata to surviving
 claims from either snapshot, plus new or edited claims. Source locator,
 revision and inspection-date changes all count. No referenced source is opened.
+
+## Inspect audit remediation and stale closure
 
 ```sh
 python3 scripts/inspect_records.py audit templates/audit-closure.json

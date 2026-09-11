@@ -19,6 +19,38 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_new_inspection_cli_workflows_in_script_and_module_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            handoff = {'connect_version': 'agent-team-connect/v0.2', 'type': 'handoff', 'message_id': 'h1',
+                       'correlation_id': 'tool-task', 'from': 'owner', 'to': 'maker',
+                       'payload': {'role_brief': self.plan()['assignments'][1]['brief']}}
+            response = {**handoff, 'type': 'response', 'message_id': 'r1', 'from': 'maker', 'to': 'owner',
+                        'payload': {'accepted': False, 'refusal_reason': 'Scope gap.', 'next_step': 'Clarify scope.'}}
+            for name, record in [('handoff', handoff), ('response', response)]:
+                (root / (name + '.json')).write_text(json.dumps(record))
+            cases = [(['plan', 'templates/routing-plan.json', '--blocked', 'requirements'], 'ready', []),
+                     (['plan', 'templates/routing-plan.json', '--accepted', 'requirements', '--accepted', 'build',
+                       '--invalidate', 'requirements'], 'invalidated', ['build', 'requirements']),
+                     (['compare-evidence', 'templates/evidence-ledger.json', 'templates/evidence-ledger.json'], 'changed', False),
+                     (['evidence', 'templates/evidence-ledger.json', '--as-of', '12-09-2026', '--max-age-days', '2'],
+                      'unused_sources', []),
+                     (['audit', 'templates/audit-closure.json', '--owner', 'maker'], 'owner_filter', 'maker'),
+                     (['handoff', str(root / 'handoff.json'), str(root / 'response.json')], 'accepted', False)]
+            for entry in [['scripts/inspect_records.py'], ['-m', 'scripts.inspect_records']]:
+                for args, key, expected in cases:
+                    result = subprocess.run([sys.executable, *entry, *args], cwd=ROOT,
+                                            capture_output=True, text=True, timeout=5)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(json.loads(result.stdout)['inspection'][key], expected)
+            response['correlation_id'] = 'other'
+            (root / 'response.json').write_text(json.dumps(response))
+            result = subprocess.run([sys.executable, '-m', 'scripts.inspect_records', 'handoff',
+                                     str(root / 'handoff.json'), str(root / 'response.json')],
+                                    cwd=ROOT, capture_output=True, text=True, timeout=5)
+            self.assertEqual(result.returncode, 1)
+            self.assertFalse(json.loads(result.stdout)['inspection']['accepted'])
+
     def test_handoff_pair_requires_matching_version_correlation_and_endpoints(self):
         handoff = {'connect_version': 'agent-team-connect/v0.2', 'type': 'handoff', 'message_id': 'h1',
                    'correlation_id': 'tool-task', 'from': 'owner', 'to': 'maker',
