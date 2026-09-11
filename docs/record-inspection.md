@@ -72,6 +72,12 @@ the operator must inspect the new evidence and revise claims deliberately.
 
 ## Inspect audit remediation and stale closure
 
+Compare two saved ledgers with `compare-evidence old.json new.json`. The report
+lists added, removed and changed sources and claims, ignoring record and source
+reference order. `recheck_claims` links changed source metadata to surviving
+claims from either snapshot, plus new or edited claims. Source locator,
+revision and inspection-date changes all count. No referenced source is opened.
+
 ```sh
 python3 scripts/inspect_records.py audit templates/audit-closure.json
 python3 scripts/inspect_records.py audit templates/audit-closure.json --target-revision fictional-tool-r3

@@ -137,6 +137,29 @@ def inspect_evidence(ledger: object, changed_sources: list[str] | None = None) -
             'note': 'Affected claims need reinspection; their recorded status has not been changed.'}
 
 
+def compare_evidence(before: object, after: object) -> dict:
+    require_record('evidence', before)
+    require_record('evidence', after)
+    result = {}
+    for group in ('sources', 'claims'):
+        old = {item['id']: item for item in before[group]}
+        new = {item['id']: item for item in after[group]}
+        def comparable(item):
+            return {**item, 'source_ids': sorted(item['source_ids'])} if group == 'claims' else item
+        result[group + '_added'] = sorted(new.keys() - old.keys())
+        result[group + '_removed'] = sorted(old.keys() - new.keys())
+        result[group + '_changed'] = sorted(key for key in old.keys() & new.keys()
+                                           if comparable(old[key]) != comparable(new[key]))
+    changed_sources = set(result['sources_added'] + result['sources_removed'] + result['sources_changed'])
+    impacted = {claim['id'] for ledger in (before, after) for claim in ledger['claims']
+                if set(claim['source_ids']) & changed_sources}
+    surviving = {claim['id'] for claim in after['claims']}
+    result['changed'] = any(result.values())
+    result['recheck_claims'] = sorted((impacted | set(result['claims_added'] + result['claims_changed'])) & surviving)
+    result['note'] = 'Changed source records and claim text need review; this comparison does not inspect sources or alter support status.'
+    return result
+
+
 def inspect_audit(report: object, target_revision: str | None = None) -> dict:
     if violations(report, load_json(ROOT / 'schemas/audit-closure.schema.json')):
         raise ValueError('audit report shape is invalid')
@@ -175,6 +198,9 @@ def main() -> int:
     comparison = commands.add_parser('compare-plans')
     comparison.add_argument('before', type=Path)
     comparison.add_argument('after', type=Path)
+    evidence_comparison = commands.add_parser('compare-evidence')
+    evidence_comparison.add_argument('before', type=Path)
+    evidence_comparison.add_argument('after', type=Path)
     evidence = commands.add_parser('evidence')
     evidence.add_argument('file', type=Path)
     evidence.add_argument('--changed-source', action='append', default=[])
@@ -185,6 +211,8 @@ def main() -> int:
     try:
         if args.command == 'compare-plans':
             result = compare_plans(load_json(args.before), load_json(args.after))
+        elif args.command == 'compare-evidence':
+            result = compare_evidence(load_json(args.before), load_json(args.after))
         elif args.command == 'evidence':
             result = inspect_evidence(load_json(args.file), args.changed_source)
         elif args.command == 'audit':

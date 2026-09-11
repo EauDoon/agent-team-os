@@ -8,6 +8,7 @@ from pathlib import Path
 
 from scripts.inspect_records import (
     compare_plans,
+    compare_evidence,
     inspect_audit,
     inspect_evidence,
     inspect_plan,
@@ -17,6 +18,21 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_evidence_comparison_tracks_revisions_and_claim_edits(self):
+        before = json.loads((ROOT / 'templates/evidence-ledger.json').read_text())
+        after = copy.deepcopy(before)
+        after['sources'].reverse()
+        self.assertFalse(compare_evidence(before, after)['changed'])
+        after['sources'][0]['revision'] = 'fixture-2'
+        result = compare_evidence(before, after)
+        self.assertEqual(result['sources_changed'], ['brief-b'])
+        self.assertEqual(result['recheck_claims'], ['support-hours'])
+        after['claims'][0]['statement'] = 'Revised fictional support claim.'
+        self.assertEqual(compare_evidence(before, after)['claims_changed'], ['support-hours'])
+        after['sources'].pop(0)
+        after['claims'][0].update(status='unsupported', source_ids=[])
+        self.assertEqual(compare_evidence(before, after)['sources_removed'], ['brief-b'])
+
     def test_plan_changes_trace_rework_through_old_and_new_dependencies(self):
         before = self.plan()
         after = copy.deepcopy(before)
