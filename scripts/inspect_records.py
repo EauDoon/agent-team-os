@@ -229,7 +229,7 @@ def inspect_handoff(handoff: object, response: object) -> dict:
     require_record('connect', response)
     failures = []
     if handoff['type'] != 'handoff' or response['type'] != 'response':
-        raise ValueError('supply a handoff and its response')
+        raise ValueError('supply a handoff and a response')
     for field in ('connect_version', 'correlation_id'):
         if handoff[field] != response[field]:
             failures.append(field + ' does not match')
@@ -239,9 +239,9 @@ def inspect_handoff(handoff: object, response: object) -> dict:
         failures.append('response must have a distinct message ID')
     payload = response['payload']
     return {'contract_valid': not failures, 'contract_failures': failures,
-            'accepted': not failures and payload['accepted'], 'recorded_acceptance': payload['accepted'],
+            'recorded_acceptance': payload['accepted'], 'handoff_binding': 'unverified',
             'refusal_reason': payload.get('refusal_reason'), 'next_step': payload.get('next_step'),
-            'note': 'Pairing checks supplied identifiers only; it does not authenticate senders, prevent replay, grant access or start work.'}
+            'note': 'Matching connection identifiers do not bind the response to this handoff. Recorded acceptance is the response claim only; it does not accept this handoff, release dependent work, authenticate senders, prevent replay or grant access.'}
 
 
 def main() -> int:

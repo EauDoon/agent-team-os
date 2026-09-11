@@ -36,7 +36,7 @@ class InspectionTests(unittest.TestCase):
                      (['evidence', 'templates/evidence-ledger.json', '--as-of', '12-09-2026', '--max-age-days', '2'],
                       'unused_sources', []),
                      (['audit', 'templates/audit-closure.json', '--owner', 'maker'], 'owner_filter', 'maker'),
-                     (['handoff', str(root / 'handoff.json'), str(root / 'response.json')], 'accepted', False)]
+                     (['handoff', str(root / 'handoff.json'), str(root / 'response.json')], 'recorded_acceptance', False)]
             for entry in [['scripts/inspect_records.py'], ['-m', 'scripts.inspect_records']]:
                 for args, key, expected in cases:
                     result = subprocess.run([sys.executable, *entry, *args], cwd=ROOT,
@@ -49,7 +49,7 @@ class InspectionTests(unittest.TestCase):
                                      str(root / 'handoff.json'), str(root / 'response.json')],
                                     cwd=ROOT, capture_output=True, text=True, timeout=5)
             self.assertEqual(result.returncode, 1)
-            self.assertFalse(json.loads(result.stdout)['inspection']['accepted'])
+            self.assertFalse(json.loads(result.stdout)['inspection']['contract_valid'])
 
     def test_handoff_pair_requires_matching_version_correlation_and_endpoints(self):
         handoff = {'connect_version': 'agent-team-connect/v0.2', 'type': 'handoff', 'message_id': 'h1',
@@ -57,18 +57,52 @@ class InspectionTests(unittest.TestCase):
                    'payload': {'role_brief': self.plan()['assignments'][1]['brief']}}
         response = {**handoff, 'type': 'response', 'message_id': 'r1', 'from': 'maker', 'to': 'owner',
                     'payload': {'accepted': True}}
-        self.assertTrue(inspect_handoff(handoff, response)['accepted'])
+        self.assertTrue(inspect_handoff(handoff, response)['contract_valid'])
         for field, value in [('correlation_id', 'other'), ('from', 'other'), ('to', 'other'),
                              ('message_id', 'h1'), ('connect_version', 'agent-team-connect/v0.1')]:
             changed = {**response, field: value}
             result = inspect_handoff(handoff, changed)
             self.assertFalse(result['contract_valid'], field)
-            self.assertFalse(result['accepted'], field)
+            self.assertTrue(result['recorded_acceptance'], field)
+            self.assertEqual(result['handoff_binding'], 'unverified', field)
+            self.assertNotIn('accepted', result)
         response['payload'] = {'accepted': False, 'refusal_reason': 'Outside scope.', 'next_step': 'Clarify scope.'}
         result = inspect_handoff(handoff, response)
         self.assertTrue(result['contract_valid'])
-        self.assertFalse(result['accepted'])
+        self.assertFalse(result['recorded_acceptance'])
+        self.assertEqual(result['handoff_binding'], 'unverified')
+        self.assertNotIn('accepted', result)
         self.assertEqual(result['next_step'], 'Clarify scope.')
+
+    def test_shared_correlation_does_not_establish_handoff_acceptance(self):
+        for version in ('agent-team-connect/v0.1', 'agent-team-connect/v0.2'):
+            h1 = {'connect_version': version, 'type': 'handoff', 'message_id': 'h1',
+                  'correlation_id': 'c1', 'from': 'owner', 'to': 'maker',
+                  'payload': {'role_brief': self.plan()['assignments'][1]['brief']}}
+            h2 = copy.deepcopy(h1)
+            h2['message_id'] = 'h2'
+            h2['payload']['role_brief']['task'] = 'Build a different fictional tool.'
+            # r1 records acceptance in c1, but neither wire version identifies h1 or h2.
+            r1 = {**h1, 'type': 'response', 'message_id': 'r1', 'from': 'maker', 'to': 'owner',
+                  'payload': {'accepted': True}}
+            before = copy.deepcopy((h1, h2, r1))
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / 'response.json').write_text(json.dumps(r1))
+                for handoff in (h1, h2):
+                    result = inspect_handoff(handoff, r1)
+                    self.assertTrue(result['contract_valid'])
+                    self.assertNotIn('accepted', result)
+                    self.assertTrue(result['recorded_acceptance'])
+                    self.assertEqual(result['handoff_binding'], 'unverified')
+                    (root / 'handoff.json').write_text(json.dumps(handoff))
+                    for entry in (['scripts/inspect_records.py'], ['-m', 'scripts.inspect_records']):
+                        process = subprocess.run([sys.executable, *entry, 'handoff', str(root / 'handoff.json'),
+                                                  str(root / 'response.json')], cwd=ROOT,
+                                                 capture_output=True, text=True, timeout=5)
+                        self.assertEqual(process.returncode, 0, process.stdout + process.stderr)
+                        self.assertEqual(json.loads(process.stdout), {'ok': True, 'inspection': result})
+            self.assertEqual((h1, h2, r1), before)
 
     def test_audit_owner_filter_cannot_hide_global_closure_failures(self):
         report = json.loads((ROOT / 'templates/audit-closure.json').read_text())

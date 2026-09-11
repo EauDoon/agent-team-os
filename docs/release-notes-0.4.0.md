@@ -10,7 +10,9 @@ local operator workflow. Python 3.11 or later and the standard library suffice.
 - Explicit review dates flag stale, future or unknown source inspection dates.
   Owner filters preserve global audit failures and closure status.
 - [Authoring](authoring.md) copies exact assignment briefs from checked plans.
-  Handoff inspection validates response correlation, version and endpoint pairing.
+  Handoff inspection checks response correlation, version and endpoints, reports
+  recorded response acceptance and leaves handoff-specific binding unverified.
+  Its output grants no acceptance or release of dependent work.
 - [Packet receipts](packets.md) name added, removed, invalid and changed records
   while preserving strict byte and order checks.
 

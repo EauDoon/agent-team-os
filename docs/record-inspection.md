@@ -1,14 +1,29 @@
 # Inspect records before the next decision
 
-## Pair a handoff with its response
+## Compare a handoff and a response envelope
 
 Run `python3 scripts/inspect_records.py handoff handoff.json response.json`.
 Both messages must conform, share a version and correlation ID, reverse sender
-and recipient, and use distinct message IDs. A mismatch returns exit status 1
-and cannot produce `accepted: true`. A valid refusal returns status 0 with
-`accepted: false`, its reason and next step. Recorded acceptance is shown
-separately from pair validity. This checks local bookkeeping only; transport
-authentication, replay protection and real permissions remain external duties.
+and recipient, and use distinct message IDs. `contract_valid`, top-level `ok`
+and exit status 0 mean only that these envelope checks passed. A mismatch
+returns exit status 1 with `contract_valid: false` and the failures.
+
+`recorded_acceptance` copies the response payload's `accepted` value even when
+the envelopes mismatch. It is a recorded connection claim, never acceptance of
+the supplied handoff. A refusal preserves its reason and next step.
+`handoff_binding` is always `"unverified"`: both wire versions allow multiple
+handoffs under one correlation ID, and responses identify no handoff message.
+For example, `h1` and `h2` can share endpoints and correlation `c1`; a response
+`r1` can pass the envelope checks with either handoff without establishing
+acceptance of either one.
+
+The new 0.4.0 inspection output has no inferred `accepted` field. Machine
+consumers must treat `recorded_acceptance` as response data and must not release
+dependent work from it, `contract_valid`, `ok` or exit status alone. Follow the
+[handoff acceptance workflow](handoffs.md) to inspect and accept the exact
+assignment and output revision. This command checks local bookkeeping only;
+transport authentication, replay protection and real permissions remain external
+duties. The v0.1 and v0.2 wire schemas are unchanged.
 
 ## Inspect dependency readiness
 
