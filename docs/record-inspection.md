@@ -22,6 +22,12 @@ input.
 
 ## Review a revised plan
 
+When an accepted output changes, repeat `--accepted` for the original accepted
+set and pass `--invalidate ID`. Inspection removes that acceptance and all
+accepted downstream dependents before recomputing readiness. `invalidated`
+lists the resulting recheck scope. Unknown, duplicate and unaccepted seed IDs
+fail. No saved plan or acceptance record is rewritten.
+
 Use `plan FILE --blocked requirements` to identify a blocked assignment and all
 its transitive dependents. Repeat the flag for multiple blockers. Blocked work
 cannot appear ready; an accepted assignment cannot also be blocked. These are

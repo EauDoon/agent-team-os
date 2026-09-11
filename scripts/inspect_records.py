@@ -27,7 +27,8 @@ def downstream(assignments: dict, seeds: set[str]) -> set[str]:
         affected = expanded
 
 
-def inspect_plan(plan: object, accepted: list[str] | None = None, *, blocked: list[str] | None = None) -> dict:
+def inspect_plan(plan: object, accepted: list[str] | None = None, *, blocked: list[str] | None = None,
+                 invalidate: list[str] | None = None) -> dict:
     require_record('plan', plan)
     by_id = {item['id']: item for item in plan['assignments']}
     accepted = [] if accepted is None else accepted
@@ -38,6 +39,12 @@ def inspect_plan(plan: object, accepted: list[str] | None = None, *, blocked: li
         raise ValueError('unknown accepted assignment')
     if any(not set(by_id[item]['depends_on']) <= accepted_ids for item in accepted_ids):
         raise ValueError('accepted assignments must include their accepted dependencies')
+    invalidate = [] if invalidate is None else invalidate
+    if (any(not isinstance(item, str) for item in invalidate) or len(set(invalidate)) != len(invalidate)
+            or not set(invalidate) <= accepted_ids):
+        raise ValueError('invalidated IDs must be unique accepted assignments')
+    invalidated = downstream(by_id, set(invalidate)) & accepted_ids
+    accepted_ids -= invalidated
     blocked = [] if blocked is None else blocked
     if (any(not isinstance(item, str) for item in blocked) or len(set(blocked)) != len(blocked)
             or not set(blocked) <= by_id.keys() or set(blocked) & accepted_ids):
@@ -55,6 +62,7 @@ def inspect_plan(plan: object, accepted: list[str] | None = None, *, blocked: li
     waiting = [{'id': key, 'unaccepted_dependencies': sorted(set(item['depends_on']) - accepted_ids)}
                for key, item in sorted(by_id.items()) if key not in accepted_ids]
     return {'route': plan['route'], 'stages': stages, 'accepted': sorted(accepted_ids),
+            'invalidated': sorted(invalidated),
             'ready': [item['id'] for item in waiting if not item['unaccepted_dependencies'] and item['id'] not in held],
             'waiting': [item for item in waiting if item['unaccepted_dependencies']],
             'blocked': sorted(blocked_ids), 'blocked_dependents': sorted(held - blocked_ids),
@@ -155,6 +163,7 @@ def main() -> int:
     plan.add_argument('file', type=Path)
     plan.add_argument('--accepted', action='append', default=[])
     plan.add_argument('--blocked', action='append', default=[])
+    plan.add_argument('--invalidate', action='append', default=[])
     comparison = commands.add_parser('compare-plans')
     comparison.add_argument('before', type=Path)
     comparison.add_argument('after', type=Path)
@@ -173,7 +182,7 @@ def main() -> int:
         elif args.command == 'audit':
             result = inspect_audit(load_json(args.file), args.target_revision)
         else:
-            result = inspect_plan(load_json(args.file), args.accepted, blocked=args.blocked)
+            result = inspect_plan(load_json(args.file), args.accepted, blocked=args.blocked, invalidate=args.invalidate)
         rendered = json.dumps({'ok': result.get('contract_valid', True), 'inspection': result}, indent=2, allow_nan=False)
     except (OSError, ValueError, RecursionError, OverflowError):
         print(json.dumps({'ok': False, 'error': 'records or inspection arguments are invalid or unreadable'}))

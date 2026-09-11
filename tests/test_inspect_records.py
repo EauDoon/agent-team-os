@@ -17,6 +17,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class InspectionTests(unittest.TestCase):
+    def test_invalidating_an_input_reopens_all_accepted_dependents(self):
+        result = inspect_plan(self.plan(), ['requirements', 'build', 'review'], invalidate=['build'])
+        self.assertEqual(result['accepted'], ['requirements'])
+        self.assertEqual(result['invalidated'], ['build', 'review'])
+        self.assertEqual(result['ready'], ['build'])
+        for invalid in [['unknown'], ['build', 'build'], ['review']]:
+            with self.assertRaises(ValueError):
+                inspect_plan(self.plan(), ['requirements', 'build'], invalidate=invalid)
+
     def test_blocked_work_excludes_downstream_readiness(self):
         plan = self.plan()
         before = copy.deepcopy(plan)
