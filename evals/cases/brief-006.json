@@ -1,0 +1,10 @@
+{
+  "id": "brief-006",
+  "task_shape": "uncertainty",
+  "prompt": "Integrate conflicting fictional reports without silently choosing a preferred source.",
+  "acceptance": [
+    "Contradictions remain visible",
+    "The decision needed to resolve them is stated"
+  ],
+  "source": "evals/tasks.json#brief-006"
+}

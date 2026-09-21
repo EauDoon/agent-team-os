@@ -2,7 +2,7 @@ PYTHON ?= python
 PKG_VERSION := $(shell $(PYTHON) -c "import pathlib; print(pathlib.Path('VERSION').read_text(encoding='utf-8').strip())")
 PKG_ZIP := dist/agent-team-$(PKG_VERSION).zip
 
-.PHONY: install test lint validate package clean
+.PHONY: install test lint validate package clean evals
 
 install:
 	@$(PYTHON) -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)" \
@@ -23,3 +23,6 @@ package: validate test
 
 clean:
 	rm -rf dist
+
+evals:
+	$(PYTHON) evals/runner.py
