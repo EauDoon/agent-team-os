@@ -42,6 +42,7 @@
   "schemas/packet.schema.json",
   "schemas/role-brief.schema.json",
   "schemas/routing-plan.schema.json",
+  "schemas/VERSIONS.md",
   "scripts/author.py",
   "scripts/check.py",
   "scripts/contracts.py",
