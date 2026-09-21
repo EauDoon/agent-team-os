@@ -1,5 +1,9 @@
 # Agent Team
 
+[![build](https://img.shields.io/github/actions/workflow/status/EauDoon/agent-team-os/ci.yml?branch=main)](https://github.com/EauDoon/agent-team-os/actions)
+[![license](https://img.shields.io/github/license/EauDoon/agent-team-os)](https://github.com/EauDoon/agent-team-os/blob/main/LICENSE)
+[![last commit](https://img.shields.io/github/last-commit/EauDoon/agent-team-os)](https://github.com/EauDoon/agent-team-os)
+
 Build complex AI work like a small, accountable project team.
 
 Agent Team is an installable skill that turns a broad request into bounded role assignments, evidence-backed handoffs, and, for important work, an independently audited result. It is designed for work where discovery, analysis, construction, and verification should remain distinct.
