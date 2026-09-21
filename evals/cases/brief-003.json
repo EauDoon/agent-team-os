@@ -1,0 +1,10 @@
+{
+  "id": "brief-003",
+  "task_shape": "bounded-construction",
+  "prompt": "Draft a small fictional workflow from approved requirements and include acceptance checks.",
+  "acceptance": [
+    "No out-of-scope behavior is added",
+    "Each requirement has a check"
+  ],
+  "source": "evals/tasks.json#brief-003"
+}

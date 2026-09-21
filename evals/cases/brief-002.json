@@ -1,0 +1,10 @@
+{
+  "id": "brief-002",
+  "task_shape": "comparative-analysis",
+  "prompt": "Compare fictional options against fixed criteria and state tradeoffs.",
+  "acceptance": [
+    "Every conclusion has a source or uncertainty label",
+    "Criteria are applied consistently"
+  ],
+  "source": "evals/tasks.json#brief-002"
+}

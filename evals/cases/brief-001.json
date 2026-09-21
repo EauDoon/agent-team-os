@@ -1,0 +1,10 @@
+{
+  "id": "brief-001",
+  "task_shape": "evidence-extraction",
+  "prompt": "Extract claims from three supplied fictional capability briefs without ranking them.",
+  "acceptance": [
+    "Claims trace to supplied text",
+    "Missing evidence is marked"
+  ],
+  "source": "evals/tasks.json#brief-001"
+}

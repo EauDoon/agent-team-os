@@ -1,0 +1,10 @@
+{
+  "id": "brief-004",
+  "task_shape": "independent-audit",
+  "prompt": "Audit a fictional decision record for contradictions, gaps, and unsupported claims.",
+  "acceptance": [
+    "Findings include evidence",
+    "Severity and disposition are distinct"
+  ],
+  "source": "evals/tasks.json#brief-004"
+}
