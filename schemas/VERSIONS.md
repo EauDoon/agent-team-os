@@ -20,6 +20,7 @@ versions are invented.
 | `schemas/connect-v0.2.schema.json` | `agent-team-connect/v0.2` (`connect_version` const; filename also carries `v0.2`) |
 | `schemas/evidence-ledger.schema.json` | `agent-team-evidence/v0.1` (`ledger_version` const) |
 | `schemas/packet.schema.json` | `agent-team-packet/v0.1` (`packet_version` const) |
+| `schemas/packet-v0.2.schema.json` | `agent-team-packet/v0.2` (`packet_version` const; required closure policy) |
 | `schemas/packet-receipt.schema.json` | `agent-team-packet-receipt/v0.1` (`receipt_version` const) |
 | `schemas/role-brief.schema.json` | `agent-team-role-brief/v0.1` (`role_brief_version` const) |
 | `schemas/routing-plan.schema.json` | `agent-team-plan/v0.1` (`plan_version` const) |
