@@ -53,6 +53,14 @@ python3 scripts/packet.py templates/operator-packet.json --receipt packet-receip
 python3 scripts/packet.py templates/operator-packet.json --verify-receipt packet-receipt.json
 ```
 
+That v0.1 example checks record conformance and byte consistency. For delivery
+requiring named acceptance claims and a passing audit at the expected output
+revision, use the [v0.2 closure packet](packets.md#require-evidence-and-audit-closure-for-a-revision)
+and supply `--target-revision` during both receipt creation and verification.
+The [fully synthetic walkthrough](closure-walkthrough.md) authors a brief and
+handoff, checks evidence and audit records, and demonstrates rejection of
+incomplete, stale and altered packets. It also runs from the extracted package.
+
 ## Evaluate and distribute
 
 For measured comparisons, follow the [paired evaluation protocol](../evals/README.md).

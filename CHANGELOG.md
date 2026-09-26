@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Add opt-in v0.2 packet closure linking required evidence claims and audit
+  results to an expected output revision, with exact-byte receipt verification.
+- Include a fully synthetic operator walkthrough and extracted-package regressions
+  for incomplete, altered, stale and replayed records; preserve v0.1 behavior.
+
 ## 0.4.0
 
 - Trace blocked work, invalidate dependent acceptance and group readiness by budget.
