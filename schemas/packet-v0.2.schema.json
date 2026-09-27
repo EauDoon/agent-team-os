@@ -90,5 +90,6 @@
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://EauDoon.github.io/agent-team-os/schemas/packet-v0.2.schema.json",
   "title": "Agent Team closure packet"
 }

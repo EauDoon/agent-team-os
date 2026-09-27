@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Declare a unique `$id` on every shipped schema, and check that each one is
+  present and unreused.
 - Refuse an unreadable or ambiguous `evals/tasks.json` with a one-line reason
   and exit status 2 instead of a traceback, reject a duplicate rubric task ID,
   and cover the runner with unit tests.
