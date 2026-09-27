@@ -14,8 +14,9 @@ test:
 lint:
 	$(PYTHON) scripts/validate.py
 
+# Aggregate name for the contract check. The recipe already lives in `lint`;
+# repeating it here emitted two identical reports for every `make validate`.
 validate: lint
-	$(PYTHON) scripts/validate.py
 
 package: validate test
 	$(PYTHON) scripts/package.py --output dist
