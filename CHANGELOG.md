@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Cover the assertion keywords the shipped schemas rely on and the contract
+  checking guide claims: length and size bounds, inclusive numeric limits,
+  unique items, `allOf`, the `else` branch and the nesting depth guard.
 - Check the documented package archive name in every shipped document, not only
   in the README, so a version bump cannot leave stale commands in the
   verification and walkthrough guides.
