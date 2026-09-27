@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Refuse an unreadable or ambiguous `evals/tasks.json` with a one-line reason
+  and exit status 2 instead of a traceback, reject a duplicate rubric task ID,
+  and cover the runner with unit tests.
 - Cover the assertion keywords the shipped schemas rely on and the contract
   checking guide claims: length and size bounds, inclusive numeric limits,
   unique items, `allOf`, the `else` branch and the nesting depth guard.
