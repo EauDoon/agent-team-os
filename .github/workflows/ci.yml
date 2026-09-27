@@ -20,6 +20,7 @@ jobs:
           python-version: "3.11"
       - run: python scripts/validate.py
       - run: python -m unittest discover -s tests -v
+      - run: python evals/runner.py
       - run: python scripts/package.py --output dist
       - name: Verify package against source
         shell: bash
