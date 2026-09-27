@@ -186,6 +186,31 @@ class ValidateTests(unittest.TestCase):
             self.assertIn("release-notes-v0.1.0.md", failures)
             self.assertNotIn("release-notes-0.1.0.md", failures)
 
+    def test_documented_package_name_rejects_a_stale_archive_name(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "docs" / "package-verification.md").write_text(
+                "python3 scripts/verify_package.py dist/agent-team-0.1.0.zip\n", encoding="utf-8"
+            )
+            # Past versions are legitimate in the changelog and release notes.
+            (root / "CHANGELOG.md").write_text("built dist/agent-team-0.1.0.zip\n", encoding="utf-8")
+            (root / "docs" / "release-notes-0.1.0.md").write_text(
+                "built dist/agent-team-0.1.0.zip\n", encoding="utf-8"
+            )
+            checker = Checker(root)
+            checker.check_documented_package_name("0.4.0")
+            failures = "\n".join(checker.failures)
+            self.assertIn("docs/package-verification.md", failures)
+            self.assertNotIn("CHANGELOG.md", failures)
+            self.assertNotIn("release-notes-0.1.0.md", failures)
+            (root / "docs" / "package-verification.md").write_text(
+                "python3 scripts/verify_package.py dist/agent-team-0.4.0.zip\n", encoding="utf-8"
+            )
+            checker = Checker(root)
+            checker.check_documented_package_name("0.4.0")
+            self.assertEqual(checker.failures, [])
+
     def test_schema_version_table_is_checked_against_the_schemas(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

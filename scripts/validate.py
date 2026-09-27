@@ -294,6 +294,28 @@ class Checker:
             for key in arm_required:
                 self.ok(isinstance(arm, dict) and key in arm, f"arm has required key {key}")
 
+    def check_documented_package_name(self, version: str) -> None:
+        """Reject a stale package archive name in any document that ships.
+
+        Only the README carried this check, yet the same
+        ``agent-team-<version>.zip`` command appears in the package verification
+        and closure walkthrough documents, which are themselves packaged. A
+        version bump therefore left those two telling an operator to verify an
+        archive the builder never produces. Only documents that name an archive
+        are asserted, and release notes and the changelog are skipped because
+        they name past archives on purpose.
+        """
+        pattern = re.compile(r"agent-team-(\d+\.\d+\.\d+)\.zip")
+        for path in sorted(self.root.rglob("*.md")):
+            if {".git", "dist"} & set(path.parts):
+                continue
+            relative = _display_path(path, self.root)
+            if relative == "CHANGELOG.md" or relative.startswith("docs/release-notes-"):
+                continue
+            found = set(pattern.findall(self.read_text(path) or ""))
+            if found:
+                self.ok(found == {version}, f"documented package name uses VERSION: {relative}")
+
     def check_schema_versions(self) -> None:
         """Verify the pinned version table in schemas/VERSIONS.md against the schemas.
 
@@ -545,6 +567,7 @@ class Checker:
         version = self.text("VERSION").strip()
         documented_versions = set(re.findall(r"agent-team-(\d+\.\d+\.\d+)\.zip", readme))
         self.ok(documented_versions == {version}, "README package commands use VERSION")
+        self.check_documented_package_name(version)
         self.check_changelog_version(version)
         self.check_release_notes_references()
 

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Check the documented package archive name in every shipped document, not only
+  in the README, so a version bump cannot leave stale commands in the
+  verification and walkthrough guides.
 - Report a shipped schema keyword the bundled validator cannot enforce, and a
   local schema reference that does not resolve, before any document is checked.
 - Check the version table in `schemas/VERSIONS.md` against the shipped schemas,
