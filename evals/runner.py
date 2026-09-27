@@ -14,7 +14,9 @@ case is asserted against three contracts:
    field-for-field (id, task_shape, prompt, and acceptance list).
 
 It prints ``PASS`` or ``FAIL`` for each case and exits 0 only if every case
-passes.  The output is plain text so it composes with ``make evals`` and CI.
+passes.  A suite that cannot be compared at all, such as an unreadable or
+ambiguous rubric, exits 2 with a one-line reason instead of a traceback.  The
+output is plain text so it composes with ``make evals`` and CI.
 """
 
 from __future__ import annotations
@@ -31,8 +33,26 @@ REQUIRED_FIELDS = ("id", "task_shape", "prompt", "acceptance")
 
 
 def _load_tasks() -> dict:
-    with TASKS_FILE.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+    """Read the rubric, refusing a file this runner cannot compare against.
+
+    A malformed rubric used to raise out of the runner, so CI saw a traceback
+    instead of a verdict. A duplicate task ID is refused too: the id map keeps
+    only the last entry, so a repeated ID would let one task be compared
+    against the wrong rubric entry and the suite could still pass.
+    """
+    try:
+        with TASKS_FILE.open("r", encoding="utf-8") as handle:
+            tasks = json.load(handle)
+    except (OSError, ValueError, UnicodeError) as exc:
+        raise ValueError("evals/tasks.json is unreadable or not valid JSON") from exc
+    if not isinstance(tasks, dict) or not isinstance(tasks.get("tasks"), list):
+        raise ValueError("evals/tasks.json must declare a task list")
+    ids = [task.get("id") if isinstance(task, dict) else None for task in tasks["tasks"]]
+    if not all(isinstance(task_id, str) and task_id for task_id in ids):
+        raise ValueError("every rubric task must have a non-empty string ID")
+    if len(set(ids)) != len(ids):
+        raise ValueError("rubric task IDs must be unique")
+    return tasks
 
 
 def _check_case(case_path: Path, tasks_by_id: dict) -> list:
@@ -88,8 +108,12 @@ def _check_case(case_path: Path, tasks_by_id: dict) -> list:
 
 
 def run() -> int:
-    tasks = _load_tasks()
-    tasks_by_id = {task["id"]: task for task in tasks.get("tasks", [])}
+    try:
+        tasks = _load_tasks()
+    except ValueError as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        return 2
+    tasks_by_id = {task["id"]: task for task in tasks["tasks"]}
 
     case_paths = sorted(CASES_DIR.glob("*.json"))
     if not case_paths:
