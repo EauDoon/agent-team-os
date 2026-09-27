@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Check the version table in `schemas/VERSIONS.md` against the shipped schemas,
+  so a schema version bump cannot leave the pinned table silently wrong.
 - Report a connect conformance case whose `expect` is neither `valid` nor
   `invalid`, instead of reading any other value as `invalid` and reporting a
   match for the opposite of what the case declares.

@@ -185,6 +185,45 @@ class ValidateTests(unittest.TestCase):
             self.assertIn("release-notes-v0.1.0.md", failures)
             self.assertNotIn("release-notes-0.1.0.md", failures)
 
+    def test_schema_version_table_is_checked_against_the_schemas(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "schemas").mkdir()
+            (root / "schemas" / "plan.schema.json").write_text(
+                json.dumps({"properties": {"plan_version": {"const": "agent-team-plan/v0.1"}}}),
+                encoding="utf-8",
+            )
+            (root / "schemas" / "receipt.schema.json").write_text(
+                json.dumps({"properties": {"receipt_version": {"const": "agent-team-packet-receipt/v0.1"}}}),
+                encoding="utf-8",
+            )
+            table = (
+                "| Schema file | Version metadata |\n"
+                "| --- | --- |\n"
+                "| `schemas/plan.schema.json` | `agent-team-plan/v0.1` (`plan_version` const) |\n"
+                "| `schemas/receipt.schema.json` | `agent-team-packet-receipt/v0.1` |\n"
+            )
+
+            def check(document):
+                (root / "schemas" / "VERSIONS.md").write_text(document, encoding="utf-8")
+                checker = Checker(root)
+                checker.check_schema_versions()
+                return "\n".join(checker.failures)
+
+            self.assertEqual(check(table), "")
+            self.assertIn(
+                "documented schema version matches the schema: schemas/plan.schema.json",
+                check(table.replace("agent-team-plan/v0.1` (`plan_version`", "agent-team-plan/v0.2` (`plan_version`")),
+            )
+            self.assertIn(
+                "schemas/VERSIONS.md lists every shipped schema",
+                check("\n".join(line for line in table.splitlines() if "receipt.schema.json" not in line) + "\n"),
+            )
+            self.assertIn(
+                "schemas/VERSIONS.md lists every shipped schema",
+                check(table + "| `schemas/gone.schema.json` | `agent-team-plan/v0.1` |\n"),
+            )
+
     def test_result_fixture_must_conform_to_schema(self) -> None:
         schema = {
             "required": ["result_version", "status", "arms", "claims"],
