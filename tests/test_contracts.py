@@ -78,6 +78,62 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(violations(True, {'type': 'number'}))
         self.assertTrue(violations(True, {'const': 1}))
 
+    def test_assertion_keywords_reject_and_accept(self):
+        # These keywords are all used by a shipped schema and each one is the
+        # only thing standing between a malformed record and a clean check.
+        rejected = [
+            ('minLength', 'ab', {'minLength': 3}),
+            ('minItems', [], {'minItems': 1}),
+            ('maxItems', [1, 2, 3], {'maxItems': 2}),
+            ('uniqueItems', [1, 1], {'uniqueItems': True}),
+            ('allOf', {'a': 1}, {'allOf': [{'required': ['a']},
+                                           {'properties': {'a': {'type': 'string'}}}]}),
+            ('minimum', 0, {'minimum': 1}),
+            ('maximum', 2, {'minimum': 1, 'maximum': 1.5}),
+        ]
+        accepted = [
+            ('minLength', 'abc', {'minLength': 3}),
+            ('minItems', [1], {'minItems': 1}),
+            ('maxItems', [1, 2], {'maxItems': 2}),
+            ('uniqueItems', [1, 2], {'uniqueItems': True}),
+            ('allOf', {'a': 'x'}, {'allOf': [{'required': ['a']},
+                                             {'properties': {'a': {'type': 'string'}}}]}),
+            ('minimum', 1.5, {'minimum': 1, 'maximum': 1.5}),
+        ]
+        for keyword, value, schema in rejected:
+            with self.subTest(keyword=keyword, expectation='rejected'):
+                self.assertEqual(len(violations(value, schema)), 1, violations(value, schema))
+        for keyword, value, schema in accepted:
+            with self.subTest(keyword=keyword, expectation='accepted'):
+                self.assertEqual(violations(value, schema), [])
+
+    def test_oversized_collections_and_json_equality_are_bounded(self):
+        # An oversized collection is rejected on its size alone, without one
+        # diagnostic per item, so a hostile array cannot inflate the report.
+        self.assertEqual(violations([1, 2, 3], {'maxItems': 2, 'items': {'type': 'string'}}),
+                         ['$: too many items'])
+        # JSON equality keeps 1 and true distinct inside a collection.
+        self.assertEqual(violations([1, True], {'uniqueItems': True}), [])
+
+    def test_conditional_payloads_apply_the_matching_branch(self):
+        schema = {'properties': {'kind': {'const': 'a'}},
+                  'if': {'properties': {'kind': {'const': 'b'}}},
+                  'then': {'required': ['b_note']},
+                  'else': {'required': ['a_note']}}
+        self.assertEqual(violations({'kind': 'a', 'a_note': 'n'}, schema), [])
+        self.assertEqual(violations({'kind': 'a'}, schema), ['$.a_note: required field missing'])
+        self.assertEqual(violations({'kind': 'b', 'b_note': 'n'}, schema),
+                         ['$.kind: does not match const'])
+
+    def test_excessive_contract_depth_is_refused(self):
+        schema, value = {'type': 'object'}, {}
+        for _ in range(70):
+            schema = {'type': 'object', 'properties': {'a': schema}}
+            value = {'a': value}
+        errors = violations(value, schema)
+        self.assertEqual(len(errors), 1)
+        self.assertTrue(errors[0].endswith('maximum contract depth exceeded'), errors)
+
 
 if __name__ == '__main__':
     unittest.main()
