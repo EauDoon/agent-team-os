@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Ship `evals/runner.py` and the `evals/cases/` fixtures in the package manifest,
+  so the released evaluation suite includes the check that keeps it honest.
 - Run the bounded rubric case suite in CI, so drift between `evals/tasks.json`
   and the shipped `evals/cases/` fixtures fails the build.
 - Derive the CI package verification path from `VERSION` instead of repeating the
