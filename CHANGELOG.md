@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Run the bounded rubric case suite in CI, so drift between `evals/tasks.json`
+  and the shipped `evals/cases/` fixtures fails the build.
 - Derive the CI package verification path from `VERSION` instead of repeating the
   current version, so a version bump cannot leave CI verifying a missing archive.
 - Add opt-in v0.2 packet closure linking required evidence claims and audit
