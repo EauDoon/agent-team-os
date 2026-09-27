@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Report a connect conformance case whose `expect` is neither `valid` nor
+  `invalid`, instead of reading any other value as `invalid` and reporting a
+  match for the opposite of what the case declares.
 - Stop the `validate` Makefile target from running the contract check twice and
   printing a duplicate report.
 - Ship `evals/runner.py` and the `evals/cases/` fixtures in the package manifest,

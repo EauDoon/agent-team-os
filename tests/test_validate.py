@@ -340,6 +340,44 @@ class ValidateTests(unittest.TestCase):
             self.assertNotIn("connect conformance case good-1", joined)
             self.assertNotIn("connect conformance case bad", joined)
 
+    def test_connect_conformance_rejects_an_undeclared_expectation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "schemas").mkdir()
+            (root / "conformance" / "connect").mkdir(parents=True)
+            schema = {
+                "required": ["connect_version", "type", "message_id", "correlation_id", "from", "to", "payload"],
+                "properties": {
+                    "connect_version": {"const": "agent-team-connect/v0.1"},
+                    "type": {"enum": ["request", "response", "handoff", "status", "result"]},
+                },
+                "$defs": {"request": {"required": ["objective", "completion_test"]}},
+            }
+            (root / "schemas" / "connect.schema.json").write_text(json.dumps(schema), encoding="utf-8")
+            bad = {
+                "connect_version": "agent-team-connect/v0.1",
+                "type": "request",
+                "message_id": "m",
+                "correlation_id": "c",
+                "from": "a",
+                "to": "b",
+                "payload": {"objective": "o"},
+            }
+            cases = [{"name": f"bad-{index}", "expect": "invalid", "message": bad} for index in range(4)]
+            for declared in ["Valid", "VALID", "invalid ", "", None, True, ["invalid"]]:
+                with self.subTest(expect=declared):
+                    suite = {"cases": cases + [{"name": "broken", "expect": declared, "message": bad}]}
+                    (root / "conformance" / "connect" / "cases.json").write_text(
+                        json.dumps(suite), encoding="utf-8"
+                    )
+                    checker = Checker(root)
+                    checker.check_connect_conformance()
+                    joined = "\n".join(checker.failures)
+                    self.assertIn(
+                        "connect conformance case broken declares valid or invalid", joined
+                    )
+                    self.assertNotIn("connect conformance case broken matches its expectation", joined)
+
     def test_connect_examples_are_valid_messages(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
