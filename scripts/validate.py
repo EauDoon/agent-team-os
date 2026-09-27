@@ -252,6 +252,29 @@ class Checker:
             for key in arm_required:
                 self.ok(isinstance(arm, dict) and key in arm, f"arm has required key {key}")
 
+    def check_schema_versions(self) -> None:
+        """Verify the pinned version table in schemas/VERSIONS.md against the schemas.
+
+        That file states its version strings are "extracted directly from each
+        schema file" and that no version is invented. Nothing compared the table
+        with the schemas, so a schema bump left it silently wrong in either
+        direction: a stale string, or a schema nobody documented.
+        """
+        table = self.text("schemas/VERSIONS.md")
+        documented = dict(re.findall(r"(?m)^\|\s*`(schemas/[\w.-]+\.json)`\s*\|\s*`([^`]+)`", table))
+        shipped = sorted(f"schemas/{path.name}" for path in (self.root / "schemas").glob("*.json"))
+        self.ok(sorted(documented) == shipped, "schemas/VERSIONS.md lists every shipped schema")
+        for relative in shipped:
+            schema = self.json_file(relative)
+            if not isinstance(schema, dict):
+                continue
+            consts = {spec["const"] for spec in schema.get("properties", {}).values()
+                      if isinstance(spec, dict) and "const" in spec}
+            self.ok(
+                documented.get(relative) in consts,
+                f"documented schema version matches the schema: {relative}",
+            )
+
     def check_connect(self) -> None:
         """Check the connect schema exposes a complete, versioned message contract.
 
@@ -466,6 +489,7 @@ class Checker:
             required = schema.get("required", [])
             expected = {field.lower().replace(" ", "_") for field in FIELDS}
             self.ok(expected.issubset(set(required)), "role brief schema requires six fields")
+        self.check_schema_versions()
 
         tasks = self.json_file("evals/tasks.json")
         if isinstance(tasks, dict):
