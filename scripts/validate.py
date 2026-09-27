@@ -11,9 +11,9 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 
 try:
-    from .contracts import violations as schema_violations
+    from .contracts import KEYWORDS as SCHEMA_KEYWORDS, violations as schema_violations
 except ImportError:
-    from contracts import violations as schema_violations
+    from contracts import KEYWORDS as SCHEMA_KEYWORDS, violations as schema_violations
 
 
 FIELDS = [
@@ -43,6 +43,48 @@ def object_ids(value: object) -> list[object] | None:
     if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
         return None
     return [item.get("id") for item in value]
+
+
+def schema_problems(schema: dict) -> list[str]:
+    """Return located keywords the bundled validator cannot enforce.
+
+    ``contracts.violations`` rejects an unsupported keyword only when a check
+    actually reaches that subschema, so a misspelled ``requred`` in a branch no
+    fixture visits stays silent and the field it should have constrained is
+    never constrained. Every subschema is inspected here instead, and every
+    local reference is resolved, because an unresolvable one fails only when a
+    document happens to traverse it.
+    """
+    problems: list[str] = []
+
+    def walk(node: object, location: str) -> None:
+        if not isinstance(node, dict):
+            return
+        for keyword in sorted(set(node) - SCHEMA_KEYWORDS):
+            problems.append(f"{location}: unsupported keyword {keyword}")
+        ref = node.get("$ref")
+        if isinstance(ref, str):
+            target: object = schema if ref.startswith("#/") else None
+            for token in ref[2:].split("/"):
+                if not isinstance(target, dict):
+                    break
+                target = target.get(token.replace("~1", "/").replace("~0", "~"))
+            if not isinstance(target, dict):
+                problems.append(f"{location}: unresolved local reference {ref}")
+        # Only these keywords hold subschemas. Every other value is plain data,
+        # such as the field names inside `properties` or the members of `enum`.
+        for key, value in node.items():
+            if key in ("properties", "$defs") and isinstance(value, dict):
+                for name, nested in value.items():
+                    walk(nested, f"{location}.{key}.{name}")
+            elif key == "allOf" and isinstance(value, list):
+                for index, nested in enumerate(value):
+                    walk(nested, f"{location}.{key}[{index}]")
+            elif key in ("items", "additionalProperties", "if", "then", "else"):
+                walk(value, f"{location}.{key}")
+
+    walk(schema, "$")
+    return problems
 
 
 class Checker:
@@ -275,6 +317,28 @@ class Checker:
                 f"documented schema version matches the schema: {relative}",
             )
 
+    def check_schema_keywords(self) -> None:
+        """Report any shipped schema the bundled validator cannot fully enforce.
+
+        The schemas are the machine-readable contract, and the checker
+        deliberately refuses to pretend it understands an assertion keyword it
+        does not implement. That refusal is per-check, so a schema typo is only
+        caught if a fixture happens to reach it. This walks every subschema of
+        every shipped schema up front.
+        """
+        paths = sorted((self.root / "schemas").glob("*.json"))
+        paths += sorted((self.root / "evals").glob("*.schema.json"))
+        self.ok(bool(paths), "shipped schema documents are present")
+        for path in paths:
+            relative = path.relative_to(self.root).as_posix()
+            schema = self.json_file(relative)
+            if not isinstance(schema, dict):
+                continue
+            problems = schema_problems(schema)
+            for problem in problems:
+                self.ok(False, f"schema is enforceable: {relative} {problem}")
+            self.ok(not problems, f"schema is enforceable: {relative}")
+
     def check_connect(self) -> None:
         """Check the connect schema exposes a complete, versioned message contract.
 
@@ -490,6 +554,7 @@ class Checker:
             expected = {field.lower().replace(" ", "_") for field in FIELDS}
             self.ok(expected.issubset(set(required)), "role brief schema requires six fields")
         self.check_schema_versions()
+        self.check_schema_keywords()
 
         tasks = self.json_file("evals/tasks.json")
         if isinstance(tasks, dict):
