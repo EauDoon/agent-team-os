@@ -356,6 +356,8 @@ class Checker:
         conformance/connect/cases.json holds named messages with an expectation of
         valid or invalid. Each message is checked with connect_violations and the
         result must match the expectation, so the suite is machine-verified in CI.
+        A case must declare one of the two expectations exactly; an unrecognised
+        value is reported rather than read as "invalid".
         """
         suite = self.json_file(relative)
         if not isinstance(suite, dict):
@@ -382,9 +384,16 @@ class Checker:
                 self.ok(False, "connect conformance case is an object")
                 continue
             name = case.get("name", "<unnamed>")
+            declared = case.get("expect")
+            # An unrecognised expectation is a broken case, not an invalid
+            # message. Treating it as "invalid" inverts the case and lets it
+            # report a pass for the opposite of what it declares. A tuple keeps
+            # the comparison total for an unhashable JSON value.
+            if declared not in ("valid", "invalid"):
+                self.ok(False, f"connect conformance case {name} declares valid or invalid")
+                continue
             conforms = not self.connect_violations(case.get("message"), schema)
-            expected = case.get("expect") == "valid"
-            self.ok(conforms == expected, f"connect conformance case {name} matches its expectation")
+            self.ok(conforms == (declared == "valid"), f"connect conformance case {name} matches its expectation")
 
     def check_changelog_version(self, current: str) -> None:
         """Ensure the newest CHANGELOG entry matches the current VERSION.
