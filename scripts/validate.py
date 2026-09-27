@@ -339,6 +339,9 @@ class Checker:
                 f"documented schema version matches the schema: {relative}",
             )
 
+    def shipped_schemas(self) -> list[Path]:
+        return sorted((self.root / "schemas").glob("*.json")) + sorted((self.root / "evals").glob("*.schema.json"))
+
     def check_schema_keywords(self) -> None:
         """Report any shipped schema the bundled validator cannot fully enforce.
 
@@ -348,8 +351,7 @@ class Checker:
         caught if a fixture happens to reach it. This walks every subschema of
         every shipped schema up front.
         """
-        paths = sorted((self.root / "schemas").glob("*.json"))
-        paths += sorted((self.root / "evals").glob("*.schema.json"))
+        paths = self.shipped_schemas()
         self.ok(bool(paths), "shipped schema documents are present")
         for path in paths:
             relative = path.relative_to(self.root).as_posix()
@@ -360,6 +362,25 @@ class Checker:
             for problem in problems:
                 self.ok(False, f"schema is enforceable: {relative} {problem}")
             self.ok(not problems, f"schema is enforceable: {relative}")
+
+    def check_schema_ids(self) -> None:
+        """Require a unique $id on every shipped schema.
+
+        A schema's $id is its identity: it is how the contract is referenced and
+        cached. Six of the nine schemas under schemas/ had none, and nothing
+        stopped a new schema from reusing an existing $id, which would let two
+        different contracts answer to the same name.
+        """
+        seen: dict[str, str] = {}
+        for path in self.shipped_schemas():
+            relative = path.relative_to(self.root).as_posix()
+            schema = self.json_file(relative)
+            identifier = schema.get("$id") if isinstance(schema, dict) else None
+            self.ok(isinstance(identifier, str) and identifier, f"schema declares an $id: {relative}")
+            if not isinstance(identifier, str) or not identifier:
+                continue
+            self.ok(seen.get(identifier, relative) == relative, f"schema $id is unique: {relative}")
+            seen.setdefault(identifier, relative)
 
     def check_connect(self) -> None:
         """Check the connect schema exposes a complete, versioned message contract.
@@ -578,6 +599,7 @@ class Checker:
             self.ok(expected.issubset(set(required)), "role brief schema requires six fields")
         self.check_schema_versions()
         self.check_schema_keywords()
+        self.check_schema_ids()
 
         tasks = self.json_file("evals/tasks.json")
         if isinstance(tasks, dict):

@@ -276,6 +276,28 @@ class ValidateTests(unittest.TestCase):
             schema_problems({"properties": {"a": {"enum": ["x", "y"]}}, "enum": [1, 2]}), []
         )
 
+    def test_schema_ids_must_be_present_and_unique(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "schemas").mkdir()
+            (root / "evals").mkdir()
+
+            def write(relative, identifier):
+                document = {"$id": identifier} if identifier else {}
+                (root / relative).write_text(json.dumps(document), encoding="utf-8")
+
+            write("schemas/one.schema.json", "https://example.invalid/one")
+            write("schemas/two.schema.json", "https://example.invalid/two")
+            write("schemas/plain.schema.json", None)
+            write("evals/run.schema.json", "https://example.invalid/one")
+            checker = Checker(root)
+            checker.check_schema_ids()
+            joined = "\n".join(checker.failures)
+            self.assertIn("schema declares an $id: schemas/plain.schema.json", joined)
+            self.assertIn("schema $id is unique: evals/run.schema.json", joined)
+            self.assertNotIn("schema $id is unique: schemas/one.schema.json", joined)
+            self.assertNotIn("schema $id is unique: schemas/two.schema.json", joined)
+
     def test_every_shipped_schema_is_enforceable(self) -> None:
         root = Path(__file__).resolve().parents[1]
         paths = sorted((root / "schemas").glob("*.json")) + sorted((root / "evals").glob("*.schema.json"))

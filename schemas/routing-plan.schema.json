@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://EauDoon.github.io/agent-team-os/schemas/routing-plan.schema.json",
   "title": "Agent Team routing plan",
   "type": "object",
   "additionalProperties": false,
