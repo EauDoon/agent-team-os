@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Derive the CI package verification path from `VERSION` instead of repeating the
+  current version, so a version bump cannot leave CI verifying a missing archive.
 - Add opt-in v0.2 packet closure linking required evidence claims and audit
   results to an expected output revision, with exact-byte receipt verification.
 - Include a fully synthetic operator walkthrough and extracted-package regressions
