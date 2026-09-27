@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Report a shipped schema keyword the bundled validator cannot enforce, and a
+  local schema reference that does not resolve, before any document is checked.
 - Check the version table in `schemas/VERSIONS.md` against the shipped schemas,
   so a schema version bump cannot leave the pinned table silently wrong.
 - Report a connect conformance case whose `expect` is neither `valid` nor

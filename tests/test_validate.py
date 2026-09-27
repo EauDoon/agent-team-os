@@ -10,9 +10,10 @@ from itertools import product
 from pathlib import Path
 from unittest.mock import patch
 
+from scripts.contracts import violations
 from scripts.package import files_for, version_for
 from scripts.package import main as package_main
-from scripts.validate import Checker, _display_path
+from scripts.validate import Checker, _display_path, schema_problems
 from scripts.validate import main as validate_main
 
 
@@ -223,6 +224,40 @@ class ValidateTests(unittest.TestCase):
                 "schemas/VERSIONS.md lists every shipped schema",
                 check(table + "| `schemas/gone.schema.json` | `agent-team-plan/v0.1` |\n"),
             )
+
+    def test_schema_problems_find_unenforceable_keywords_and_references(self) -> None:
+        idle = {
+            "type": "object",
+            "required": ["claims"],
+            "properties": {"claims": {"type": "array"}},
+            "$defs": {"claim": {"type": "object", "requred": ["next_step"]}},
+        }
+        # The misspelling is silent while checking a document, so only the
+        # up-front walk can report it.
+        self.assertEqual(violations({"claims": [{"status": "unsupported"}]}, idle), [])
+        self.assertEqual(
+            schema_problems(idle), ["$.$defs.claim: unsupported keyword requred"]
+        )
+        dangling = {
+            "type": "object",
+            "properties": {"brief": {"$ref": "#/$defs/brif"}},
+            "$defs": {"brief": {"type": "object"}},
+        }
+        self.assertEqual(
+            schema_problems(dangling), ["$.properties.brief: unresolved local reference #/$defs/brif"]
+        )
+        self.assertEqual(schema_problems(idle["$defs"]["claim"]), ["$: unsupported keyword requred"])
+        self.assertEqual(
+            schema_problems({"properties": {"a": {"enum": ["x", "y"]}}, "enum": [1, 2]}), []
+        )
+
+    def test_every_shipped_schema_is_enforceable(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        paths = sorted((root / "schemas").glob("*.json")) + sorted((root / "evals").glob("*.schema.json"))
+        self.assertTrue(paths)
+        for path in paths:
+            with self.subTest(schema=path.name):
+                self.assertEqual(schema_problems(json.loads(path.read_text(encoding="utf-8"))), [])
 
     def test_result_fixture_must_conform_to_schema(self) -> None:
         schema = {
