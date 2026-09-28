@@ -624,6 +624,28 @@ class ValidateTests(unittest.TestCase):
                 checker.failures,
             )
 
+    def test_connect_examples_reject_duplicate_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "schemas").mkdir()
+            schema = {
+                "required": ["connect_version", "type", "message_id", "correlation_id", "from", "to", "payload"],
+                "properties": {"connect_version": {"const": "agent-team-connect/v0.1"},
+                               "type": {"enum": ["request"]}},
+                "$defs": {"request": {"required": ["objective", "completion_test"]}},
+            }
+            (root / "schemas" / "connect.schema.json").write_text(json.dumps(schema), encoding="utf-8")
+            # The second objective is valid, so keeping the last key would hide the first.
+            (root / "connect.md").write_text(
+                '```json\n{"connect_version":"agent-team-connect/v0.1","type":"request",'
+                '"message_id":"m1","correlation_id":"c1","from":"a","to":"b",'
+                '"payload":{"objective":"hidden","objective":"shown","completion_test":"t"}}\n```\n',
+                encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.check_connect_examples()
+            self.assertTrue(any("duplicate JSON object key" in item for item in checker.failures), checker.failures)
+
     def test_connect_schema_requires_envelope_and_role_brief(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
