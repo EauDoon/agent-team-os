@@ -365,6 +365,22 @@ class ValidateTests(unittest.TestCase):
         self.assertIn("arm has required key label", joined)
         self.assertIn("result has required key claims", joined)
 
+    def test_result_conformance_rejects_schema_violations_the_partial_check_misses(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        schema = json.loads((root / "evals/result.schema.json").read_text(encoding="utf-8"))
+        result = json.loads((root / "evals/results.v0.1.json").read_text(encoding="utf-8"))
+        checker = Checker(root)
+        checker.check_result_conformance(schema, result)
+        self.assertEqual(checker.failures, [])
+        broken = dict(result)
+        broken["extra"] = True
+        broken["arms"] = result["arms"][:1]
+        checker = Checker(root)
+        checker.check_result_conformance(schema, broken)
+        joined = "\n".join(checker.failures)
+        self.assertIn("unknown field", joined)
+        self.assertIn("too few items", joined)
+
     def test_link_destination_with_parenthesis_is_parsed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Apply the full result schema when checking `evals/results.v0.1.json`, so an
+  extra field or a short `arms` list is rejected instead of reported as conforming.
 - Reject a nested schema `$id` that reuses another contract's identity. The
   routing plan's embedded brief no longer claims the role-brief schema URI.
 - Treat numerically equal JSON numbers as equal for `const`, `enum`, and
