@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 
 _MAX_EXACT_INTEGER = 2 ** 53
 
@@ -48,7 +49,7 @@ def is_json_integer(value: object) -> bool:
 KEYWORDS = {
     "$schema", "$id", "$defs", "$ref", "title", "description", "default",
     "type", "const", "enum", "required", "properties", "additionalProperties",
-    "minLength", "minItems", "maxItems", "items", "uniqueItems", "minimum",
+    "minLength", "maxLength", "pattern", "minItems", "maxItems", "items", "uniqueItems", "minimum",
     "maximum", "allOf", "if", "then", "else",
 }
 
@@ -125,8 +126,21 @@ def _violations(value: object, schema: dict, *, root: dict | None = None,
                 errors.extend(check(item, additional, f"{path}.{key}"))
             elif additional is not True:
                 raise ValueError("unsupported additionalProperties schema")
-    if isinstance(value, str) and len(value) < schema.get("minLength", 0):
-        errors.append(f"{path}: string is too short")
+    if isinstance(value, str):
+        if len(value) < schema.get("minLength", 0):
+            errors.append(f"{path}: string is too short")
+        if "maxLength" in schema and len(value) > schema["maxLength"]:
+            errors.append(f"{path}: string is too long")
+        if "pattern" in schema:
+            pattern = schema["pattern"]
+            if not isinstance(pattern, str):
+                raise ValueError("pattern must be a string")
+            try:
+                matched = re.search(pattern, value) is not None
+            except re.error as exc:
+                raise ValueError("invalid schema pattern") from exc
+            if not matched:
+                errors.append(f"{path}: does not match pattern")
     if isinstance(value, list):
         if len(value) < schema.get("minItems", 0):
             errors.append(f"{path}: too few items")

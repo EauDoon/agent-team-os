@@ -85,7 +85,7 @@ class ContractTests(unittest.TestCase):
         self.assertTrue(violations(message, schema))
 
     def test_unsupported_assertions_and_remote_refs_fail(self):
-        for schema in [{'pattern': 'x'}, {'$ref': 'https://example.invalid/schema'}]:
+        for schema in [{'format': 'date'}, {'$ref': 'https://example.invalid/schema'}]:
             with self.assertRaises(ValueError):
                 violations('x', schema)
 
@@ -113,6 +113,8 @@ class ContractTests(unittest.TestCase):
                                            {'properties': {'a': {'type': 'string'}}}]}),
             ('minimum', 0, {'minimum': 1}),
             ('maximum', 2, {'minimum': 1, 'maximum': 1.5}),
+            ('maxLength', 'abcd', {'maxLength': 3}),
+            ('pattern', 'zz', {'pattern': '^[0-9a-f]{2}$'}),
         ]
         accepted = [
             ('minLength', 'abc', {'minLength': 3}),
@@ -122,6 +124,8 @@ class ContractTests(unittest.TestCase):
             ('allOf', {'a': 'x'}, {'allOf': [{'required': ['a']},
                                              {'properties': {'a': {'type': 'string'}}}]}),
             ('minimum', 1.5, {'minimum': 1, 'maximum': 1.5}),
+            ('maxLength', 'ab', {'maxLength': 3}),
+            ('pattern', 'ab', {'pattern': '^[0-9a-f]{2}$'}),
         ]
         for keyword, value, schema in rejected:
             with self.subTest(keyword=keyword, expectation='rejected'):
