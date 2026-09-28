@@ -76,6 +76,12 @@ def _violations(value: object, schema: dict, *, root: dict | None = None,
         raise _ContractLimit(path)
     if isinstance(value, float) and not math.isfinite(value):
         return [f"{path}: number must be finite"]
+    if schema is True:
+        return []
+    if schema is False:
+        return [f"{path}: value is not allowed"]
+    if not isinstance(schema, dict):
+        raise ValueError("schema must be an object or boolean")
     root = schema if root is None else root
     unknown = set(schema) - KEYWORDS
     if unknown:

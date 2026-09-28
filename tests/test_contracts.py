@@ -97,6 +97,16 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(violations({'extra': 1}, {'additionalProperties': False}),
                          ['$.extra: unknown field'])
 
+    def test_boolean_subschemas_accept_or_reject_without_crashing(self):
+        self.assertEqual(violations(1, {'allOf': [True]}), [])
+        self.assertEqual(violations(1, {'allOf': [False]}), ['$: value is not allowed'])
+        self.assertEqual(violations({'a': 1}, {'properties': {'a': False}}), ['$.a: value is not allowed'])
+        self.assertEqual(violations({'a': 1}, {'properties': {'a': True}}), [])
+        self.assertEqual(violations({'k': 'a'}, {'if': False, 'else': {'required': ['k']}}), [])
+        self.assertEqual(violations(1, {'if': True, 'then': {'const': 2}}), ['$: does not match const'])
+        with self.assertRaises(ValueError):
+            violations(1, {'allOf': [[]]})
+
     def test_boolean_is_not_number_or_numeric_const(self):
         self.assertTrue(violations(True, {'type': 'number'}))
         self.assertTrue(violations(True, {'const': 1}))
