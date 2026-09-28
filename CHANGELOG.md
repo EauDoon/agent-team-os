@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reject a rubric task ID that is only whitespace. A space was truthy, so the
+  runner treated it as a real id and reported a case-set mismatch instead.
 - Reject duplicate JSON object keys in the rubric and in rubric case files.
   `json.load` kept the last value, so an earlier conflicting field was ignored.
 - Check a connect conformance case's declared `violation` against the diagnostics
