@@ -88,6 +88,15 @@ class PacketTests(unittest.TestCase):
         receipt['records'].append(receipt['records'][0])
         with self.assertRaises(ValueError):
             verify_receipt(result, receipt)
+        for label, mutate in (
+            ('index', lambda item: item.update(index_sha256='g' * 64)),
+            ('record', lambda item: item['records'][0].update(sha256='a' * 65)),
+            ('short', lambda item: item['records'][0].update(sha256='ab')),
+        ):
+            changed = copy.deepcopy(make_receipt(result))
+            mutate(changed)
+            with self.assertRaises(ValueError, msg=label):
+                verify_receipt(result, changed)
 
     def test_receipt_cli_detects_byte_drift_and_preserves_existing_output(self):
         with tempfile.TemporaryDirectory() as directory:
