@@ -135,6 +135,21 @@ class EvalRunnerTests(unittest.TestCase):
         self.assertEqual(status, 1, errors)
         self.assertIn("duplicate JSON object key", out)
 
+    def test_a_blank_prompt_or_task_shape_is_not_usable(self):
+        for label, field, value in (
+            ("blank prompt", "prompt", " "),
+            ("blank shape", "task_shape", "\t"),
+        ):
+            with self.subTest(label=label):
+                self.setUp()
+                self.tasks["tasks"][0][field] = value
+                self.write_tasks()
+                self.write_cases()
+                status, out, errors = self.run_runner()
+                self.assertEqual(status, 2, out + errors)
+                self.assertIn("non-empty", errors)
+                self.assertEqual(len(errors.strip().splitlines()), 1, errors)
+
     def test_a_whitespace_task_id_is_not_usable(self):
         for label, document in [
             ("space", {"tasks": [{"id": " "}]}),
