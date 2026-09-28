@@ -33,6 +33,18 @@ def _canonical(item: object) -> str:
     return json.dumps(_json_model(item), sort_keys=True, ensure_ascii=True, allow_nan=False)
 
 
+def is_json_integer(value: object) -> bool:
+    """A JSON integer is a finite number with no fractional part.
+
+    Draft 2020-12 counts 1.0 and -0 as integers. Booleans stay booleans.
+    """
+    if isinstance(value, bool):
+        return False
+    if isinstance(value, int):
+        return True
+    return isinstance(value, float) and math.isfinite(value) and value.is_integer()
+
+
 KEYWORDS = {
     "$schema", "$id", "$defs", "$ref", "title", "description", "default",
     "type", "const", "enum", "required", "properties", "additionalProperties",
@@ -86,7 +98,7 @@ def _violations(value: object, schema: dict, *, root: dict | None = None,
     kinds = {
         "object": isinstance(value, dict), "array": isinstance(value, list),
         "string": isinstance(value, str), "boolean": isinstance(value, bool),
-        "integer": isinstance(value, int) and not isinstance(value, bool),
+        "integer": is_json_integer(value),
         "number": isinstance(value, (int, float)) and not isinstance(value, bool),
         "null": value is None,
     }

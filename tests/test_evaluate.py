@@ -70,6 +70,13 @@ class EvaluationTests(unittest.TestCase):
                     'prompt_revision': 'fixture-p1', 'evidence_revision': 'fixture-e1',
                     'checks': ['pass'] * len(task['acceptance']), 'tokens': 10, 'duration_seconds': 2.5})
 
+    def test_whole_number_token_counts_stay_exact_integers(self):
+        for row in self.run['records']:
+            row['tokens'] = 10.0
+        result = summarize(self.run, self.suite)
+        self.assertEqual(result['arms']['current']['tokens'], 60)
+        self.assertIs(type(result['arms']['current']['tokens']), int)
+
     def test_known_totals_and_synthetic_label(self):
         result = summarize(self.run, self.suite)
         self.assertEqual(result['status'], 'synthetic')

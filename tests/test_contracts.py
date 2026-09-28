@@ -134,6 +134,11 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(violations([[1], [1.0]], {'uniqueItems': True}), ['$: duplicate items'])
         self.assertEqual(violations(1.0, {'const': 1}), [])
         self.assertEqual(violations(1, {'enum': [1.0]}), [])
+        # Draft 2020-12 integers include whole numbers such as 1.0 and -0.
+        self.assertEqual(violations(1.0, {'type': 'integer', 'minimum': 1, 'maximum': 1}), [])
+        self.assertEqual(violations(-0.0, {'type': 'integer', 'minimum': 0}), [])
+        self.assertTrue(violations(1.5, {'type': 'integer'}))
+        self.assertTrue(violations(True, {'type': 'integer'}))
         self.assertEqual(violations({'n': 1.0}, {'const': {'n': 1}}), [])
         self.assertTrue(violations(False, {'const': 0}))
 
