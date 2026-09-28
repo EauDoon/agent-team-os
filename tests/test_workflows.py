@@ -40,6 +40,11 @@ class WorkflowTests(unittest.TestCase):
         blank['findings'][0]['checked_revision'] = ' \t '
         errors = check_document('audit', blank)
         self.assertTrue(any('target revision must not be blank' in error for error in errors), errors)
+        blank = json.loads((ROOT / 'templates/audit-closure.json').read_text())
+        blank['author'] = ' '
+        blank['auditor'] = '\t'
+        errors = check_document('audit', blank)
+        self.assertTrue(any('author and auditor must not be blank' in error for error in errors), errors)
 
     def test_budget_inconsistency_fails(self):
         for key, value in [('max_assignments', 2), ('max_parallel', 4), ('review_reserve', 8), ('total_work_units', -1)]:
