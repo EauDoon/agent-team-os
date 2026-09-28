@@ -39,6 +39,18 @@ def _display_path(path: Path, root: Path) -> str:
     return relative.encode("utf-8", errors="backslashreplace").decode("utf-8")
 
 
+def schema_identifiers(node: object, location: str = "$"):
+    """Yield each `$id` with its location, including ids nested under `$defs`."""
+    if isinstance(node, dict):
+        if "$id" in node:
+            yield location, node.get("$id")
+        for key, value in node.items():
+            yield from schema_identifiers(value, f"{location}.{key}")
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            yield from schema_identifiers(value, f"{location}[{index}]")
+
+
 def object_ids(value: object) -> list[object] | None:
     if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
         return None
@@ -372,15 +384,28 @@ class Checker:
         different contracts answer to the same name.
         """
         seen: dict[str, str] = {}
+        loaded: list[tuple[str, object]] = []
         for path in self.shipped_schemas():
             relative = path.relative_to(self.root).as_posix()
             schema = self.json_file(relative)
+            loaded.append((relative, schema))
             identifier = schema.get("$id") if isinstance(schema, dict) else None
             self.ok(isinstance(identifier, str) and identifier, f"schema declares an $id: {relative}")
-            if not isinstance(identifier, str) or not identifier:
+            if isinstance(identifier, str) and identifier:
+                self.ok(seen.get(identifier, relative) == relative, f"schema $id is unique: {relative}")
+                seen.setdefault(identifier, relative)
+        # Root identities are claimed first, so a nested copy is the one reported.
+        for relative, schema in loaded:
+            if not isinstance(schema, dict):
                 continue
-            self.ok(seen.get(identifier, relative) == relative, f"schema $id is unique: {relative}")
-            seen.setdefault(identifier, relative)
+            for location, nested in schema_identifiers(schema):
+                if location == "$":
+                    continue
+                self.ok(isinstance(nested, str) and nested, f"schema declares an $id: {relative} {location}")
+                if not isinstance(nested, str) or not nested:
+                    continue
+                self.ok(nested not in seen, f"schema $id is unique: {relative} {location}")
+                seen.setdefault(nested, f"{relative} {location}")
 
     def check_connect(self) -> None:
         """Check the connect schema exposes a complete, versioned message contract.

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reject a nested schema `$id` that reuses another contract's identity. The
+  routing plan's embedded brief no longer claims the role-brief schema URI.
 - Treat numerically equal JSON numbers as equal for `const`, `enum`, and
   `uniqueItems`, so `1` and `1.0` are one value while `true` stays distinct.
 - Refuse a document that exceeds the contract depth limit inside an `if`
