@@ -116,6 +116,25 @@ class EvalRunnerTests(unittest.TestCase):
                 self.assertTrue(errors.startswith("FAIL: "), errors)
                 self.assertEqual(len(errors.strip().splitlines()), 1, errors)
 
+    def test_duplicate_json_keys_are_ambiguous(self):
+        self.write_tasks(
+            '{"tasks": [{"id": "alpha", "id": "beta", "task_shape": "s", '
+            '"prompt": "p", "acceptance": ["one"]}]}'
+        )
+        status, out, errors = self.run_runner()
+        self.assertEqual(status, 2, out)
+        self.assertIn("duplicate JSON object key", errors)
+        self.assertEqual(len(errors.strip().splitlines()), 1, errors)
+        self.write_tasks()
+        (self.cases / "alpha.json").write_text(
+            '{"id": "alpha", "task_shape": "evidence-extraction", '
+            '"prompt": "changed", "prompt": "p1", "acceptance": ["one"]}',
+            encoding="utf-8",
+        )
+        status, out, errors = self.run_runner()
+        self.assertEqual(status, 1, errors)
+        self.assertIn("duplicate JSON object key", out)
+
     def test_a_missing_rubric_reports_one_line_and_exits_two(self):
         self.tasks_file.unlink()
         status, out, errors = self.run_runner()
