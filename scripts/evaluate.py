@@ -90,7 +90,8 @@ def summarize(run: object, suite: dict) -> dict:
 def markdown_cell(value: object) -> str:
     text = str(value)
     text = ''.join(' ' if char in '\r\n\t' else
-                   f'\\u{ord(char):04x}' if unicodedata.category(char).startswith('C') else char for char in text)
+                   f'\\u{ord(char):04x}' if char in '\u2028\u2029' or unicodedata.category(char).startswith('C') else char
+                   for char in text)
     text = html.escape(text, quote=False)
     return ''.join('\\' + char if char in '\\|`*_[]()!#' else char for char in text)
 
