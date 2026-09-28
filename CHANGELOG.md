@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reject duplicate JSON object keys in the rubric and in rubric case files.
+  `json.load` kept the last value, so an earlier conflicting field was ignored.
 - Check a connect conformance case's declared `violation` against the diagnostics
   the checker actually produced. The v0.2 wrong-version case had named the v0.1
   contract.

@@ -32,6 +32,31 @@ TASKS_FILE = ROOT / "evals" / "tasks.json"
 REQUIRED_FIELDS = ("id", "task_shape", "prompt", "acceptance")
 
 
+def _reject_duplicate_keys(items):
+    """Refuse a JSON object that spells one key twice.
+
+    ``json.load`` keeps the last value, so an earlier conflicting prompt or id
+    would be ignored and a case could still match the rubric.
+    """
+    result = {}
+    for key, value in items:
+        if key in result:
+            raise ValueError("duplicate JSON object key")
+        result[key] = value
+    return result
+
+
+def _load_json(path: Path, label: str):
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise ValueError(f"{label} is unreadable or not valid JSON") from exc
+    try:
+        return json.loads(text, object_pairs_hook=_reject_duplicate_keys)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{label} is unreadable or not valid JSON") from exc
+
+
 def _load_tasks() -> dict:
     """Read the rubric, refusing a file this runner cannot compare against.
 
@@ -41,10 +66,11 @@ def _load_tasks() -> dict:
     against the wrong rubric entry and the suite could still pass.
     """
     try:
-        with TASKS_FILE.open("r", encoding="utf-8") as handle:
-            tasks = json.load(handle)
-    except (OSError, ValueError, UnicodeError) as exc:
-        raise ValueError("evals/tasks.json is unreadable or not valid JSON") from exc
+        tasks = _load_json(TASKS_FILE, "evals/tasks.json")
+    except ValueError as exc:
+        if str(exc) == "duplicate JSON object key":
+            raise ValueError("evals/tasks.json contains a duplicate JSON object key") from exc
+        raise
     if not isinstance(tasks, dict) or not isinstance(tasks.get("tasks"), list):
         raise ValueError("evals/tasks.json must declare a task list")
     ids = [task.get("id") if isinstance(task, dict) else None for task in tasks["tasks"]]
@@ -59,10 +85,11 @@ def _check_case(case_path: Path, tasks_by_id: dict) -> list:
     problems: list = []
 
     try:
-        with case_path.open("r", encoding="utf-8") as handle:
-            case = json.load(handle)
-    except json.JSONDecodeError as exc:
+        case = json.loads(case_path.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         return [f"invalid JSON: {exc}"]
+    except ValueError as exc:
+        return [str(exc)]
 
     if not isinstance(case, dict):
         return ["case root must be a JSON object"]
