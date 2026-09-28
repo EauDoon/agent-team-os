@@ -11,11 +11,11 @@ from pathlib import Path
 try:
     from .author import write_new_text
     from .check import ROOT, load_json, load_json_snapshot
-    from .contracts import violations
+    from .contracts import is_json_integer, violations
 except ImportError:
     from author import write_new_text
     from check import ROOT, load_json, load_json_snapshot
-    from contracts import violations
+    from contracts import is_json_integer, violations
 
 MAX_EXACT_INTEGER = 2 ** 53 - 1
 
@@ -59,7 +59,9 @@ def summarize(run: object, suite: dict) -> dict:
     for arm in ('solo', 'current'):
         selected = [row for row in rows.values() if row['arm'] == arm]
         checks = [check for row in selected for check in row['checks']]
-        tokens = sum(row['tokens'] for row in selected)
+        if not all(is_json_integer(row['tokens']) for row in selected):
+            raise ValueError('token count must be an integer')
+        tokens = sum(int(row['tokens']) for row in selected)
         if tokens > MAX_EXACT_INTEGER:
             raise ValueError('token total exceeds the interoperable JSON integer limit')
         totals[arm] = {

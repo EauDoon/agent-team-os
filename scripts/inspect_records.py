@@ -64,6 +64,8 @@ def inspect_plan(plan: object, accepted: list[str] | None = None, *, blocked: li
                for key, item in sorted(by_id.items()) if key not in accepted_ids]
     ready = [item['id'] for item in waiting if not item['unaccepted_dependencies'] and item['id'] not in held]
     limit = plan.get('budget', {}).get('max_parallel')
+    if isinstance(limit, float) and limit.is_integer():
+        limit = int(limit)
     return {'route': plan['route'], 'stages': stages, 'accepted': sorted(accepted_ids),
             'invalidated': sorted(invalidated),
             'ready': ready,

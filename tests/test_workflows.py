@@ -44,6 +44,10 @@ class WorkflowTests(unittest.TestCase):
         plan = self.plan()
         del plan['budget']
         self.assertEqual(check_document('plan', plan), [])
+        plan = self.plan()
+        for key in ('total_work_units', 'review_reserve', 'max_assignments', 'max_parallel', 'max_correction_rounds'):
+            plan['budget'][key] = float(plan['budget'][key])
+        self.assertEqual(check_document('plan', plan), [])
 
     def test_valid_plan(self):
         self.assertEqual(check_document('plan', self.plan()), [])

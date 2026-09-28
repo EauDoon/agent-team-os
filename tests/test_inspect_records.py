@@ -170,6 +170,8 @@ class InspectionTests(unittest.TestCase):
         self.assertEqual(inspect_plan(plan)['ready_batches'], [['build', 'requirements'], ['review']])
         plan['budget']['max_parallel'] = 1
         self.assertEqual(inspect_plan(plan)['ready_batches'], [['build'], ['requirements'], ['review']])
+        plan['budget']['max_parallel'] = 1.0
+        self.assertEqual(inspect_plan(plan)['ready_batches'], [['build'], ['requirements'], ['review']])
         del plan['budget']
         self.assertIsNone(inspect_plan(plan)['ready_batches'])
         self.assertEqual(inspect_plan(self.plan(), blocked=['requirements'])['ready_batches'], [])
