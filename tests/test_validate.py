@@ -160,6 +160,7 @@ class ValidateTests(unittest.TestCase):
         package = workflow.index("python3 scripts/package.py --output dist")
         self.assertLess(workflow.index("python3 scripts/validate.py"), package)
         self.assertLess(workflow.index("python3 -m unittest discover -s tests -v"), package)
+        self.assertLess(workflow.index("python3 evals/runner.py"), package)
         # The release step must require a versioned notes file, not silently fall back to a stale one.
         self.assertIn('NOTES="docs/release-notes-${VERSION}.md"', workflow)
         self.assertNotIn('release-notes-v0.1.0.md', workflow)
