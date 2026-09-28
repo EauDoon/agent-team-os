@@ -510,8 +510,8 @@ class Checker:
         self.ok(bool(blocks), f"{relative} contains worked JSON examples")
         for index, block in enumerate(blocks, 1):
             try:
-                msg = json.loads(block)
-            except json.JSONDecodeError as exc:
+                msg = json.loads(block, object_pairs_hook=_json_object)
+            except (json.JSONDecodeError, ValueError) as exc:
                 self.ok(False, f"connect example {index} is valid JSON: {exc}")
                 continue
             violations = self.connect_violations(msg, schema)
