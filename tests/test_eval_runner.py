@@ -135,6 +135,19 @@ class EvalRunnerTests(unittest.TestCase):
         self.assertEqual(status, 1, errors)
         self.assertIn("duplicate JSON object key", out)
 
+    def test_a_whitespace_task_id_is_not_usable(self):
+        for label, document in [
+            ("space", {"tasks": [{"id": " "}]}),
+            ("tab", {"tasks": [{"id": "\t"}]}),
+        ]:
+            with self.subTest(label=label):
+                self.write_tasks(json.dumps(document))
+                status, out, errors = self.run_runner()
+                self.assertEqual(status, 2, out)
+                self.assertIn("non-empty string ID", errors)
+                self.assertNotIn("case ids", errors)
+                self.assertEqual(len(errors.strip().splitlines()), 1, errors)
+
     def test_a_missing_rubric_reports_one_line_and_exits_two(self):
         self.tasks_file.unlink()
         status, out, errors = self.run_runner()

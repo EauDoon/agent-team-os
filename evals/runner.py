@@ -74,7 +74,7 @@ def _load_tasks() -> dict:
     if not isinstance(tasks, dict) or not isinstance(tasks.get("tasks"), list):
         raise ValueError("evals/tasks.json must declare a task list")
     ids = [task.get("id") if isinstance(task, dict) else None for task in tasks["tasks"]]
-    if not all(isinstance(task_id, str) and task_id for task_id in ids):
+    if not all(isinstance(task_id, str) and task_id.strip() for task_id in ids):
         raise ValueError("every rubric task must have a non-empty string ID")
     if len(set(ids)) != len(ids):
         raise ValueError("rubric task IDs must be unique")
