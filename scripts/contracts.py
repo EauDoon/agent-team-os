@@ -115,11 +115,16 @@ def _violations(value: object, schema: dict, *, root: dict | None = None,
         for key in schema.get("required", []):
             if key not in value:
                 errors.append(f"{path}.{key}: required field missing")
+        additional = schema.get("additionalProperties", True)
         for key, item in value.items():
             if key in properties:
                 errors.extend(check(item, properties[key], f"{path}.{key}"))
-            elif schema.get("additionalProperties") is False:
+            elif additional is False:
                 errors.append(f"{path}.{key}: unknown field")
+            elif isinstance(additional, dict):
+                errors.extend(check(item, additional, f"{path}.{key}"))
+            elif additional is not True:
+                raise ValueError("unsupported additionalProperties schema")
     if isinstance(value, str) and len(value) < schema.get("minLength", 0):
         errors.append(f"{path}: string is too short")
     if isinstance(value, list):
