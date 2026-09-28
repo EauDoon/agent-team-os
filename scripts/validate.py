@@ -280,9 +280,9 @@ class Checker:
         """Check the result fixture conforms to the result schema's constraints.
 
         The repository ships ``evals/result.schema.json`` as the versioned result
-        shape, but nothing previously verified the fixture actually conforms to
-        it. This applies the schema's ``const``, ``enum``, and ``required``
-        constraints (top-level and per arm) without an external schema library.
+        shape. Const, enum, and required constraints are reported in the original
+        messages, and the bundled schema checker applies the rest of the contract,
+        including unknown fields and collection bounds.
         """
         if not (isinstance(schema, dict) and isinstance(result, dict)):
             return
@@ -305,6 +305,10 @@ class Checker:
         for arm in result.get("arms", []):
             for key in arm_required:
                 self.ok(isinstance(arm, dict) and key in arm, f"arm has required key {key}")
+        # The checks above only cover const, enum, and required. The shipped
+        # schema also rejects extra fields, short arms, and wrong nested types.
+        for error in schema_violations(result, schema):
+            self.ok(False, f"result conforms to schema: {error}")
 
     def check_documented_package_name(self, version: str) -> None:
         """Reject a stale package archive name in any document that ships.
