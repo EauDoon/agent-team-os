@@ -116,6 +116,8 @@ def audit_violations(report: dict) -> list[str]:
     errors = []
     if isinstance(report.get('target_revision'), str) and not report['target_revision'].strip():
         errors.append('audit: target revision must not be blank')
+    if not report['author'].strip() or not report['auditor'].strip():
+        errors.append('audit: author and auditor must not be blank')
     if report['author'] == report['auditor']:
         errors.append('audit: author and independent auditor must be distinct')
     ids = [finding['id'] for finding in report['findings']]
