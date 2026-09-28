@@ -20,6 +20,10 @@ class EvaluationTests(unittest.TestCase):
         self.assertNotIn('\n', escaped)
         self.assertNotIn('\x1b', escaped)
         self.assertIn('\\|', escaped)
+        for separator in ('\u2028', '\u2029'):
+            escaped_separator = markdown_cell('before' + separator + '|after')
+            self.assertNotIn(separator, escaped_separator)
+            self.assertIn('\\|', escaped_separator)
 
     def test_report_export_pins_input_bytes_and_refuses_replacement(self):
         with tempfile.TemporaryDirectory() as directory:
