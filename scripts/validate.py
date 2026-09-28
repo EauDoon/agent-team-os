@@ -406,8 +406,8 @@ class Checker:
             schema = self.json_file(relative)
             loaded.append((relative, schema))
             identifier = schema.get("$id") if isinstance(schema, dict) else None
-            self.ok(isinstance(identifier, str) and identifier, f"schema declares an $id: {relative}")
-            if isinstance(identifier, str) and identifier:
+            self.ok(isinstance(identifier, str) and identifier.strip(), f"schema declares an $id: {relative}")
+            if isinstance(identifier, str) and identifier.strip():
                 self.ok(seen.get(identifier, relative) == relative, f"schema $id is unique: {relative}")
                 seen.setdefault(identifier, relative)
         # Root identities are claimed first, so a nested copy is the one reported.
@@ -417,8 +417,8 @@ class Checker:
             for location, nested in schema_identifiers(schema):
                 if location == "$":
                     continue
-                self.ok(isinstance(nested, str) and nested, f"schema declares an $id: {relative} {location}")
-                if not isinstance(nested, str) or not nested:
+                self.ok(isinstance(nested, str) and nested.strip(), f"schema declares an $id: {relative} {location}")
+                if not isinstance(nested, str) or not nested.strip():
                     continue
                 self.ok(nested not in seen, f"schema $id is unique: {relative} {location}")
                 seen.setdefault(nested, f"{relative} {location}")
