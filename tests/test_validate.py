@@ -298,6 +298,34 @@ class ValidateTests(unittest.TestCase):
             self.assertNotIn("schema $id is unique: schemas/one.schema.json", joined)
             self.assertNotIn("schema $id is unique: schemas/two.schema.json", joined)
 
+    def test_nested_schema_ids_cannot_reuse_another_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "schemas").mkdir()
+            (root / "evals").mkdir()
+            (root / "schemas" / "role.schema.json").write_text(
+                json.dumps({"$id": "https://example.invalid/role"}), encoding="utf-8"
+            )
+            (root / "schemas" / "plan.schema.json").write_text(
+                json.dumps({
+                    "$id": "https://example.invalid/plan",
+                    "$defs": {"brief": {"$id": "https://example.invalid/role"}},
+                }),
+                encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.check_schema_ids()
+            joined = "\n".join(checker.failures)
+            self.assertIn("schema $id is unique: schemas/plan.schema.json $.$defs.brief", joined)
+
+    def test_shipped_routing_plan_does_not_reuse_the_role_brief_id(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        schema = json.loads((root / "schemas/routing-plan.schema.json").read_text(encoding="utf-8"))
+        self.assertNotIn("$id", schema["$defs"]["brief"])
+        checker = Checker(root)
+        checker.check_schema_ids()
+        self.assertFalse([item for item in checker.failures if item.startswith("schema $id is unique")])
+
     def test_every_shipped_schema_is_enforceable(self) -> None:
         root = Path(__file__).resolve().parents[1]
         paths = sorted((root / "schemas").glob("*.json")) + sorted((root / "evals").glob("*.schema.json"))
