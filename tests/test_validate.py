@@ -543,6 +543,37 @@ class ValidateTests(unittest.TestCase):
                     )
                     self.assertNotIn("connect conformance case broken matches its expectation", joined)
 
+    def test_connect_conformance_checks_the_declared_violation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "schemas").mkdir()
+            (root / "conformance" / "connect").mkdir(parents=True)
+            schema = {
+                "required": ["type"],
+                "properties": {"type": {"const": "request"}},
+            }
+            (root / "schemas" / "connect.schema.json").write_text(json.dumps(schema), encoding="utf-8")
+            message = {"type": "ping"}
+            cases = [{"name": f"ok-{index}", "expect": "valid", "message": {"type": "request"}} for index in range(4)]
+            cases.append({
+                "name": "wrong-reason",
+                "expect": "invalid",
+                "violation": "connect_version must equal agent-team-connect/v0.1",
+                "message": message,
+            })
+            (root / "conformance" / "connect" / "cases.json").write_text(json.dumps({"cases": cases}), encoding="utf-8")
+            checker = Checker(root)
+            checker.check_connect_conformance()
+            joined = "\n".join(checker.failures)
+            self.assertIn("connect conformance case wrong-reason fails for its declared violation", joined)
+
+    def test_v02_wrong_version_case_names_its_own_contract(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        suite = json.loads((root / "conformance/connect-v0.2/cases.json").read_text(encoding="utf-8"))
+        case = next(item for item in suite["cases"] if item["name"] == "wrong-connect-version")
+        self.assertIn("agent-team-connect/v0.2", case["violation"])
+        self.assertNotIn("agent-team-connect/v0.1", case["violation"])
+
     def test_connect_examples_are_valid_messages(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

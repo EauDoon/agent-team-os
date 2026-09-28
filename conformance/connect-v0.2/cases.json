@@ -166,7 +166,7 @@
     {
       "name": "wrong-connect-version",
       "expect": "invalid",
-      "violation": "connect_version must equal agent-team-connect/v0.1",
+      "violation": "connect_version must equal agent-team-connect/v0.2",
       "message": {
         "connect_version": "agent-team-connect/v0.9",
         "type": "request",
@@ -183,7 +183,7 @@
     {
       "name": "unknown-message-type",
       "expect": "invalid",
-      "violation": "type must be a known message type",
+      "violation": "$.type: value is outside enum",
       "message": {
         "connect_version": "agent-team-connect/v0.2",
         "type": "ping",
@@ -236,7 +236,7 @@
           ]
         }
       },
-      "violation": "The v0.2 role brief enforces its full authored contract."
+      "violation": "$.payload.role_brief.consumer_note: unknown field"
     },
     {
       "name": "handoff-v02-legacy-value-invalid",
@@ -263,7 +263,7 @@
           ]
         }
       },
-      "violation": "The v0.2 role brief enforces its full authored contract."
+      "violation": "$.payload.role_brief.task: expected string"
     },
     {
       "name": "refusal-refusal_reason-missing",
@@ -280,7 +280,7 @@
           "next_step": "authorize or remove: external-write"
         }
       },
-      "violation": "A v0.2 refusal needs a nonempty reason and next step."
+      "violation": "$.payload.refusal_reason: required field missing"
     },
     {
       "name": "refusal-refusal_reason-empty",
@@ -298,7 +298,7 @@
           "next_step": "authorize or remove: external-write"
         }
       },
-      "violation": "A v0.2 refusal needs a nonempty reason and next step."
+      "violation": "$.payload.refusal_reason: string is too short"
     },
     {
       "name": "refusal-next_step-missing",
@@ -315,7 +315,7 @@
           "refusal_reason": "missing required capabilities: external-write"
         }
       },
-      "violation": "A v0.2 refusal needs a nonempty reason and next step."
+      "violation": "$.payload.next_step: required field missing"
     },
     {
       "name": "refusal-next_step-empty",
@@ -333,7 +333,7 @@
           "next_step": ""
         }
       },
-      "violation": "A v0.2 refusal needs a nonempty reason and next step."
+      "violation": "$.payload.next_step: string is too short"
     }
   ]
 }

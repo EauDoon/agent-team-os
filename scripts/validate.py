@@ -551,8 +551,18 @@ class Checker:
             if declared not in ("valid", "invalid"):
                 self.ok(False, f"connect conformance case {name} declares valid or invalid")
                 continue
-            conforms = not self.connect_violations(case.get("message"), schema)
+            found = self.connect_violations(case.get("message"), schema)
+            conforms = not found
             self.ok(conforms == (declared == "valid"), f"connect conformance case {name} matches its expectation")
+            # A declared reason that is not among the diagnostics lets a copied
+            # case pass while naming the wrong contract. Absence stays allowed
+            # for suites that only declare expect.
+            if declared == "invalid" and "violation" in case:
+                stated = case.get("violation")
+                self.ok(
+                    isinstance(stated, str) and any(stated in error for error in found),
+                    f"connect conformance case {name} fails for its declared violation",
+                )
 
     def check_changelog_version(self, current: str) -> None:
         """Ensure the newest CHANGELOG entry matches the current VERSION.

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Check a connect conformance case's declared `violation` against the diagnostics
+  the checker actually produced. The v0.2 wrong-version case had named the v0.1
+  contract.
 - Apply the full result schema when checking `evals/results.v0.1.json`, so an
   extra field or a short `arms` list is rejected instead of reported as conforming.
 - Reject a nested schema `$id` that reuses another contract's identity. The
