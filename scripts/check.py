@@ -11,10 +11,10 @@ from pathlib import Path
 
 try:
     from .contracts import violations
-    from .workflows import audit_violations, evidence_violations, routing_violations
+    from .workflows import audit_violations, evidence_violations, refusal_text_violations, routing_violations
 except ImportError:
     from contracts import violations
-    from workflows import audit_violations, evidence_violations, routing_violations
+    from workflows import audit_violations, evidence_violations, refusal_text_violations, routing_violations
 
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACTS = {
@@ -84,6 +84,8 @@ def check_document(kind: str, document: object, *, schema_root: Path = ROOT) -> 
             relative = CONNECT_CONTRACTS.get(version, relative)
     schema = load_json(schema_root / relative)
     errors = violations(document, schema)
+    if kind == 'connect':
+        errors.extend(refusal_text_violations(document))
     if not errors and kind == 'plan':
         errors.extend(routing_violations(document))
     if not errors and kind == 'evidence':

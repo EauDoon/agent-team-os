@@ -334,6 +334,42 @@
         }
       },
       "violation": "$.payload.next_step: string is too short"
+    },
+    {
+      "name": "refusal-refusal_reason-blank",
+      "expect": "invalid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.2",
+        "type": "response",
+        "message_id": "m3",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": false,
+          "refusal_reason": "   ",
+          "next_step": "authorize or remove: external-write"
+        }
+      },
+      "violation": "$.payload.refusal_reason: refusal text must not be blank"
+    },
+    {
+      "name": "refusal-next_step-blank",
+      "expect": "invalid",
+      "message": {
+        "connect_version": "agent-team-connect/v0.2",
+        "type": "response",
+        "message_id": "m3",
+        "correlation_id": "c1",
+        "from": "orch",
+        "to": "init",
+        "payload": {
+          "accepted": false,
+          "refusal_reason": "missing required capabilities: external-write",
+          "next_step": " \t "
+        }
+      },
+      "violation": "$.payload.next_step: refusal text must not be blank"
     }
   ]
 }
