@@ -114,6 +114,13 @@ class ContractTests(unittest.TestCase):
                          ['$: too many items'])
         # JSON equality keeps 1 and true distinct inside a collection.
         self.assertEqual(violations([1, True], {'uniqueItems': True}), [])
+        # 1 and 1.0 are the same JSON number, including inside a nested value.
+        self.assertEqual(violations([1, 1.0], {'uniqueItems': True}), ['$: duplicate items'])
+        self.assertEqual(violations([[1], [1.0]], {'uniqueItems': True}), ['$: duplicate items'])
+        self.assertEqual(violations(1.0, {'const': 1}), [])
+        self.assertEqual(violations(1, {'enum': [1.0]}), [])
+        self.assertEqual(violations({'n': 1.0}, {'const': {'n': 1}}), [])
+        self.assertTrue(violations(False, {'const': 0}))
 
     def test_conditional_payloads_apply_the_matching_branch(self):
         schema = {'properties': {'kind': {'const': 'a'}},
