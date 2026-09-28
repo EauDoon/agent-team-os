@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Treat numerically equal JSON numbers as equal for `const`, `enum`, and
+  `uniqueItems`, so `1` and `1.0` are one value while `true` stays distinct.
 - Refuse a document that exceeds the contract depth limit inside an `if`
   condition, instead of treating that limit as a failed condition and accepting
   the document through `else`.

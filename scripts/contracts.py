@@ -9,6 +9,30 @@ from __future__ import annotations
 import json
 import math
 
+_MAX_EXACT_INTEGER = 2 ** 53
+
+
+def _json_model(item: object) -> object:
+    """Collapse numerically equal JSON numbers without collapsing booleans."""
+    if isinstance(item, bool) or item is None or isinstance(item, str):
+        return item
+    if isinstance(item, int):
+        return item
+    if isinstance(item, float):
+        if math.isfinite(item) and item.is_integer() and abs(item) <= _MAX_EXACT_INTEGER:
+            return int(item)
+        return item
+    if isinstance(item, list):
+        return [_json_model(part) for part in item]
+    if isinstance(item, dict):
+        return {key: _json_model(part) for key, part in item.items()}
+    return item
+
+
+def _canonical(item: object) -> str:
+    return json.dumps(_json_model(item), sort_keys=True, ensure_ascii=True, allow_nan=False)
+
+
 KEYWORDS = {
     "$schema", "$id", "$defs", "$ref", "title", "description", "default",
     "type", "const", "enum", "required", "properties", "additionalProperties",
@@ -68,8 +92,8 @@ def _violations(value: object, schema: dict, *, root: dict | None = None,
     }
     if "type" in schema and not kinds.get(schema["type"], False):
         return errors + [f"{path}: expected {schema['type']}"]
-    # JSON equality must distinguish true from 1, including inside collections.
-    canonical = lambda item: json.dumps(item, sort_keys=True, ensure_ascii=True, allow_nan=False)
+    # JSON equality must distinguish true from 1, and must treat 1 and 1.0 as one number.
+    canonical = _canonical
     if "const" in schema and canonical(value) != canonical(schema["const"]):
         errors.append(f"{path}: does not match const")
     if "enum" in schema and canonical(value) not in [canonical(x) for x in schema["enum"]]:
