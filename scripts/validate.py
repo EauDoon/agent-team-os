@@ -51,6 +51,16 @@ def schema_identifiers(node: object, location: str = "$"):
             yield from schema_identifiers(value, f"{location}[{index}]")
 
 
+def _json_object(items):
+    """Reject a repeated key instead of keeping the last value."""
+    result = {}
+    for key, value in items:
+        if key in result:
+            raise ValueError("duplicate JSON object key")
+        result[key] = value
+    return result
+
+
 def object_ids(value: object) -> list[object] | None:
     if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
         return None
@@ -133,9 +143,9 @@ class Checker:
     def json_file(self, relative: str) -> object:
         value = None
         try:
-            value = json.loads(self.text(relative))
+            value = json.loads(self.text(relative), object_pairs_hook=_json_object)
             self.checks.append(f"valid JSON: {relative}")
-        except (json.JSONDecodeError, OSError, UnicodeError) as exc:
+        except (json.JSONDecodeError, OSError, UnicodeError, ValueError) as exc:
             self.failures.append(f"invalid JSON {relative}: {exc}")
         return value
 

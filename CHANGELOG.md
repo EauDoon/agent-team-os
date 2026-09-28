@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reject duplicate object keys in repository JSON read by the contract checker.
+  The last value used to win, so a repeated schema field could hide the first one.
 - Reject a rubric task ID that is only whitespace. A space was truthy, so the
   runner treated it as a real id and reported a case-set mismatch instead.
 - Reject duplicate JSON object keys in the rubric and in rubric case files.
