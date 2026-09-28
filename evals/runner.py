@@ -78,6 +78,11 @@ def _load_tasks() -> dict:
         raise ValueError("every rubric task must have a non-empty string ID")
     if len(set(ids)) != len(ids):
         raise ValueError("rubric task IDs must be unique")
+    for task in tasks["tasks"]:
+        if not isinstance(task.get("prompt"), str) or not task["prompt"].strip():
+            raise ValueError("every rubric task must have a non-empty prompt")
+        if not isinstance(task.get("task_shape"), str) or not task["task_shape"].strip():
+            raise ValueError("every rubric task must have a non-empty task shape")
     return tasks
 
 
@@ -114,11 +119,17 @@ def _check_case(case_path: Path, tasks_by_id: dict) -> list:
                 if not isinstance(item, str) or not item.strip():
                     problems.append(f"acceptance[{index}] must be a non-empty string")
 
-    if "task_shape" in case and not isinstance(case["task_shape"], str):
-        problems.append("task_shape must be a string")
+    if "task_shape" in case:
+        if not isinstance(case["task_shape"], str):
+            problems.append("task_shape must be a string")
+        elif not case["task_shape"].strip():
+            problems.append("task_shape must be a non-empty string")
 
-    if "prompt" in case and not isinstance(case["prompt"], str):
-        problems.append("prompt must be a string")
+    if "prompt" in case:
+        if not isinstance(case["prompt"], str):
+            problems.append("prompt must be a string")
+        elif not case["prompt"].strip():
+            problems.append("prompt must be a non-empty string")
 
     if "id" in case:
         rubric = tasks_by_id.get(case["id"])
