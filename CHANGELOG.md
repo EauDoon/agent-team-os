@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Refuse a document that exceeds the contract depth limit inside an `if`
+  condition, instead of treating that limit as a failed condition and accepting
+  the document through `else`.
 - Verify the release archive against the reviewed source before publishing it,
   not only against the checksum written by the same build.
 - Declare a unique `$id` on every shipped schema, and check that each one is

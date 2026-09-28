@@ -134,6 +134,21 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(len(errors), 1)
         self.assertTrue(errors[0].endswith('maximum contract depth exceeded'), errors)
 
+    def test_conditional_depth_limit_is_not_a_failed_condition(self):
+        # A depth-limit failure inside `if` used to be read as "condition does
+        # not apply". The permissive `else` then matched and the document passed.
+        schema = {'else': {}}
+        value = {}
+        for _ in range(80):
+            schema = {
+                'if': {'type': 'object', 'properties': {'a': schema}, 'required': ['a']},
+                'else': {},
+            }
+            value = {'a': value}
+        errors = violations(value, schema)
+        self.assertEqual(len(errors), 1, errors)
+        self.assertTrue(errors[0].endswith('maximum contract depth exceeded'), errors)
+
 
 if __name__ == '__main__':
     unittest.main()

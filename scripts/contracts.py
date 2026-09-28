@@ -17,11 +17,26 @@ KEYWORDS = {
 }
 
 
+class _ContractLimit(Exception):
+    """Checker limit, not a schema mismatch. Callers must not treat it as `else`."""
+
+    def __init__(self, path: str) -> None:
+        self.path = path
+
+
 def violations(value: object, schema: dict, *, root: dict | None = None,
                path: str = "$", depth: int = 0) -> list[str]:
     """Return located violations; reject excessive nesting and unknown rules."""
+    try:
+        return _violations(value, schema, root=root, path=path, depth=depth)
+    except _ContractLimit as exc:
+        return [f"{exc.path}: maximum contract depth exceeded"]
+
+
+def _violations(value: object, schema: dict, *, root: dict | None = None,
+                path: str = "$", depth: int = 0) -> list[str]:
     if depth > 64:
-        return [f"{path}: maximum contract depth exceeded"]
+        raise _ContractLimit(path)
     if isinstance(value, float) and not math.isfinite(value):
         return [f"{path}: number must be finite"]
     root = schema if root is None else root
@@ -31,7 +46,7 @@ def violations(value: object, schema: dict, *, root: dict | None = None,
     errors: list[str] = []
 
     def check(child: object, spec: dict, location: str = path) -> list[str]:
-        return violations(child, spec, root=root, path=location, depth=depth + 1)
+        return _violations(child, spec, root=root, path=location, depth=depth + 1)
 
     if "$ref" in schema:
         ref = schema["$ref"]
