@@ -89,6 +89,14 @@ class ContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 violations('x', schema)
 
+    def test_additional_properties_schema_constrains_unknown_fields(self):
+        schema = {'type': 'object', 'properties': {'known': {'type': 'string'}},
+                  'additionalProperties': {'type': 'integer'}}
+        self.assertEqual(violations({'known': 'ok', 'extra': 2}, schema), [])
+        self.assertEqual(violations({'extra': 'nope'}, schema), ['$.extra: expected integer'])
+        self.assertEqual(violations({'extra': 1}, {'additionalProperties': False}),
+                         ['$.extra: unknown field'])
+
     def test_boolean_is_not_number_or_numeric_const(self):
         self.assertTrue(violations(True, {'type': 'number'}))
         self.assertTrue(violations(True, {'const': 1}))
