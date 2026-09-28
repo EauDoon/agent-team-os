@@ -299,6 +299,27 @@ class ValidateTests(unittest.TestCase):
             self.assertNotIn("schema $id is unique: schemas/one.schema.json", joined)
             self.assertNotIn("schema $id is unique: schemas/two.schema.json", joined)
 
+    def test_schema_id_cannot_be_only_whitespace(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "schemas").mkdir()
+            (root / "evals").mkdir()
+            (root / "schemas" / "one.schema.json").write_text(
+                json.dumps({"$id": " \t "}), encoding="utf-8"
+            )
+            (root / "schemas" / "plan.schema.json").write_text(
+                json.dumps({
+                    "$id": "https://example.invalid/plan",
+                    "$defs": {"brief": {"$id": " "}},
+                }),
+                encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.check_schema_ids()
+            joined = "\n".join(checker.failures)
+            self.assertIn("schema declares an $id: schemas/one.schema.json", joined)
+            self.assertIn("schema declares an $id: schemas/plan.schema.json $.$defs.brief", joined)
+
     def test_nested_schema_ids_cannot_reuse_another_contract(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
