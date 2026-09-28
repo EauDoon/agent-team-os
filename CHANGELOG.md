@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Run the rubric case suite in the release workflow before the package is built.
+  CI already did; a tag could still publish when the cases had drifted.
 - Reject a v0.2 refusal whose reason or next step is only whitespace. `minLength`
   counted those strings as nonempty, and the v0.1 contract is unchanged.
 - Reject duplicate object keys in repository JSON read by the contract checker.
