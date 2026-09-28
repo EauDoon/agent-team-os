@@ -694,6 +694,21 @@ class ValidateTests(unittest.TestCase):
             checksum = archive.with_suffix(archive.suffix + ".sha256").read_bytes()
             self.assertTrue(checksum.endswith(f"  {archive.name}\n".encode("ascii")))
 
+    def test_repository_json_rejects_duplicate_object_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "schemas").mkdir()
+            (root / "schemas" / "sample.schema.json").write_text(
+                '{"$id": "https://example.invalid/one", "$id": "https://example.invalid/two"}',
+                encoding="utf-8",
+            )
+            checker = Checker(root)
+            value = checker.json_file("schemas/sample.schema.json")
+            joined = "\n".join(checker.failures)
+            self.assertIsNone(value)
+            self.assertIn("duplicate JSON object key", joined)
+            self.assertIn("schemas/sample.schema.json", joined)
+
     def test_malformed_evaluation_entries_are_reported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
