@@ -183,7 +183,7 @@
     {
       "name": "unknown-message-type",
       "expect": "invalid",
-      "violation": "type must be a known message type",
+      "violation": "$.type: value is outside enum",
       "message": {
         "connect_version": "agent-team-connect/v0.1",
         "type": "ping",
