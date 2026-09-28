@@ -12,8 +12,10 @@ from urllib.parse import unquote, urlsplit
 
 try:
     from .contracts import KEYWORDS as SCHEMA_KEYWORDS, violations as schema_violations
+    from .workflows import refusal_text_violations
 except ImportError:
     from contracts import KEYWORDS as SCHEMA_KEYWORDS, violations as schema_violations
+    from workflows import refusal_text_violations
 
 
 FIELDS = [
@@ -492,6 +494,7 @@ class Checker:
                 if not (isinstance(role_brief, dict) and key in role_brief):
                     violations.append(f"role_brief missing required field {key}")
         violations.extend(schema_violations(message, schema))
+        violations.extend(refusal_text_violations(message))
         return violations
 
     def check_connect_examples(self, relative: str = "connect.md",

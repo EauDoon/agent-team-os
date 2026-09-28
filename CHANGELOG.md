@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reject a v0.2 refusal whose reason or next step is only whitespace. `minLength`
+  counted those strings as nonempty, and the v0.1 contract is unchanged.
 - Reject duplicate object keys in repository JSON read by the contract checker.
   The last value used to win, so a repeated schema field could hide the first one.
 - Reject a rubric task ID that is only whitespace. A space was truthy, so the

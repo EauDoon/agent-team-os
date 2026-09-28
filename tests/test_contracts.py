@@ -18,7 +18,9 @@ class ContractTests(unittest.TestCase):
             suite = json.loads((ROOT / suite_file).read_text())
             for case in suite['cases']:
                 with self.subTest(suite=suite_file, case=case['name']):
-                    self.assertEqual(not violations(case['message'], schema), case['expect'] == 'valid')
+                    # Same path as CI: schema violations plus connect semantics.
+                    actual = Checker(ROOT).connect_violations(case['message'], schema)
+                    self.assertEqual(not actual, case['expect'] == 'valid')
 
     def test_declared_version_preserves_legacy_handoff_acceptance(self):
         suite = json.loads((ROOT / 'conformance/connect/cases.json').read_text())
@@ -48,6 +50,19 @@ class ContractTests(unittest.TestCase):
         accepted = copy.deepcopy(refused)
         accepted['payload'] = {'accepted': True}
         self.assertEqual(check_document('connect', accepted), [])
+
+    def test_v02_refusal_text_cannot_be_only_whitespace(self):
+        suite = json.loads((ROOT / 'conformance/connect-v0.2/cases.json').read_text())
+        schema = json.loads((ROOT / 'schemas/connect-v0.2.schema.json').read_text())
+        refused = next(case['message'] for case in suite['cases'] if case['name'] == 'response-refuse-valid')
+        for field in ('refusal_reason', 'next_step'):
+            message = copy.deepcopy(refused)
+            message['payload'][field] = ' \t '
+            errors = check_document('connect', message)
+            self.assertTrue(any('must not be blank' in error for error in errors), errors)
+            self.assertTrue(any('must not be blank' in error for error in Checker(ROOT).connect_violations(message, schema)), errors)
+            message['connect_version'] = 'agent-team-connect/v0.1'
+            self.assertEqual(check_document('connect', message), [])
 
     def test_connection_rejects_malformed_envelope_and_nested_values(self):
         schema = json.loads((ROOT / 'schemas/connect.schema.json').read_text())

@@ -92,6 +92,26 @@ def evidence_violations(ledger: dict) -> list[str]:
     return errors
 
 
+def refusal_text_violations(message: object) -> list[str]:
+    """Reject a v0.2 refusal whose reason or next step is only whitespace.
+
+    ``minLength: 1`` accepts a string of spaces. v0.1 stays permissive.
+    """
+    if not isinstance(message, dict) or message.get('connect_version') != 'agent-team-connect/v0.2':
+        return []
+    if message.get('type') != 'response':
+        return []
+    payload = message.get('payload')
+    if not isinstance(payload, dict) or payload.get('accepted') is not False:
+        return []
+    errors = []
+    for field in ('refusal_reason', 'next_step'):
+        value = payload.get(field)
+        if isinstance(value, str) and value and not value.strip():
+            errors.append(f'$.payload.{field}: refusal text must not be blank')
+    return errors
+
+
 def audit_violations(report: dict) -> list[str]:
     errors = []
     if report['author'] == report['auditor']:
