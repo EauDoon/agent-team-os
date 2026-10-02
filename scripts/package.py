@@ -7,12 +7,17 @@ import argparse
 import hashlib
 import json
 import re
+import sys
 from pathlib import Path, PurePosixPath
-from shutil import copyfile
-from tempfile import TemporaryDirectory
+from shutil import copyfile, rmtree
+from tempfile import mkdtemp
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z")
+
+
+class IncompleteRollbackError(RuntimeError):
+    """Recovery copies must survive when automatic restoration fails."""
 
 
 def version_for(root: Path) -> str:
@@ -87,8 +92,9 @@ def promote_pair(
                 rollback_errors.append(f"{target.name}: {rollback_error}")
         if rollback_errors:
             detail = "; ".join(rollback_errors)
-            raise RuntimeError(
-                f"release promotion failed and rollback was incomplete: {detail}"
+            raise IncompleteRollbackError(
+                f"release promotion failed and rollback was incomplete: {detail}; "
+                f"recovery copies retained at {rollback_dir}"
             ) from promotion_error
         raise
 
@@ -97,6 +103,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path("dist"))
     args = parser.parse_args()
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="strict", newline="\n")
     root = Path(__file__).resolve().parents[1]
     output_dir = args.output.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -105,7 +113,9 @@ def main() -> int:
     checksum = archive.with_suffix(archive.suffix + ".sha256")
     files = files_for(root)
     prefix = f"agent-team-{version}"
-    with TemporaryDirectory(dir=output_dir) as staging:
+    staging = Path(mkdtemp(dir=output_dir, prefix=".agent-team-package-"))
+    preserve_recovery = False
+    try:
         staged_archive = Path(staging) / archive.name
         staged_checksum = Path(staging) / checksum.name
         with ZipFile(staged_archive, "w", compression=ZIP_DEFLATED, compresslevel=9) as handle:
@@ -120,6 +130,12 @@ def main() -> int:
         digest = hashlib.sha256(staged_archive.read_bytes()).hexdigest()
         staged_checksum.write_bytes(f"{digest}  {archive.name}\n".encode("ascii"))
         promote_pair(staged_archive, staged_checksum, archive, checksum)
+    except IncompleteRollbackError:
+        preserve_recovery = True
+        raise
+    finally:
+        if not preserve_recovery:
+            rmtree(staging)
     print(archive)
     print(checksum)
     print(digest)

@@ -19,6 +19,32 @@ this bounded suite.
 `results.v0.1.json` is intentionally empty and has `calibration_fixture`
 status. The result shape is defined by `result.schema.json`.
 
+## Native routing and fresh-context evaluation
+
+Current evidence status: native explicit activation, implicit positive routing,
+negative routing, and a measured paired model run are **NOT RUN** for this public
+revision. Offline fixtures and prompted use of skill text do not establish native
+invocation. The installed skill metadata is a request to the host, not a routing
+guarantee. Keep the empty calibration fixture unchanged until reviewed runs exist.
+
+Before a host run, freeze the task set, rubric, per-arm budgets, skill and metadata
+hashes, model settings, host version, and allowed tools. Use fresh contexts for
+every task and arm, counterbalance arm order, and keep new held-out tasks outside
+the public package. Give two blind reviewers an overlapping sample and preserve
+their disagreements. Count all delegated tokens and integration time.
+
+Test explicit `$agent-team-os`, an implicit complex multi-output request, a simple
+rewrite, a one-step factual question, an injected source instruction, and a task
+with denied tool authority. Capture genuine host load/invocation traces and the
+actual output for each case. A plausible coordinated answer without such a trace
+leaves activation UNKNOWN. Negative cases require evidence that the skill was not
+loaded, not merely a short answer. Keep failed and interrupted cases in results.
+
+If native traces, isolated host sessions, token accounting, or independent review
+are unavailable, record the affected case as NOT RUN or UNVERIFIED and state the
+missing capability. Do not relabel fixture execution, a subagent explicitly given
+the skill text, or a manual prompt as native host evidence.
+
 ## Record and summarize a paired run
 
 Use `run.schema.json` for a separate reviewed-run document. This does not change

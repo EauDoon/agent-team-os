@@ -155,6 +155,33 @@ class ValidateTests(unittest.TestCase):
                 }
                 self.assertEqual({path.name for path in output.iterdir()}, expected)
 
+    def test_incomplete_rollback_retains_original_pair_and_reports_recovery_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory).resolve()
+            version = version_for(Path(__file__).resolve().parents[1])
+            archive = output / f'agent-team-{version}.zip'
+            checksum = archive.with_suffix('.zip.sha256')
+            originals = {archive.name: b'old archive', checksum.name: b'old checksum'}
+            for name, raw in originals.items():
+                (output / name).write_bytes(raw)
+            original_replace = Path.replace
+
+            def fail_promotion_and_recovery(source: Path, target: Path) -> Path:
+                if source.parent.name == 'rollback' or Path(target) == checksum:
+                    raise PermissionError('injected locked target')
+                return original_replace(source, target)
+
+            with patch('sys.argv', ['package.py', '--output', str(output)]), \
+                 patch.object(Path, 'replace', fail_promotion_and_recovery), \
+                 self.assertRaisesRegex(RuntimeError, 'rollback was incomplete') as raised:
+                package_main()
+            recovery = list(output.glob('.agent-team-package-*/rollback'))
+            self.assertEqual(len(recovery), 1)
+            self.assertIn(str(recovery[0]), str(raised.exception))
+            self.assertEqual({path.name: path.read_bytes() for path in recovery[0].iterdir()}, originals)
+            self.assertNotEqual(archive.read_bytes(), originals[archive.name])
+            self.assertEqual(checksum.read_bytes(), originals[checksum.name])
+
     def test_release_validates_before_packaging(self) -> None:
         workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/release.yml").read_text(encoding="utf-8")
         package = workflow.index("python3 scripts/package.py --output dist")
@@ -917,6 +944,24 @@ class ValidateTests(unittest.TestCase):
             self.assertTrue(any("valid repo path" in item for item in checker.failures))
             with self.assertRaises(ValueError):
                 files_for(root)
+
+    def test_unresolvable_manifest_is_reported_without_symlink_privilege(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            (root / 'package-manifest.json').write_text('["loop"]', encoding='utf-8')
+            original_resolve = Path.resolve
+
+            def resolve(path, strict=False):
+                if path == root / 'loop':
+                    if strict:
+                        raise OSError('symlink loop')
+                    return path  # Python 3.13+ non-strict behavior.
+                return original_resolve(path, strict=strict)
+
+            checker = Checker(root)
+            with patch.object(Path, 'resolve', resolve):
+                checker.check_manifest()
+            self.assertEqual(checker.failures, ["manifest entry is a valid repo path: 'loop'"])
 
     def test_unreadable_required_text_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

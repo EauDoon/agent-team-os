@@ -25,7 +25,9 @@ The skill does not add agents for show. It applies a simple delegation gate: eve
 
 The installed Agent Team skill is instruction-only and requires no runtime
 dependencies, package manager or external assets. Optional authoring and
-verification tools use Python 3.11 or later with the standard library.
+verification tools use Python 3.11 or later with the standard library. CI targets
+Python 3.11 and 3.14 on Linux and Windows. Record/report exports require a local
+filesystem with hard-link support; read-only checks do not.
 
 1. Copy the included `skill/agent-team-os` directory into the target workspace at `.agents/skills/agent-team-os/`.
 2. Confirm the installed structure:
@@ -48,7 +50,7 @@ verification tools use Python 3.11 or later with the standard library.
    and independent audit distinct. Do not use external sources.
    ```
 
-The included metadata also permits implicit invocation when a complex request clearly benefits from specialist routing. Explicit invocation is the clearest way to request the workflow.
+The included metadata permits implicit invocation when a complex request clearly benefits from specialist routing. This is an activation request to the host, not evidence of native routing. Explicit invocation is the clearest way to request the workflow. Native positive/negative routing and paired model evaluation remain unverified; see the [evaluation procedure](evals/README.md#native-routing-and-fresh-context-evaluation).
 
 ### Package and install
 
@@ -56,21 +58,41 @@ The package builder is deterministic and writes a ZIP plus SHA-256 checksum.
 It uses only the Python standard library:
 
 ```powershell
+$ErrorActionPreference = 'Stop'
 python .\scripts\validate.py
+if ($LASTEXITCODE -ne 0) { throw 'Validation failed.' }
 python .\scripts\package.py --output .\dist
-Get-FileHash .\dist\agent-team-0.4.0.zip -Algorithm SHA256
-Expand-Archive .\dist\agent-team-0.4.0.zip -DestinationPath .\dist\expanded
-Copy-Item .\dist\expanded\agent-team-0.4.0\skill\agent-team-os $env:CODEX_HOME\skills\agent-team-os -Recurse -Force
+if ($LASTEXITCODE -ne 0) { throw 'Packaging failed.' }
+$digest = (Get-Content -LiteralPath .\dist\agent-team-0.4.0.zip.sha256 -Raw).Split()[0]
+python .\scripts\verify_package.py .\dist\agent-team-0.4.0.zip --sha256 $digest
+if ($LASTEXITCODE -ne 0) { throw 'Package verification failed.' }
+if (Test-Path -LiteralPath .\dist\expanded) { throw 'Extraction directory already exists. Choose a fresh directory.' }
+New-Item -ItemType Directory -Path .\dist\expanded -ErrorAction Stop | Out-Null
+Expand-Archive -LiteralPath .\dist\agent-team-0.4.0.zip -DestinationPath .\dist\expanded
+$project = (Get-Item -LiteralPath (Read-Host 'Existing target project directory')).FullName
+if (-not (Test-Path -LiteralPath $project -PathType Container)) { throw 'Choose an existing directory.' }
+$destination = Join-Path $project '.agents\skills\agent-team-os'
+New-Item -ItemType Directory -Path (Split-Path $destination) -Force | Out-Null
+if (Test-Path -LiteralPath $destination) { throw 'Skill already exists. Review an explicit upgrade separately.' }
+New-Item -ItemType Directory -Path $destination -ErrorAction Stop | Out-Null
+Get-ChildItem -LiteralPath .\dist\expanded\agent-team-0.4.0\skill\agent-team-os -Force | Copy-Item -Destination $destination -Recurse
 ```
 
 On Bash:
 
 ```bash
-python3 scripts/validate.py
-python3 scripts/package.py --output dist
-sha256sum dist/agent-team-0.4.0.zip
-unzip -q dist/agent-team-0.4.0.zip -d dist/expanded
-cp -R dist/expanded/agent-team-0.4.0/skill/agent-team-os "$CODEX_HOME/skills/agent-team-os"
+python3 scripts/validate.py || exit 1
+python3 scripts/package.py --output dist || exit 1
+read -r digest archive_name < dist/agent-team-0.4.0.zip.sha256 || exit 1
+python3 scripts/verify_package.py dist/agent-team-0.4.0.zip --sha256 "$digest" || exit 1
+mkdir -- dist/expanded || { echo 'Choose a fresh extraction directory.' >&2; exit 1; }
+unzip -q dist/agent-team-0.4.0.zip -d dist/expanded || exit 1
+read -r -p 'Existing target project directory: ' project || exit 1
+project=$(cd -- "$project" && pwd -P) || exit 1
+destination="$project/.agents/skills/agent-team-os"
+mkdir -p -- "$project/.agents/skills" || exit 1
+mkdir -- "$destination" || { echo 'Skill already exists. Review an explicit upgrade separately.' >&2; exit 1; }
+cp -R -- dist/expanded/agent-team-0.4.0/skill/agent-team-os/. "$destination/" || exit 1
 ```
 
 Verify the checksum before copying. From the reviewed source checkout, run
@@ -78,6 +100,18 @@ Verify the checksum before copying. From the reviewed source checkout, run
 archive members with source bytes before extraction. The package contains the skill, templates,
 schemas, examples, validator, and release documentation. It does not publish
 or change remote metadata.
+
+The builder replaces an existing archive/checksum pair with rollback on ordinary
+write failures. If rollback itself fails, the command reports failure and retains
+the recovery directory it names. Preserve those copies and inspect both output
+files before recovery; a failed rollback does not mean the old pair was restored.
+
+Run the commands from the reviewed source checkout. Select an existing target
+project explicitly; these recipes do not use `CODEX_HOME` or modify a global
+installation. An existing skill directory is never merged or overwritten. For an
+upgrade, compare the reviewed new files with the installed files, preserve a
+backup, and authorize the replacement separately. A failed copy can leave only
+the newly created directory partially populated; inspect it before retrying.
 
 ## Operator tools
 
