@@ -11,6 +11,24 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class CheckTests(unittest.TestCase):
+    def test_text_diagnostics_escape_authored_keys(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'brief.json'
+            brief = dict.fromkeys(
+                ['role', 'access_scope', 'task', 'evidence', 'output_contract', 'stop_condition'],
+                'Supplied fictional task.')
+            for key in ('bad\nPASS brief\x1b[2J', 'bad\ud800'):
+                path.write_text(json.dumps({**brief, key: True}), encoding='utf-8')
+                for entry in [['scripts/check.py'], ['-m', 'scripts.check']]:
+                    result = subprocess.run([sys.executable, *entry, 'brief', str(path)],
+                                            cwd=ROOT, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(result.stderr, '')
+                    self.assertEqual(len(result.stdout.splitlines()), 1)
+                    self.assertTrue(result.stdout.startswith('FAIL '))
+                    self.assertNotIn('\x1b', result.stdout)
+                    self.assertIn(json.dumps(key)[1:-1], result.stdout)
+
     def test_connection_cli_selects_declared_wire_version(self):
         suite = json.loads((ROOT / 'conformance/connect/cases.json').read_text())
         message = next(case['message'] for case in suite['cases'] if case['name'] == 'handoff-valid')
