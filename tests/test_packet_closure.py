@@ -193,6 +193,19 @@ class ClosurePacketTests(unittest.TestCase):
         with ZipFile(next(archive_dir.glob('*.zip'))) as archive:
             archive.extractall(self.root / 'extracted')
         extracted = next((self.root / 'extracted').iterdir())
+        # Actual shipped CLI adoption with Unicode, away from the source checkout.
+        brief = self.root / 'unicode-brief.json'
+        unicode_task = 'Compare caf\u00e9 demand in \u6771\u4eac.'
+        result = subprocess.run([sys.executable, str(extracted / 'scripts/author.py'), 'brief',
+                                 '--role', 'Analyst', '--scope', 'Synthetic local data only.',
+                                 '--task', unicode_task, '--evidence', 'Supplied fictional table.',
+                                 '--deliver', 'One comparison.', '--stop', 'Stop after comparison.',
+                                 '--output', str(brief)], cwd=self.root, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(json.loads(brief.read_text(encoding='utf-8'))['task'], unicode_task)
+        result = subprocess.run([sys.executable, str(extracted / 'scripts/check.py'), 'brief', str(brief), '--json'],
+                                cwd=self.root, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         for label, tool_root in [('source', ROOT), ('extracted', extracted)]:
             result = subprocess.run([sys.executable, str(tool_root / 'examples/closure-walkthrough.py'),
                                      '--output', str(self.root / (label + '-run'))], cwd=self.root,

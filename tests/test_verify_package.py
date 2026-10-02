@@ -2,6 +2,7 @@ import contextlib
 import io
 import json
 import lzma
+import os
 import struct
 import subprocess
 import sys
@@ -28,6 +29,19 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class PackageVerificationTests(unittest.TestCase):
+    def test_unicode_output_path_reports_success_with_ascii_process_encoding(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / 'caf\u00e9-\u6771\u4eac'
+            result = subprocess.run(
+                [sys.executable, str(ROOT / 'scripts/package.py'), '--output', str(output)],
+                env={**os.environ, 'PYTHONIOENCODING': 'ascii'}, capture_output=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            archive = next(output.glob('*.zip'))
+            self.assertIn(str(archive.resolve()), result.stdout.decode('utf-8'))
+            digest = archive.with_suffix('.zip.sha256').read_text(encoding='ascii').split()[0]
+            self.assertTrue(verify(archive, ROOT, digest)['ok'])
+
     def test_supported_and_rejected_codecs_with_real_valid_and_corrupt_members(self):
         with tempfile.TemporaryDirectory() as directory:
             archive = Path(directory) / 'codec.zip'

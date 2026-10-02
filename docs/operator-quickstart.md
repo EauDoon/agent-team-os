@@ -4,6 +4,14 @@ Use only the records the task needs. A simple self-contained task can stay solo
 with a concise inline brief. The skill is instruction-only; the optional Python
 tools read local files, check records and print results.
 
+Use Python 3.11 or later; CI targets 3.11 and 3.14 on Linux and Windows. Creating
+records, receipts, or reports uses exclusive same-directory hard links, so the
+destination filesystem must support them (for example, a local NTFS or ext4
+volume). Unsupported or restricted filesystems cause a controlled failure: no
+partial destination record is published and a preexisting file is not replaced.
+Choose another authorized local output directory with hard-link support. Do not
+remove the exclusive-write protection or overwrite existing work to bypass it.
+
 The [authoring commands](authoring.md) can create complete JSON briefs and
 explicit v0.2 handoffs from supplied fields. They never infer an access scope or
 send a message. Output files must be new.

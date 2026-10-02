@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.author import brief_from_plan, compose_brief, compose_message, write_new_json
 
@@ -11,6 +12,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class AuthorTests(unittest.TestCase):
+    def test_unavailable_hard_links_publish_no_partial_record(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / 'brief.json'
+            with patch('scripts.author.os.link', side_effect=OSError('hard links unavailable')):
+                with self.assertRaises(OSError):
+                    write_new_json(target, self.brief())
+            self.assertEqual(list(Path(directory).iterdir()), [])
+            target.write_bytes(b'existing record')
+            with patch('scripts.author.os.link', side_effect=OSError('hard links unavailable')):
+                with self.assertRaises(OSError):
+                    write_new_json(target, self.brief())
+            self.assertEqual(target.read_bytes(), b'existing record')
+            self.assertEqual(list(Path(directory).iterdir()), [target])
+
     def test_extract_plan_brief_preserves_prohibitions_and_does_not_alias(self):
         plan = json.loads((ROOT / 'templates/routing-plan.json').read_text())
         plan['assignments'][1]['brief']['prohibited_actions'] = ['No external writes.']
