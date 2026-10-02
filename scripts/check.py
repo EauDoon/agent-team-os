@@ -110,7 +110,7 @@ def main() -> int:
     if args.as_json:
         print(json.dumps(result, indent=2))
     elif errors:
-        print('\n'.join('FAIL ' + error for error in errors))
+        print('\n'.join('FAIL ' + json.dumps(error, ensure_ascii=True)[1:-1] for error in errors))
     else:
         print('PASS ' + args.kind)
     return 1 if errors else 0
