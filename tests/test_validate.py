@@ -945,6 +945,24 @@ class ValidateTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 files_for(root)
 
+    def test_unresolvable_manifest_is_reported_without_symlink_privilege(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            (root / 'package-manifest.json').write_text('["loop"]', encoding='utf-8')
+            original_resolve = Path.resolve
+
+            def resolve(path, strict=False):
+                if path == root / 'loop':
+                    if strict:
+                        raise OSError('symlink loop')
+                    return path  # Python 3.13+ non-strict behavior.
+                return original_resolve(path, strict=strict)
+
+            checker = Checker(root)
+            with patch.object(Path, 'resolve', resolve):
+                checker.check_manifest()
+            self.assertEqual(checker.failures, ["manifest entry is a valid repo path: 'loop'"])
+
     def test_unreadable_required_text_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

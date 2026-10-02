@@ -261,7 +261,9 @@ class Checker:
                 continue
             try:
                 path = root_resolved / entry
-                candidate = path.resolve()
+                # Non-strict resolution can leave symlink loops unresolved on
+                # Python 3.13+. Every manifest member must resolve completely.
+                candidate = path.resolve(strict=True)
                 safe = path.is_file() and not path.is_symlink() and root_resolved in candidate.parents
             except (OSError, RuntimeError, UnicodeError, ValueError):
                 self.ok(False, f"manifest entry is a valid repo path: {entry!r}")
