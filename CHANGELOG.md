@@ -1,7 +1,20 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
+- Separate the wire-format and tool pack from the coordination protocol. The
+  shipped `SKILL.md` and `README.md` no longer assert a specific delegation
+  gate, stop-condition rule, audit taxonomy, or finding classification. The
+  coordination protocol is documented in the host runtime that consumes this
+  skill; this package ships the contract layer and the tooling only.
+- Drop the named-role table and the seven-step workflow diagram from `README.md`.
+  The role-brief schema still accepts any non-empty role string, and the
+  host runtime decides which role names are valid for a given task. The five
+  role names that appeared in earlier versions remain as examples in
+  `templates/role-brief.md`, `examples/routing-scenarios.md`, and the
+  conformance cases; new templates and examples are not required to use them.
+- Update the install snippet, the package archive name, the repository map,
+  and the release notes to reflect version `0.5.0`. No schema version bumped.
 - Run the rubric case suite in the release workflow before the package is built.
   CI already did; a tag could still publish when the cases had drifted.
 - Reject a v0.2 refusal whose reason or next step is only whitespace. `minLength`
@@ -55,7 +68,7 @@
 - Add opt-in v0.2 packet closure linking required evidence claims and audit
   results to an expected output revision, with exact-byte receipt verification.
 - Include a fully synthetic operator walkthrough and extracted-package regressions
-  for incomplete, altered, stale and replayed records; preserve v0.1 behavior.
+  for incomplete, altered, stale, and replayed records; preserve v0.1 behavior.
 
 ## 0.4.0
 

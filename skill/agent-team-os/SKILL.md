@@ -1,96 +1,111 @@
 ---
 name: agent-team-os
-description: Coordinate complex, multi-step work across task-scoped specialist AI agents by defining roles, access, evidence, output contracts, stop conditions, integration, and independent auditing. Use when a request benefits from distinct discovery, analysis, construction, or verification outputs, or when delegation reduces a specific risk.
+description: Installable skill that ships the six-field role-brief contract, the Agent Team connect specification, and dependency-light validators for both. The coordination protocol lives in the host runtime; this skill ships the wire format and the tooling.
 ---
 
 # Agent Team
 
-## Coordinate the work
+A wire-format and tool pack for bounded, evidence-backed multi-role work.
 
-1. Restate the requested outcome, constraints, available evidence, authorized actions, and completion test.
-2. Keep the task with one agent unless a specialist role will improve a distinct output or reduce a specific risk.
-3. Select the minimum useful roles and give each one a complete role brief.
-4. Sequence dependent work and run independent work concurrently only when outputs cannot contaminate one another.
-5. Require each role to return evidence, assumptions, status, and gaps with its contracted output.
-6. Integrate outputs against the original request. Resolve conflicts rather than stacking incompatible conclusions.
-7. Run the Auditor on important results, address material findings, and deliver one coherent answer.
+This skill does not coordinate work by itself. It is an instruction layer that
+ships:
 
-## Use task-scoped roles
+- The six-field role-brief contract (`schemas/role-brief.schema.json`).
+- The Agent Team connect specification (`connect.md`, `schemas/connect.schema.json`).
+- Dependency-light Python validators, a deterministic package builder, and a
+  SHA-256 verification step (`scripts/`).
+- Calibrated synthetic evaluation fixtures and a connect conformance suite
+  (`evals/`, `conformance/`).
+- Worked role briefs and three synthetic routing scenarios (`templates/`,
+  `examples/`).
 
-- Assign the Orchestrator to frame the task, choose roles, sequence work, integrate outputs, and own request satisfaction.
-- Assign the Scout to gather and organize permitted evidence. Prevent it from silently converting missing evidence into conclusions.
-- Assign the Analyst to interpret evidence, compare options, expose assumptions, and reason about tradeoffs.
-- Assign the Maker to create or revise the requested artifact within the authorized write scope.
-- Assign the Auditor to independently check the result and identify required corrections.
+The coordination protocol itself (delegation gates, stop conditions, audit
+taxonomy, result delivery) is part of the host runtime that consumes this
+skill, not part of the skill. The skill is intentionally thin: it standardizes
+how a host expresses a delegated task and how an external agent connects to
+the host's coordinator, without prescribing the host's orchestration rules.
 
-Treat these roles as temporary assignments, not persistent identities. Do not assume continuity, memory, authority, or trust from one task to another. Treat role separation as a coordination pattern, not a security boundary. Enforce real access limits with explicit permissions and the execution environment.
+## When to install
 
-## Write every role brief
+Install when the host needs to delegate to multiple specialist agents, exchange
+work with another agent system, or both. The shipped schemas give the host a
+versioned, machine-checkable contract for both directions.
 
-Specify all six fields before delegation:
+## Use the six-field role brief
+
+Every delegated role receives a brief with six required fields:
 
 ```text
-Role: The selected task-scoped role.
-Access scope: The exact sources, tools, actions, and read or write limits allowed.
-Task: The distinct question, artifact, or risk the role owns.
-Evidence: The inputs to inspect and the traceability required for claims.
+Role:           The task-scoped assignment.
+Access scope:   The exact sources, tools, actions, and read or write limits allowed.
+Task:           The distinct question, artifact, or risk the role owns.
+Evidence:       The inputs to inspect and the traceability required for claims.
 Output contract: The format, contents, quality bar, and recipient of the result.
-Stop condition: The event that ends work, including completion, blocking gaps, or scope conflict.
+Stop condition: The event that ends work, including completion, a blocking gap, or a scope conflict.
 ```
 
-Reject a brief that omits a field, duplicates another role, or gives broader access than its task needs.
+The `role` field accepts any non-empty string. The host runtime decides which role
+names are valid for a given task. Reject a brief that omits a field, duplicates
+another role, or grants broader access than its task needs.
 
-## Apply the delegation gate
+The machine-readable contract is `schemas/role-brief.schema.json`. The
+dependency-light checker is `scripts/check.py brief`. See `templates/role-brief.md`
+for a filled example.
 
-- Delegate only when the expected benefit is explicit.
-- Name the distinct output or specific risk reduction for each role.
-- Keep one owner for every decision and artifact.
-- Avoid parallel assignments that produce competing untraceable edits.
-- Do not delegate merely to increase activity or role count.
-- Do not let a role widen its own access, redefine the request, or invent missing authorization.
-- Combine roles when separation adds overhead without improving quality or independence.
+## Use the connect spec to interoperate
 
-## Enforce stop conditions
+If an external agent or system needs to exchange work with a host coordinator,
+use the versioned connect specification at `connect.md` (envelope in
+`schemas/connect.schema.json`, optional v0.2 authoring contract in
+`docs/connect-v0.2.md`). The spec covers capability discovery, message types,
+handoffs that reuse the six-field role brief, status and gap semantics, and
+the security boundaries that keep a connection bounded.
 
-Stop a role when it completes its contract, exhausts permitted evidence, encounters conflicting instructions, requires wider scope, or reaches diminishing returns. Require a concise partial result with status, evidence inspected, gaps, and the decision needed to continue. Do not keep a role active after its useful work ends.
+The connect spec is a contract, not a runtime. The transport (queue, RPC,
+files, channel) and the real permission enforcement remain the deployment's
+job. The conformance suite at `conformance/connect/` exercises the spec
+against named expected outcomes; `scripts/check.py connect` runs it in CI.
 
-For expensive or open-ended work, agree on observable work units, assignment and
-concurrency limits, and a correction-round limit before dispatch. Reserve work
-for integration and review. Count retries and delegated activity. At a limit,
-cancel pending work, obtain active workers' stop acknowledgments and reconcile
-uncertain effects before reassigning resources. Preserve partial results and
-name the decision needed to resume. Budget exhaustion is not completion.
+## Verify before installing
 
-## Accept handoffs and resume
+The shipped package is deterministic. From a reviewed source checkout:
 
-Match each returned output to its assignment and brief revision. Inspect the
-exact output against its acceptance criteria before releasing dependent work.
-Distinguish sender completion from recipient acceptance. Record accepted,
-correction required, or blocked with evidence and the receiving owner.
+```text
+python3 scripts/validate.py
+python3 scripts/package.py --output dist
+python3 scripts/verify_package.py dist/agent-team-0.5.0.zip
+```
 
-On interruption, retain the last accepted revision, completed effects, pending
-work, gaps and the event required to resume. Reconcile current state before
-retrying uncertain writes. Stop obsolete workers before transferring ownership.
-Do not infer new authority or trusted continuity from a saved checkpoint.
+The builder emits `<archive>.zip.sha256`. `verify_package.py` compares archive
+members against the reviewed source bytes, not only against the checksum
+written by the same build. Verify the SHA-256 before copying the skill into a
+target project.
 
-## Audit independently
+## Safety boundaries
 
-Require the Auditor to check:
+These apply regardless of which host runtime consumes this skill.
 
-- correctness against inspected evidence;
-- explicit and hidden assumptions;
-- contradictions within and across outputs;
-- material risks, omissions, and uncertainty;
-- satisfaction of the original request, constraints, and output format.
+- Treat role separation as an operating pattern, not a security boundary.
+- Enforce real permissions through the execution environment.
+- Grant only the access required for the assigned task.
+- Do not allow a role to widen its scope, redefine the request, or invent
+  authorization.
+- Preserve uncertainty when evidence is missing, weak, or contradictory.
+- Require explicit authorization before any consequential external action that
+  was not already approved.
+- Keep human review in the loop for consequential decisions and actions.
 
-Require the Auditor to distinguish blocking, material, and minor findings. Trace each finding to evidence or a reproducible check. Send material findings to the owning role for correction, then recheck the changed result. Do not treat silence, confidence, or role labels as proof.
+## Canonical coordination protocol
 
-Give the Auditor original criteria and the exact target revision. Preserve an
-independent first assessment when it matters. Keep stable finding IDs, owners
-and dispositions. Close findings only with a recorded recheck of the delivered
-revision. Reopen affected findings after changes. Do not recommend pass while
-blocking or material findings remain unresolved.
+The coordination protocol itself is part of the host runtime that consumes
+this skill, not part of the skill. This package does not endorse a specific
+protocol. Hosts that want a public reference for one possible protocol can
+document their choice elsewhere and keep this skill as the contract layer.
 
-## Deliver one result
+## What this skill does not do
 
-Have the Orchestrator summarize the outcome, evidence basis, assumptions, unresolved risks, and any uncompleted request. Preserve uncertainty instead of filling gaps. Obtain explicit authorization before any consequential external action that was not already authorized.
+- It does not dispatch work, authenticate agents, or enforce access scopes.
+- It does not store handoffs, evidence, or audit results.
+- It does not produce a coordination result on its own; the host does.
+- It does not publish or modify remote metadata; the package builder writes
+  only the local archive and its checksum.

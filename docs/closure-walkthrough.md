@@ -39,7 +39,7 @@ case directories retain a copy of the original receipt for inspection; failed
 closure never creates the requested `new-receipt.json`.
 
 Before extracting a built archive, use
-`python3 scripts/verify_package.py path/to/agent-team-0.4.0.zip` against reviewed
+`python3 scripts/verify_package.py path/to/agent-team-0.5.0.zip` against reviewed
 source as described in [package verification](package-verification.md). The
 walkthrough, schema and all tools are in the package manifest. Repository tests
 run this same journey from both source and a fresh external extraction.
