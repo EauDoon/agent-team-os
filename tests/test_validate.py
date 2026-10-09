@@ -806,6 +806,60 @@ class ValidateTests(unittest.TestCase):
             self.assertIn("connect schema requires the message envelope", joined)
             self.assertIn("connect handoff requires the six role brief fields", joined)
 
+    def completeness_root(self, root: Path, version: str = "1.2.3") -> list[str]:
+        shipped = ["CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "PROVENANCE.md", "README.md", "SECURITY.md",
+                   "VERSION", "connect.md", "package-manifest.json", "docs/guide.md",
+                   f"docs/release-notes-{version}.md", "scripts/tool.py"]
+        for relative in shipped:
+            (root / relative).parent.mkdir(parents=True, exist_ok=True)
+            (root / relative).write_text("x\n", encoding="utf-8")
+        (root / f"docs/release-notes-{version}.md").write_text(f"# Agent Team {version}\n\nNotes.\n", encoding="utf-8")
+        (root / "package-manifest.json").write_text(json.dumps(shipped), encoding="utf-8")
+        return shipped
+
+    def test_manifest_must_ship_every_distributable_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shipped = self.completeness_root(root)
+            checker = Checker(root)
+            checker.check_manifest_completeness("1.2.3")
+            self.assertEqual(checker.failures, [])
+            self.assertIn("manifest ships docs/guide.md", checker.checks)
+            (root / "docs" / "extra.md").write_text("new\n", encoding="utf-8")
+            cache = root / "scripts" / "__pycache__"
+            cache.mkdir()
+            (cache / "tool.cpython-312.pyc").write_bytes(b"\x00")
+            (root / "scripts" / "stale.pyc").write_bytes(b"\x00")
+            (root / "tests").mkdir()
+            (root / "tests" / "test_tool.py").write_text("pass\n", encoding="utf-8")
+            (root / "package-manifest.json").write_text(
+                json.dumps([entry for entry in shipped if entry != "SECURITY.md"]), encoding="utf-8")
+            checker = Checker(root)
+            checker.check_manifest_completeness("1.2.3")
+            self.assertEqual(sorted(checker.failures), ["manifest ships SECURITY.md", "manifest ships docs/extra.md"])
+
+    def test_current_release_notes_must_exist_ship_and_carry_the_title(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shipped = self.completeness_root(root)
+            notes = root / "docs/release-notes-1.2.3.md"
+            notes.write_text("# Release notes for 1.2.3\n", encoding="utf-8")
+            checker = Checker(root)
+            checker.check_manifest_completeness("1.2.3")
+            self.assertEqual(checker.failures, ["current release notes are titled Agent Team 1.2.3"])
+            checker = Checker(root)
+            checker.check_manifest_completeness("1.2.4")
+            self.assertEqual(checker.failures, ["current release notes exist: docs/release-notes-1.2.4.md"])
+            notes.write_text("# Agent Team 1.2.3\n", encoding="utf-8")
+            (root / "package-manifest.json").write_text(
+                json.dumps([entry for entry in shipped if not entry.startswith("docs/release-notes")]),
+                encoding="utf-8")
+            checker = Checker(root)
+            checker.check_manifest_completeness("1.2.3")
+            self.assertEqual(checker.failures, ["manifest ships docs/release-notes-1.2.3.md",
+                                                "current release notes ship in the package: "
+                                                "docs/release-notes-1.2.3.md"])
+
     def test_skill_references_must_exist_and_ship(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

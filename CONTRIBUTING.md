@@ -11,6 +11,7 @@ Contributions should improve clarity, generality, or verification without making
 - State clearly that role separation is not a security boundary.
 - Keep examples fictional and limited to the three documented scenario categories.
 - Avoid identifying details, sensitive data, external assets, and runtime dependencies.
+- Add every new file under `conformance/`, `docs/`, `evals/`, `examples/`, `schemas/`, `scripts/`, `skill/` or `templates/` to `package-manifest.json`; `scripts/validate.py` fails when a distributable file is left out.
 - Write skill instructions in concise imperative language.
 
 ## Change process
