@@ -32,6 +32,11 @@ tagged or published.
   location.
 - A Dependabot configuration for the pinned GitHub Actions, a `make ci` target
   that runs every CI step in order, and `tests/test_ci_config.py`.
+- A release gate and build provenance. `scripts/validate.py --release-tag TAG`
+  requires the tag to be `v<VERSION>`, a dated changelog entry for that version,
+  and shipped release notes. The release workflow runs it first, refuses a tag
+  whose commit is not on `main`, and attests the archive with `actions/attest`,
+  so `gh attestation verify` can authenticate releases from 0.6.0 on.
 
 ### Changed
 

@@ -56,6 +56,38 @@ class WorkflowConfigTests(unittest.TestCase):
                 with self.subTest(workflow=relative, uses=reference):
                     self.assertRegex(reference, r'^[\w.-]+/[\w./-]+@[0-9a-f]{40} # v\d+\.\d+\.\d+$')
 
+    def test_release_gates_the_tag_before_building(self):
+        release = read('.github/workflows/release.yml')
+        gate = release.index('python3 scripts/validate.py --release-tag "$GITHUB_REF_NAME"')
+        ancestry = release.index('git merge-base --is-ancestor "$GITHUB_SHA" origin/main')
+        build = release.index('python3 scripts/package.py --output dist')
+        self.assertLess(gate, ancestry)
+        self.assertLess(ancestry, build)
+        self.assertLess(release.index('python3 -m unittest discover -s tests -v'), build)
+        self.assertLess(release.index('python3 evals/runner.py'), build)
+        self.assertIn('fetch-depth: 0', release)
+        self.assertIn('dist/agent-team-$(python3 scripts/version.py).zip', release)
+        self.assertIn('VERSION="$(python3 scripts/version.py)"', release)
+        self.assertNotIn('GITHUB_REF_NAME#v', release)
+
+    def test_release_permissions_are_scoped_to_the_job(self):
+        release = read('.github/workflows/release.yml')
+        workflow_level, job_level = release.split('\njobs:\n', 1)
+        self.assertRegex(workflow_level, r'(?m)^permissions:\n  contents: read$')
+        self.assertIn('group: release-${{ github.ref }}', workflow_level)
+        self.assertIn('cancel-in-progress: false', workflow_level)
+        self.assertRegex(job_level, r'(?m)^    timeout-minutes: \d+$')
+        self.assertRegex(job_level, r'(?m)^    permissions:\n      contents: write\n      id-token: write\n'
+                                    r'      attestations: write\n      artifact-metadata: write$')
+        self.assertNotIn('continue-on-error', release)
+
+    def test_release_attests_the_verified_archive_before_publishing(self):
+        release = read('.github/workflows/release.yml')
+        attest = release.index('uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2')
+        self.assertLess(release.index('sha256sum -c'), attest)
+        self.assertLess(attest, release.index('gh release create'))
+        self.assertIn('subject-path: dist/agent-team-*.zip', release)
+
     def test_dependabot_updates_the_pinned_actions(self):
         config = read('.github/dependabot.yml')
         self.assertRegex(config, r'(?m)^version: 2$')

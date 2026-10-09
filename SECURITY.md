@@ -12,6 +12,13 @@ Agent Team is an instruction package. Its main safety risks arise when a role re
 - Inspect material claims and consequential actions before relying on them.
 - Stop and request authorization when completion requires wider access or a new external action.
 
+## Supported versions
+
+Fixes ship in the latest release only; earlier versions are not patched. Verify
+a downloaded release with its build provenance attestation, as described in
+[package verification](docs/package-verification.md#verify-publisher-provenance),
+and compare it with reviewed source before installing.
+
 ## Reporting a concern
 
 Use the security-reporting channel offered by the repository host. Include the affected version, a minimal reproduction, expected behavior, observed behavior, and impact. Remove identifying or sensitive data from the report.

@@ -811,6 +811,27 @@ class Checker:
         self.ok(all(newer >= older for newer, older in zip(dates, dates[1:])),
                 "CHANGELOG dates do not increase down the file")
 
+    def check_release_tag(self, tag: str) -> None:
+        """Gate a release tag on VERSION, a dated changelog entry and its notes.
+
+        A tag that disagreed with VERSION used to fail only at the verify step,
+        with a generic archive error, after everything else had run. Each
+        requirement for publishing is now a named check that runs first.
+        """
+        version = self.text("VERSION").strip()
+        self.ok(
+            re.fullmatch(r"v\d+\.\d+\.\d+", tag) is not None and tag == f"v{version}",
+            "release tag matches VERSION",
+        )
+        dated = [stamp for entry, stamp in changelog_entries(self.text("CHANGELOG.md")) if entry == version]
+        self.ok(bool(dated) and dated[0] is not None, "CHANGELOG has a dated entry for the release")
+        notes = f"docs/release-notes-{version}.md"
+        manifest = self.json_file("package-manifest.json")
+        self.ok(
+            (self.root / notes).is_file() and isinstance(manifest, list) and notes in manifest,
+            "release notes exist and ship for the release",
+        )
+
     def check_operator_fixtures(self) -> None:
         try:
             from .check import check_document
@@ -925,8 +946,12 @@ def main() -> int:
     add_version_flag(parser)
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--json", action="store_true", dest="as_json")
+    parser.add_argument("--release-tag", metavar="TAG",
+                        help="also require TAG to be v<VERSION> with a dated changelog entry and shipped notes")
     args = parser.parse_args()
     checker = Checker(args.repo_root.resolve())
+    if args.release_tag is not None:
+        checker.check_release_tag(args.release_tag)
     checker.run()
     payload = {"ok": not checker.failures, "checks": checker.checks, "failures": checker.failures}
     if args.as_json:

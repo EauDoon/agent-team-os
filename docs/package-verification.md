@@ -31,7 +31,27 @@ SHA-256, source version and file count. Exit status 0 means verification passed;
 1 means it failed. Installation remains a separate explicit action.
 
 A checksum downloaded beside an archive detects accidental corruption but does
-not independently authenticate its publisher. Comparing against an unreviewed
+not independently authenticate its publisher; see
+[Verify publisher provenance](#verify-publisher-provenance) for that. Comparing against an unreviewed
 or attacker-modified source tree does not establish trust. Use the checker from
 your reviewed source, not an unchecked downloaded script. It verifies a package
 against that source revision, not against whichever release happens to be latest.
+
+## Verify publisher provenance
+
+Releases from 0.6.0 on carry a build provenance attestation. The release
+workflow creates it with `actions/attest` after it has built the archive from
+the tagged commit and verified it against that source. With the GitHub CLI,
+download a release and check that the archive was built by this repository's
+release workflow:
+
+```sh
+gh release download v<version> -R EauDoon/agent-team-os
+gh attestation verify agent-team-<version>.zip --repo EauDoon/agent-team-os
+```
+
+A passing attestation shows which repository, workflow and commit produced the
+archive. It does not review that commit for you, so still compare the archive
+with reviewed source using `scripts/verify_package.py`. Because members are
+stored uncompressed, a build of the tagged commit on any supported Python
+reproduces the published SHA-256. Releases before 0.6.0 have no attestation.

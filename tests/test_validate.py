@@ -193,6 +193,43 @@ class ValidateTests(unittest.TestCase):
         self.assertIn('NOTES="docs/release-notes-${VERSION}.md"', workflow)
         self.assertNotIn('release-notes-v0.1.0.md', workflow)
 
+    def test_release_tag_must_match_version_changelog_and_notes(self) -> None:
+        source = Path(__file__).resolve().parents[1]
+        version = version_for(source)
+        script = source / "scripts" / "validate.py"
+        passed = subprocess.run([sys.executable, str(script), "--release-tag", f"v{version}"],
+                                capture_output=True, text=True, encoding="utf-8", check=False)
+        self.assertEqual(passed.returncode, 0, passed.stdout[-2000:])
+        self.assertIn("PASS release tag matches VERSION", passed.stdout)
+        for tag in ("v9.9.9", "release-1", version, f"v{version}-rc1"):
+            with self.subTest(tag=tag):
+                checker = Checker(source)
+                checker.check_release_tag(tag)
+                self.assertEqual(checker.failures, ["release tag matches VERSION"])
+        failed = subprocess.run([sys.executable, str(script), "--release-tag", "v9.9.9"],
+                                capture_output=True, text=True, encoding="utf-8", check=False)
+        self.assertEqual(failed.returncode, 1)
+        self.assertIn("FAIL release tag matches VERSION", failed.stdout)
+
+    def test_release_tag_needs_a_dated_changelog_entry_and_shipped_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "VERSION").write_text("1.2.3\n", encoding="utf-8")
+            (root / "CHANGELOG.md").write_text("# Changelog\n\n## 1.2.3\n\n- undated\n", encoding="utf-8")
+            (root / "docs/release-notes-1.2.3.md").write_text("# Agent Team 1.2.3\n", encoding="utf-8")
+            (root / "package-manifest.json").write_text("[]", encoding="utf-8")
+            checker = Checker(root)
+            checker.check_release_tag("v1.2.3")
+            self.assertEqual(checker.failures, ["CHANGELOG has a dated entry for the release",
+                                                "release notes exist and ship for the release"])
+            (root / "CHANGELOG.md").write_text("# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-10-09\n",
+                                               encoding="utf-8")
+            (root / "package-manifest.json").write_text('["docs/release-notes-1.2.3.md"]', encoding="utf-8")
+            checker = Checker(root)
+            checker.check_release_tag("v1.2.3")
+            self.assertEqual(checker.failures, [])
+
     def test_readme_package_commands_track_version(self) -> None:
         checker = Checker(Path(__file__).resolve().parents[1])
         checker.run()

@@ -100,7 +100,9 @@ cp -R -- dist/expanded/agent-team-0.5.0/skill/agent-team-os/. "$destination/" ||
 
 Verify the checksum before copying. From the reviewed source checkout, run
 `python3 scripts/verify_package.py dist/agent-team-0.5.0.zip` to compare
-archive members with source bytes before extraction. The package contains the
+archive members with source bytes before extraction. For a downloaded release,
+also [verify publisher provenance](docs/package-verification.md#verify-publisher-provenance)
+with its build attestation. The package contains the
 skill, templates, schemas, examples, validator, and release documentation. It
 does not publish or change remote metadata.
 
