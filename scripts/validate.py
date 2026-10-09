@@ -8,6 +8,7 @@ import json
 import os
 import re
 import sys
+from datetime import date
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 
@@ -77,6 +78,20 @@ def _json_object(items):
             raise ValueError("duplicate JSON object key")
         result[key] = value
     return result
+
+
+CHANGELOG_HEADING = re.compile(
+    r"(?m)^## (?:\[(\d+\.\d+\.\d+)\]|(\d+\.\d+\.\d+))(?: - (\d{4}-\d{2}-\d{2}))?[ \t]*$"
+)
+
+
+def changelog_entries(changelog: str) -> list[tuple[str, str | None]]:
+    """Return ``(version, date)`` for each versioned heading, newest first.
+
+    Keep a Changelog headings (``## [X.Y.Z] - YYYY-MM-DD``) and the older bare
+    ``## X.Y.Z`` form both count. ``## [Unreleased]`` and other headings do not.
+    """
+    return [(bracketed or bare, stamp or None) for bracketed, bare, stamp in CHANGELOG_HEADING.findall(changelog)]
 
 
 def object_ids(value: object) -> list[object] | None:
@@ -775,11 +790,26 @@ class Checker:
         already checked, so the changelog's top entry is checked too.
         """
         changelog = self.text("CHANGELOG.md")
-        versions = re.findall(r"(?m)^##\s+(\d+\.\d+\.\d+)\s*$", changelog)
+        entries = changelog_entries(changelog)
         self.ok(
-            bool(versions) and versions[0] == current,
+            bool(entries) and entries[0][0] == current,
             "CHANGELOG top entry matches VERSION",
         )
+        if not entries:
+            return
+        dates = []
+        for version, stamp in entries:
+            if stamp is None:
+                continue
+            try:
+                dates.append(date.fromisoformat(stamp))
+            except ValueError:
+                self.ok(False, f"CHANGELOG date is valid: {version} - {stamp}")
+        keys = [tuple(int(part) for part in version.split(".")) for version, _ in entries]
+        self.ok(all(newer > older for newer, older in zip(keys, keys[1:])),
+                "CHANGELOG versions are unique and descending")
+        self.ok(all(newer >= older for newer, older in zip(dates, dates[1:])),
+                "CHANGELOG dates do not increase down the file")
 
     def check_operator_fixtures(self) -> None:
         try:

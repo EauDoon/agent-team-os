@@ -1,6 +1,86 @@
 # Changelog
 
-## 0.5.0
+All notable changes to this project are documented in this file. The format
+follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/), and the
+package version follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+Wire and schema versions such as `agent-team-connect/v0.2` are versioned
+separately and pinned in `schemas/VERSIONS.md`.
+
+Only v0.1.1 and v0.5.0 were tagged and published as GitHub Releases. The other
+dates are those of the commit that set `VERSION`; those versions were never
+tagged or published.
+
+## [Unreleased]
+
+### Added
+
+- A reference capability negotiator: `negotiate()` in `scripts/workflows.py`,
+  the `scripts/inspect_records.py negotiate REQUEST --advertise TOKEN`
+  subcommand, and the `conformance/negotiation/` suite. `scripts/validate.py`
+  runs the suite, checks the `connect.md` capability vocabulary against the
+  reference baseline, and requires the specification's acceptance and refusal
+  examples to be what the rules produce for its request example.
+- `--version` on every command-line tool, printing `agent-team X.Y.Z`, and
+  `scripts/version.py`, the single reader of `VERSION` for the tools, the
+  Makefile and CI.
+- Manifest completeness in `scripts/validate.py`: every file under the shipped
+  trees and every root document must be listed in `package-manifest.json`, and
+  the current release notes must exist, ship and carry the
+  `# Agent Team X.Y.Z` title.
+- `scripts/validate.py` checks every path `SKILL.md` cites and the skill
+  metadata description, and reports malformed schema keyword values per
+  location.
+- A Dependabot configuration for the pinned GitHub Actions, a `make ci` target
+  that runs every CI step in order, and `tests/test_ci_config.py`.
+
+### Changed
+
+- Package members are stored uncompressed (method 0) instead of Deflate, so the
+  release digest reproduces from source on any supported Python, including
+  CPython builds that ship zlib-ng. Archive bytes and the digest change and the
+  archive is larger. The verifier still accepts Deflate archives from 0.5.0
+  and earlier.
+- Audit author and auditor IDs, and paired-evaluation runner and reviewer IDs,
+  are compared ignoring case, surrounding whitespace and Unicode compatibility
+  forms. A record whose two IDs differ only in those ways now fails, and a
+  blank runner or reviewer ID is rejected.
+- The `connect.md` worked examples follow the negotiation rules. Example 2
+  negotiates `["bounded-scope", "evidence-trace"]`, and example 3 is the rules'
+  refusal of example 1 under its own `message_id` (`msg-0006`). The refusal
+  separator is pinned to a comma and a space. Implementers who copied the old
+  example text should update it. No schema or conformance case changed.
+- `skill/agent-team-os/agents/openai.yaml` describes the contract layer instead
+  of coordination. `SKILL.md` names `scripts/validate.py` as the conformance
+  runner and says the paths it cites live in the source package.
+- CI runs on pushes to `main`, pull requests and manual dispatch, cancels
+  superseded pull request runs, stops after 15 minutes, and checks out without
+  persisting credentials. `make package` runs the rubric cases first.
+- The showcase, contributor guide, evaluation protocol, connect specification
+  introduction and overview art no longer describe a delegation gate or a
+  coordination workflow, and the README repository map lists every schema,
+  template and tool.
+- The 0.1.1 to 0.1.10 and 0.5.0 release notes and the showcase now ship in the
+  package.
+
+### Fixed
+
+- `scripts/validate.py` no longer passes silently when an ancestor directory is
+  named `dist` or `.git`, as in the README's `dist/expanded` extraction layout.
+  It skips `.venv`, `node_modules` and similar directories inside the checkout,
+  and reports an empty Markdown link target instead of crashing.
+- A nullable `type` list, a string count or bound, or a string `required` in a
+  schema now fails with a clean error instead of a `TypeError` or a silent
+  misread, and an unusable schema is a failed check rather than a traceback.
+- A schema `pattern` `$` anchors only at the end of the string, as in
+  ECMA-262, so a trailing newline no longer matches.
+- Packet record paths with a component that ends in a dot or a space are
+  rejected, and a record that names a file another record already lists
+  (including through a hard link) fails, so one file can no longer count as two
+  records on Windows.
+- Evaluation records inside a packet are checked against the caller's
+  `schema_root` instead of the bundled run schema.
+
+## [0.5.0] - 2026-10-04
 
 - Separate the wire-format and tool pack from the coordination protocol. The
   shipped `SKILL.md` and `README.md` no longer assert a specific delegation
@@ -70,7 +150,7 @@
 - Include a fully synthetic operator walkthrough and extracted-package regressions
   for incomplete, altered, stale, and replayed records; preserve v0.1 behavior.
 
-## 0.4.0
+## [0.4.0] - 2026-09-11
 
 - Trace blocked work, invalidate dependent acceptance and group readiness by budget.
 - Identify downstream rework after plan changes and claim rechecks after evidence changes.
@@ -79,7 +159,7 @@
   recorded response acceptance separate from unverified handoff binding.
 - Diagnose per-record packet drift while preserving exact-byte receipt checks.
 
-## 0.3.0
+## [0.3.0] - 2026-09-10
 
 - Author complete briefs and explicit v0.2 handoffs or actionable refusals.
 - Inspect dependency readiness, plan changes, evidence impact and audit remediation.
@@ -87,7 +167,7 @@
 - Check bounded local record packets and preserve exact-byte receipts for drift checks.
 - Preserve v0.1 wire compatibility and existing independent evaluation boundaries.
 
-## 0.2.0
+## [0.2.0] - 2026-09-09
 
 - Add local JSON contract checking for authored briefs, messages, routing plans,
   evidence ledgers and audit closure records.
@@ -97,7 +177,7 @@
 - Verify package content against reviewed source before extraction.
 - Include operator guidance and checked examples in deterministic packages.
 
-## 0.1.10
+## [0.1.10] - 2026-09-04
 
 - Added a deterministic **capability negotiation** algorithm to `connect.md`
   (the `## Capability negotiation` section): the exact accept/refuse rules, the
@@ -114,7 +194,7 @@
 - Packaged the new suite and added unit tests for `connect_violations` and the
   conformance outcome check.
 
-## 0.1.9
+## [0.1.9] - 2026-09-04
 
 - Added `check_connect_examples` to `scripts/validate.py`. The worked examples in
   `connect.md` are now extracted from their fenced json blocks and verified as
@@ -127,7 +207,7 @@
 - Added a unit test covering a conforming example and one with a missing
   payload field.
 
-## 0.1.8
+## [0.1.8] - 2026-09-04
 
 - Added `connect.md`, a versioned agent-interoperability specification for how an
   external agent or system connects to an `agent-team-os` Orchestrator. It defines
@@ -142,7 +222,7 @@
   six-field role brief in a handoff. Added a unit test.
 - Packaged both files and documented the spec in the README.
 
-## 0.1.7
+## [0.1.7] - 2026-09-04
 
 - Hardened the link checker's destination parser in `scripts/validate.py`. The
   `LINK` regex previously captured a link destination up to the first `)`, so a
@@ -152,7 +232,7 @@
   on the correct target.
 - Added a unit test for a link whose destination contains a parenthesis.
 
-## 0.1.6
+## [0.1.6] - 2026-09-04
 
 - Added `check_result_conformance` to `scripts/validate.py`. The repository ships
   `evals/result.schema.json` as the versioned result shape, but nothing previously
@@ -162,7 +242,7 @@
 - Added a unit test covering a conforming fixture and one that violates the
   const, enum, per-arm required, and top-level required constraints.
 
-## 0.1.5
+## [0.1.5] - 2026-09-04
 
 - Added a `.gitattributes` that forces LF line endings (`eol=lf`) for all text
   files and marks binary assets as binary. `scripts/package.py` packages the
@@ -171,7 +251,7 @@
   README's "verify the checksum" step spuriously fail. Normalizing to LF makes
   the packaged artifact byte-for-byte identical on every platform.
 
-## 0.1.4
+## [0.1.4] - 2026-09-04
 
 - Corrected a stale reference in the README repository map: it still listed
   `release-notes-v0.1.0.md`, which the release-notes naming unification had
@@ -183,7 +263,7 @@
   would not have caught this kind of drift.
 - Added a unit test for a valid and a stale release-notes reference.
 
-## 0.1.3
+## [0.1.3] - 2026-09-04
 
 - Added a `check_changelog_version` contract check in `scripts/validate.py`
   that confirms the newest `## X.Y.Z` entry in `CHANGELOG.md` matches `VERSION`.
@@ -192,7 +272,7 @@
 - Added a unit test covering a matching top entry, a stale top entry, and a
   changelog with no version entry.
 
-## 0.1.2
+## [0.1.2] - 2026-09-04
 
 - Made the test suite portable to Windows: the symlink-dependent checks now
   probe for symlink support and skip gracefully when the platform (or the
@@ -203,7 +283,7 @@
   a `Field:` line, or a table cell) rather than as a bare word, so a prose
   mention no longer satisfies the presence check.
 
-## 0.1.1
+## [0.1.1] - 2026-08-29
 
 - Corrected the `$id` host in both schemas from the stale `oonyl.github.io` to
   `EauDoon.github.io`.
@@ -215,7 +295,7 @@
 - Added `.github/workflows/release.yml`, which builds the installable package and
   publishes a GitHub Release with the ZIP and SHA-256 checksum on a `v*` tag.
 
-## 0.1.0
+## [0.1.0] - 2026-08-03
 
 - Corrected the role brief contract to six fields.
 - Added reusable role brief and audit report templates.
@@ -224,3 +304,7 @@
   versioned result record.
 - Added deterministic packaging and checksum generation.
 - Added CI and PowerShell or Bash installation guidance.
+
+[Unreleased]: https://github.com/EauDoon/agent-team-os/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/EauDoon/agent-team-os/releases/tag/v0.5.0
+[0.1.1]: https://github.com/EauDoon/agent-team-os/releases/tag/v0.1.1

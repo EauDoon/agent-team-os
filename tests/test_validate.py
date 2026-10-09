@@ -975,6 +975,31 @@ class ValidateTests(unittest.TestCase):
             checker.check_changelog_version("0.1.2")
             self.assertIn("CHANGELOG top entry matches VERSION", checker.failures)
 
+    def test_changelog_keep_a_changelog_headings_are_ordered_and_dated(self) -> None:
+        def check(document: str, version: str = "0.2.0") -> Checker:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "CHANGELOG.md").write_text(document, encoding="utf-8")
+                checker = Checker(root)
+                checker.check_changelog_version(version)
+                return checker
+
+        dated = ("# Changelog\n\n## [Unreleased]\n\n### Added\n\n- next\n\n"
+                 "## [0.2.0] - 2026-09-09\n\n- new\n\n## 0.1.1\n\n- legacy heading\n\n"
+                 "## [0.1.0] - 2026-08-03\n\n- old\n\n"
+                 "[Unreleased]: https://example.invalid/compare\n")
+        self.assertEqual(check(dated).failures, [])
+        self.assertIn("CHANGELOG dates do not increase down the file", check(dated).checks)
+        self.assertIn("CHANGELOG top entry matches VERSION", check(dated, "0.3.0").failures)
+        self.assertIn("CHANGELOG date is valid: 0.2.0 - 2026-13-01",
+                      check(dated.replace("2026-09-09", "2026-13-01")).failures)
+        self.assertIn("CHANGELOG versions are unique and descending",
+                      check(dated.replace("## [0.1.0]", "## [0.3.0]"), "0.2.0").failures)
+        self.assertIn("CHANGELOG versions are unique and descending",
+                      check(dated.replace("## 0.1.1", "## 0.2.0")).failures)
+        self.assertIn("CHANGELOG dates do not increase down the file",
+                      check(dated.replace("2026-08-03", "2026-10-01")).failures)
+
     def test_checksum_write_supports_legacy_pathlib(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             with patch("sys.argv", ["package.py", "--output", directory]), patch.object(

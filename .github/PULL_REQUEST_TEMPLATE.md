@@ -17,3 +17,4 @@
 - [ ] Branch is up to date with base
 - [ ] Tests pass locally
 - [ ] Docs updated if needed
+- [ ] Entry added under `## [Unreleased]` in CHANGELOG.md

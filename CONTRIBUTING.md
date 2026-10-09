@@ -19,8 +19,9 @@ Contributions should improve clarity, generality, or verification without making
 1. Explain the contract or tooling problem the change addresses.
 2. Make the smallest change that resolves it.
 3. Update metadata when the triggering behavior changes.
-4. Run `make ci`, which runs every CI step in order. Without `make` (on Windows, for example), run `py scripts/validate.py`, `py -m unittest discover -s tests -v`, `py evals/runner.py`, `py scripts/package.py --output dist` and `py scripts/verify_package.py dist/agent-team-<version>.zip`, where `py scripts/version.py` prints the version.
-5. Check all repository text for unfinished markers, identifying details, disallowed punctuation, and credential-like strings.
-6. Review the complete change against the original purpose and safety boundaries.
+4. Add an entry under `## [Unreleased]` in `CHANGELOG.md`, in the Added, Changed or Fixed section that fits.
+5. Run `make ci`, which runs every CI step in order. Without `make` (on Windows, for example), run `py scripts/validate.py`, `py -m unittest discover -s tests -v`, `py evals/runner.py`, `py scripts/package.py --output dist` and `py scripts/verify_package.py dist/agent-team-<version>.zip`, where `py scripts/version.py` prints the version.
+6. Check all repository text for unfinished markers, identifying details, disallowed punctuation, and credential-like strings.
+7. Review the complete change against the original purpose and safety boundaries.
 
 By contributing, you agree that your contribution is released under the MIT License.
