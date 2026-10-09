@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path, PurePosixPath
@@ -33,6 +34,13 @@ UNSAFE = re.compile(
 LINK = re.compile(r"\[[^\]]+\]\(([^()]*(?:\([^()]*\))?[^()]*)\)")
 BINARY_SUFFIXES = {".bin", ".gif", ".ico", ".jpeg", ".jpg", ".pdf", ".png", ".pyc", ".webp", ".zip"}
 EXTERNAL_SCHEMES = {"http", "https", "mailto"}
+# Directory names pruned below the checked root. They hold build output, VCS
+# state or local environments, never reviewed source. `__pycache__` is not here:
+# a manifest may list a text file under it, and that file must still be read.
+IGNORED_DIRS = frozenset({
+    ".git", "dist", ".venv", "venv", "node_modules", ".tox",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache",
+})
 
 
 def _display_path(path: Path, root: Path) -> str:
@@ -123,6 +131,24 @@ class Checker:
         else:
             self.failures.append(message)
 
+    def repo_files(self, suffixes: set[str] | None = None) -> list[Path]:
+        """Return checked files under the root, pruning ignored directory names.
+
+        Only names below the root are tested. An ancestor of the root that is
+        named ``dist`` or ``.git`` (an extracted package under ``dist/expanded``,
+        for example) must not turn every check into a silent pass.
+        """
+        found: list[Path] = []
+        for directory, dirnames, filenames in os.walk(self.root):
+            dirnames[:] = [name for name in dirnames if name not in IGNORED_DIRS]
+            for name in filenames:
+                path = Path(directory) / name
+                if suffixes is not None and path.suffix not in suffixes:
+                    continue
+                if path.is_file():
+                    found.append(path)
+        return sorted(found)
+
     def read_text(self, path: Path, *, allow_binary: bool = False) -> str | None:
         try:
             return path.read_text(encoding="utf-8")
@@ -194,14 +220,15 @@ class Checker:
         return re.compile(pattern)
 
     def check_links(self) -> None:
-        for path in sorted(self.root.rglob("*.md")):
-            if any(part in {".git", "dist"} for part in path.parts):
-                continue
+        for path in self.repo_files({".md"}):
             content = self.read_text(path)
             if content is None:
                 continue
             display_path = _display_path(path, self.root)
             for raw_target in LINK.findall(content):
+                if not raw_target.strip():
+                    self.ok(False, f"link target is not empty: {display_path}")
+                    continue
                 target = raw_target.strip().split()[0].strip("<>")
                 try:
                     parsed = urlsplit(target)
@@ -336,9 +363,7 @@ class Checker:
         they name past archives on purpose.
         """
         pattern = re.compile(r"agent-team-(\d+\.\d+\.\d+)\.zip")
-        for path in sorted(self.root.rglob("*.md")):
-            if {".git", "dist"} & set(path.parts):
-                continue
+        for path in self.repo_files({".md"}):
             relative = _display_path(path, self.root)
             if relative == "CHANGELOG.md" or relative.startswith("docs/release-notes-"):
                 continue
@@ -680,10 +705,12 @@ class Checker:
         self.check_connect_conformance("conformance/connect-v0.2/cases.json", "schemas/connect-v0.2.schema.json")
         self.check_operator_fixtures()
         self.check_packet_fixture()
+        self.check_text_files()
+        self.check_links()
 
-        for path in sorted(self.root.rglob("*")):
-            if not path.is_file() or ".git" in path.parts or "dist" in path.parts:
-                continue
+    def check_text_files(self) -> None:
+        """Reject an em dash anywhere and unsafe structure in documents and data."""
+        for path in self.repo_files():
             content = self.read_text(
                 path,
                 allow_binary=path.suffix.lower() in BINARY_SUFFIXES,
@@ -695,7 +722,6 @@ class Checker:
             if path.suffix in {".md", ".yaml", ".yml", ".json"}:
                 match = UNSAFE.search(content)
                 self.ok(match is None, f"no prohibited unsafe structure: {display_path}")
-        self.check_links()
 
 
 def main() -> int:

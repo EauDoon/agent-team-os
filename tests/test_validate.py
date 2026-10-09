@@ -445,6 +445,53 @@ class ValidateTests(unittest.TestCase):
                 any("link exists" in item and "target(x).md" in item for item in checker.checks),
             )
 
+    def test_ancestor_named_dist_or_git_does_not_silence_checks(self) -> None:
+        # An extracted package lives under dist/expanded/, and it ships this
+        # validator. A parent directory name must not exempt the whole tree.
+        for ancestor in ("dist", ".git"):
+            with self.subTest(ancestor=ancestor), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory) / ancestor / "checkout"
+                (root / "docs").mkdir(parents=True)
+                (root / "docs" / "a.md").write_text("[x](missing.md) \u2014\n", encoding="utf-8")
+                checker = Checker(root)
+                checker.check_links()
+                checker.check_text_files()
+                self.assertIn("link exists: docs/a.md -> missing.md", checker.failures)
+                self.assertIn("no em dash: docs/a.md", checker.failures)
+
+    def test_environment_and_build_directories_below_the_root_are_pruned(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative in (".venv", "node_modules", "docs/dist", ".git", "venv"):
+                folder = root / relative
+                folder.mkdir(parents=True)
+                (folder / "x.md").write_text("[x](missing.md) \u2014\n", encoding="utf-8")
+            (root / "kept.md").write_text("plain\n", encoding="utf-8")
+            checker = Checker(root)
+            self.assertEqual(checker.repo_files(), [root / "kept.md"])
+            checker.check_links()
+            checker.check_text_files()
+            self.assertEqual(checker.failures, [])
+
+    def test_empty_link_target_is_reported_without_a_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a.md").write_text("See [the guide]().\nAnd [x](   ).\n", encoding="utf-8")
+            checker = Checker(root)
+            checker.check_links()
+            self.assertEqual(
+                checker.failures,
+                ["link target is not empty: a.md", "link target is not empty: a.md"],
+            )
+            script = Path(__file__).resolve().parents[1] / "scripts" / "validate.py"
+            completed = subprocess.run(
+                [sys.executable, str(script), "--repo-root", str(root)],
+                capture_output=True, text=True, encoding="utf-8", check=False,
+            )
+            self.assertEqual(completed.returncode, 1)
+            self.assertNotIn("Traceback", completed.stderr)
+            self.assertIn("FAIL link target is not empty: a.md", completed.stdout)
+
     def test_connect_violations_detects_contract_breaks(self) -> None:
         schema = {
             "required": ["connect_version", "type", "message_id", "correlation_id", "from", "to", "payload"],
