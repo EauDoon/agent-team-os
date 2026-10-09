@@ -26,7 +26,7 @@ or later and the standard library suffice.
 
 ## Hardening carried from 0.4.0 unreleased
 
-These items were accumulated against `main` after the 0.4.0 tag and were not
+These items were accumulated against `main` after the 0.4.0 version bump (0.2.0 through 0.4.0 were never tagged) and were not
 published as a release. They are validator, builder, and CI hardening only;
 they do not change the contract layer.
 

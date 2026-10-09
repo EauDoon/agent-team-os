@@ -19,9 +19,10 @@ version. Both use the six-field role-brief model; v0.2 enforces the complete
 
 ## Why a connect contract
 
-Agent Team coordinates work by giving each role a bounded brief and evidence-backed
-handoffs. An external agent that wants to join that coordination must agree to the
-same discipline, or it will reintroduce the failure modes the skill exists to
+The contract lets a host that coordinates work hold external agents to the same
+bounded-brief discipline it applies internally: every role gets a bounded brief
+and evidence-backed handoffs. An external agent that joins must agree to that
+discipline, or it will reintroduce the failure modes the contract exists to
 prevent: unbounded access, untraceable claims, and conflicting ownership. This
 spec makes that agreement explicit and machine-checkable, so a third party can
 plug in without being trusted blindly.
@@ -398,8 +399,8 @@ advertise `bounded-scope`, so the one required capability it lacks is missing.
 
 - The `handoff` payload reuses the six-field role brief, so internal and external
   delegation share one contract.
-- A `result` payload mirrors the delivery summary in `SKILL.md` and the shape of
-  the bounded evaluation result in [`evals/result.schema.json`](evals/result.schema.json).
+- A `result` payload mirrors the shape of the bounded evaluation result in
+  [`evals/result.schema.json`](evals/result.schema.json).
 - The security boundaries here restate, not replace, [`SECURITY.md`](SECURITY.md).
 
 ## Limitations

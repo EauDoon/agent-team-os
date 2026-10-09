@@ -221,31 +221,51 @@ agent-team-os/
 |-- connect.md                      # Agent interoperability connection spec
 |-- templates/
 |   |-- role-brief.md               # Six-field role brief template
-|   `-- audit-report.md             # Independent audit report template
+|   |-- audit-report.md             # Independent audit report template
+|   |-- audit-closure.json          # Audit closure record
+|   |-- evidence-ledger.json        # Evidence ledger record
+|   |-- routing-plan.json           # Routing plan record
+|   |-- operator-packet.json        # Packet index over the records above
+|   |-- execution-checkpoint.md     # Execution checkpoint note
+|   `-- handoff-receipt.md          # Handoff acceptance receipt
 |-- schemas/
-|   |-- connect.schema.json         # Machine-readable connect message contract
-|   `-- role-brief.schema.json      # Machine-readable role brief contract
+|   |-- VERSIONS.md                 # Pinned version of every schema
+|   |-- role-brief.schema.json      # Six-field role brief contract
+|   |-- connect.schema.json         # Connect message contract, v0.1
+|   |-- connect-v0.2.schema.json    # Connect authoring contract, v0.2
+|   |-- routing-plan.schema.json    # Routing plan record
+|   |-- evidence-ledger.schema.json # Evidence ledger record
+|   |-- audit-closure.schema.json   # Audit closure record
+|   |-- packet.schema.json          # Record packet index, v0.1
+|   |-- packet-v0.2.schema.json     # Record packet with closure policy, v0.2
+|   `-- packet-receipt.schema.json  # Exact-byte packet receipt
 |-- evals/
 |   |-- tasks.json                  # Versioned synthetic evaluation fixtures
+|   |-- cases/                      # Rubric cases for the six tasks
+|   |-- runner.py                   # Rubric case runner
+|   |-- run.schema.json             # Paired-run record shape
 |   |-- result.schema.json          # Versioned result shape
 |   |-- results.v0.1.json           # Calibration fixture, no performance claims
 |   `-- README.md                   # Evaluation protocol and baseline
 |-- conformance/
 |   |-- connect/                    # Connect message conformance suite
-|   `-- connect-v0.2/               # Optional v0.2 authoring contract suite
+|   |-- connect-v0.2/               # Optional v0.2 authoring contract suite
+|   `-- negotiation/                # Capability negotiation decisions
 |-- scripts/
 |   |-- validate.py                 # Dependency-light contract and link checker
 |   |-- package.py                  # Deterministic ZIP and checksum builder
 |   |-- verify_package.py           # Archive verification against source bytes
 |   |-- check.py                    # Brief, connect, plan, evidence, audit checks
+|   |-- contracts.py                # Bundled JSON Schema subset checker
 |   |-- author.py                   # Brief and handoff authoring
-|   |-- inspect_records.py          # Readiness and impact inspection
+|   |-- inspect_records.py          # Readiness, impact and negotiation inspection
 |   |-- evaluate.py                 # Paired-run evaluation
 |   |-- packet.py                   # Record packet receipts
-|   `-- workflows.py                # Bounded workflow helpers
+|   |-- version.py                  # The one reader of VERSION
+|   `-- workflows.py                # Semantic checks and the reference negotiator
 |-- docs/
 |   |-- release-notes-0.5.0.md      # Versioned release notes (one per release)
-|   `-- ...`                      # Operator guides (authoring, handoffs, etc.)
+|   `-- ...                         # Operator guides (authoring, handoffs, etc.)
 |-- .github/workflows/ci.yml        # Pull request and push checks
 |-- .github/workflows/release.yml   # Tag-triggered release build
 |-- examples/
