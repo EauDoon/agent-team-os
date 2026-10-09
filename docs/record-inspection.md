@@ -25,6 +25,27 @@ assignment and output revision. This command checks local bookkeeping only;
 transport authentication, replay protection and real permissions remain external
 duties. The v0.1 and v0.2 wire schemas are unchanged.
 
+## Compute a capability negotiation
+
+```sh
+python3 scripts/inspect_records.py negotiate request.json --advertise evidence-trace --advertise bounded-scope
+```
+
+The request must be a conforming connect `request` under its declared version.
+Repeat `--advertise` for each capability the Orchestrator advertises; tokens
+must be unique, lowercase and hyphen-separated. The command applies the
+[negotiation rules](../connect.md#capability-negotiation) and reports
+`missing`, the sorted `negotiated` set and the exact `response_payload`, which
+is checked against the declared version's response schema. Missing
+capabilities are sorted and joined with a comma and a space in both refusal
+fields. An accept and a refusal both exit 0; an invalid request, a non-request
+message or a malformed token exits 1 with the generic input error.
+
+The result is a decision only. The command sends no response, grants no
+permission and does not record the negotiated set anywhere. The
+[negotiation conformance suite](../conformance/negotiation/README.md) pins the
+same rules for other implementations.
+
 ## Inspect dependency readiness
 
 Show dependency stages and which assignments have accepted inputs:

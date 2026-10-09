@@ -127,6 +127,7 @@ Use only the records that help the task.
 | --- | --- |
 | `scripts/author.py` | Compose complete briefs, explicit v0.2 handoffs, and actionable refusals. |
 | `scripts/inspect_records.py` | Inspect readiness, plan changes, evidence impact, and audit remediation. |
+| `scripts/inspect_records.py negotiate` | Compute the exact accept or refuse payload the connect negotiation rules require. |
 | `scripts/check.py brief` or `connect` | Validate authored JSON before handing off work. |
 | `scripts/check.py plan` | Catch dependency cycles, duplicate output ownership, and inconsistent budgets. |
 | `scripts/check.py evidence` | Catch missing claim sources and unresolved evidence gaps. |

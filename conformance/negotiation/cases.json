@@ -1,0 +1,236 @@
+{
+  "suite_version": "agent-team-negotiation-conformance/v0.1",
+  "purpose": "Versioned cases for the capability negotiation rules in connect.md. Each case names a request, the capabilities the Orchestrator advertises, and the exact response payload those rules produce.",
+  "cases": [
+    {
+      "name": "accept-required-subset",
+      "description": "Every required capability is advertised; the negotiated set is the sorted union of offered and required, limited to advertised.",
+      "request": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "request",
+        "message_id": "n1",
+        "correlation_id": "negotiation-suite",
+        "from": "initiator",
+        "to": "orchestrator",
+        "capabilities": [
+          "evidence-trace"
+        ],
+        "payload": {
+          "objective": "Compare three supplied fictional briefs against fixed criteria.",
+          "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+          "required_capabilities": [
+            "evidence-trace",
+            "bounded-scope"
+          ]
+        }
+      },
+      "advertised": [
+        "audit",
+        "bounded-scope",
+        "evidence-trace",
+        "route",
+        "structured-gaps"
+      ],
+      "expect": {
+        "accepted": true,
+        "negotiated_capabilities": [
+          "bounded-scope",
+          "evidence-trace"
+        ]
+      }
+    },
+    {
+      "name": "offered-but-unsupported-is-dropped",
+      "description": "An offered capability the Orchestrator does not advertise is dropped, not refused.",
+      "request": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "request",
+        "message_id": "n2",
+        "correlation_id": "negotiation-suite",
+        "from": "initiator",
+        "to": "orchestrator",
+        "capabilities": [
+          "evidence-trace",
+          "live-translation"
+        ],
+        "payload": {
+          "objective": "Compare three supplied fictional briefs against fixed criteria.",
+          "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+          "required_capabilities": [
+            "evidence-trace"
+          ]
+        }
+      },
+      "advertised": [
+        "audit",
+        "bounded-scope",
+        "evidence-trace",
+        "route",
+        "structured-gaps"
+      ],
+      "expect": {
+        "accepted": true,
+        "negotiated_capabilities": [
+          "evidence-trace"
+        ]
+      }
+    },
+    {
+      "name": "missing-capabilities-sorted-and-joined",
+      "description": "Missing capabilities are sorted and joined with a comma and a space in both refusal fields.",
+      "request": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "request",
+        "message_id": "n3",
+        "correlation_id": "negotiation-suite",
+        "from": "initiator",
+        "to": "orchestrator",
+        "payload": {
+          "objective": "Compare three supplied fictional briefs against fixed criteria.",
+          "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+          "required_capabilities": [
+            "route",
+            "external-write",
+            "audit"
+          ]
+        }
+      },
+      "advertised": [
+        "bounded-scope",
+        "evidence-trace"
+      ],
+      "expect": {
+        "accepted": false,
+        "refusal_reason": "missing required capabilities: audit, external-write, route",
+        "next_step": "authorize or remove: audit, external-write, route"
+      }
+    },
+    {
+      "name": "absent-required-accepts-offered-overlap",
+      "description": "With no required capabilities, the connection is accepted with the offered capabilities the Orchestrator supports.",
+      "request": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "request",
+        "message_id": "n4",
+        "correlation_id": "negotiation-suite",
+        "from": "initiator",
+        "to": "orchestrator",
+        "capabilities": [
+          "route",
+          "audit"
+        ],
+        "payload": {
+          "objective": "Compare three supplied fictional briefs against fixed criteria.",
+          "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported."
+        }
+      },
+      "advertised": [
+        "audit",
+        "bounded-scope",
+        "evidence-trace",
+        "route",
+        "structured-gaps"
+      ],
+      "expect": {
+        "accepted": true,
+        "negotiated_capabilities": [
+          "audit",
+          "route"
+        ]
+      }
+    },
+    {
+      "name": "duplicate-required-entries-collapse",
+      "description": "Repeated required entries count once; required_capabilities need not be unique.",
+      "request": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "request",
+        "message_id": "n5",
+        "correlation_id": "negotiation-suite",
+        "from": "initiator",
+        "to": "orchestrator",
+        "payload": {
+          "objective": "Compare three supplied fictional briefs against fixed criteria.",
+          "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+          "required_capabilities": [
+            "route",
+            "audit",
+            "route"
+          ]
+        }
+      },
+      "advertised": [
+        "audit",
+        "bounded-scope",
+        "evidence-trace",
+        "route",
+        "structured-gaps"
+      ],
+      "expect": {
+        "accepted": true,
+        "negotiated_capabilities": [
+          "audit",
+          "route"
+        ]
+      }
+    },
+    {
+      "name": "no-capabilities-accepts-empty-set",
+      "description": "A request that neither offers nor requires capabilities is accepted with an empty negotiated set.",
+      "request": {
+        "connect_version": "agent-team-connect/v0.1",
+        "type": "request",
+        "message_id": "n6",
+        "correlation_id": "negotiation-suite",
+        "from": "initiator",
+        "to": "orchestrator",
+        "payload": {
+          "objective": "Compare three supplied fictional briefs against fixed criteria.",
+          "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported."
+        }
+      },
+      "advertised": [
+        "audit",
+        "bounded-scope",
+        "evidence-trace",
+        "route",
+        "structured-gaps"
+      ],
+      "expect": {
+        "accepted": true,
+        "negotiated_capabilities": []
+      }
+    },
+    {
+      "name": "v0.2-request-refusal",
+      "description": "The rules are identical under the v0.2 envelope, whose response schema requires both refusal fields.",
+      "request": {
+        "connect_version": "agent-team-connect/v0.2",
+        "type": "request",
+        "message_id": "n7",
+        "correlation_id": "negotiation-suite",
+        "from": "initiator",
+        "to": "orchestrator",
+        "capabilities": [
+          "bounded-scope"
+        ],
+        "payload": {
+          "objective": "Compare three supplied fictional briefs against fixed criteria.",
+          "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+          "required_capabilities": [
+            "bounded-scope"
+          ]
+        }
+      },
+      "advertised": [
+        "evidence-trace",
+        "route"
+      ],
+      "expect": {
+        "accepted": false,
+        "refusal_reason": "missing required capabilities: bounded-scope",
+        "next_step": "authorize or remove: bounded-scope"
+      }
+    }
+  ]
+}

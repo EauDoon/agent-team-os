@@ -805,6 +805,57 @@ class ValidateTests(unittest.TestCase):
             self.assertIn("connect schema requires the message envelope", joined)
             self.assertIn("connect handoff requires the six role brief fields", joined)
 
+    def negotiation_root(self, root: Path) -> None:
+        source = Path(__file__).resolve().parents[1]
+        for relative in ("connect.md", "schemas/connect.schema.json", "schemas/connect-v0.2.schema.json",
+                         "conformance/negotiation/cases.json"):
+            (root / relative).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / relative, root / relative)
+
+    def test_negotiation_suite_and_connect_examples_pass_as_shipped(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.negotiation_root(root)
+            checker = Checker(root)
+            checker.check_negotiation_conformance()
+            self.assertEqual(checker.failures, [])
+            self.assertIn("connect example msg-0002 follows the negotiation rules", checker.checks)
+            self.assertIn("connect example msg-0006 follows the negotiation rules", checker.checks)
+            self.assertIn("connect.md capability vocabulary matches the reference negotiator", checker.checks)
+
+    def test_negotiation_case_with_a_wrong_expectation_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.negotiation_root(root)
+            path = root / "conformance/negotiation/cases.json"
+            suite = json.loads(path.read_text(encoding="utf-8"))
+            suite["cases"][0]["expect"]["negotiated_capabilities"].reverse()
+            suite["cases"][1]["name"] = suite["cases"][0]["name"]
+            path.write_text(json.dumps(suite), encoding="utf-8")
+            checker = Checker(root)
+            checker.check_negotiation_conformance()
+            self.assertIn(f"negotiation conformance case {suite['cases'][0]['name']} matches", checker.failures)
+            self.assertIn("negotiation conformance case names are unique", checker.failures)
+
+    def test_connect_examples_that_drift_from_the_rules_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.negotiation_root(root)
+            spec = root / "connect.md"
+            text = spec.read_text(encoding="utf-8")
+            unsorted = text.replace('["bounded-scope", "evidence-trace"]', '["evidence-trace", "bounded-scope"]', 1)
+            self.assertNotEqual(unsorted, text)
+            spec.write_text(unsorted, encoding="utf-8")
+            checker = Checker(root)
+            checker.check_negotiation_conformance()
+            self.assertEqual(checker.failures, ["connect example msg-0002 follows the negotiation rules"])
+            vocabulary = text.replace("- `audit` - runs", "- `auditing` - runs", 1)
+            self.assertNotEqual(vocabulary, text)
+            spec.write_text(vocabulary, encoding="utf-8")
+            checker = Checker(root)
+            checker.check_negotiation_conformance()
+            self.assertIn("connect.md capability vocabulary matches the reference negotiator", checker.failures)
+
     def test_changelog_top_entry_must_match_version(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

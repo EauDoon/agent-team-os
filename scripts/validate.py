@@ -13,10 +13,10 @@ from urllib.parse import unquote, urlsplit
 
 try:
     from .contracts import KEYWORDS as SCHEMA_KEYWORDS, keyword_value_problems, violations as schema_violations
-    from .workflows import refusal_text_violations
+    from .workflows import BASELINE_CAPABILITIES, negotiate, refusal_text_violations
 except ImportError:
     from contracts import KEYWORDS as SCHEMA_KEYWORDS, keyword_value_problems, violations as schema_violations
-    from workflows import refusal_text_violations
+    from workflows import BASELINE_CAPABILITIES, negotiate, refusal_text_violations
 
 
 FIELDS = [
@@ -620,6 +620,75 @@ class Checker:
                     f"connect conformance case {name} fails for its declared violation",
                 )
 
+    def check_negotiation_conformance(self, relative: str = "conformance/negotiation/cases.json") -> None:
+        """Run the negotiation suite and hold connect.md to its own rules.
+
+        The negotiation algorithm in connect.md is normative but was prose only,
+        so its worked examples drifted from it unnoticed. Each case's expected
+        response payload must equal what the reference negotiator computes, the
+        specification's capability vocabulary must match the reference baseline,
+        and its acceptance and refusal examples must be the rules' replies to its
+        request example.
+        """
+        suite = self.json_file(relative)
+        cases = suite.get("cases") if isinstance(suite, dict) else None
+        self.ok(isinstance(cases, list) and len(cases) >= 6, "negotiation conformance suite has at least six cases")
+        if isinstance(cases, list):
+            names = [case.get("name") if isinstance(case, dict) else None for case in cases]
+            self.ok(
+                bool(names) and all(isinstance(name, str) and name for name in names)
+                and len(names) == len(set(names)),
+                "negotiation conformance case names are unique",
+            )
+            for case in cases:
+                if not isinstance(case, dict):
+                    self.ok(False, "negotiation conformance case is an object")
+                    continue
+                name = case.get("name", "<unnamed>")
+                request = case.get("request")
+                version = request.get("connect_version") if isinstance(request, dict) else None
+                schema_relative = {
+                    "agent-team-connect/v0.1": "schemas/connect.schema.json",
+                    "agent-team-connect/v0.2": "schemas/connect-v0.2.schema.json",
+                }.get(version, "schemas/connect.schema.json")
+                schema = self.json_file(schema_relative)
+                if isinstance(schema, dict):
+                    self.ok(
+                        not self.connect_violations(request, schema, schema_relative),
+                        f"negotiation conformance case {name} request conforms",
+                    )
+                try:
+                    computed = negotiate(request, case.get("advertised"))
+                except ValueError:
+                    computed = None
+                self.ok(computed is not None and computed == case.get("expect"),
+                        f"negotiation conformance case {name} matches")
+
+        spec = self.text("connect.md")
+        section = re.search(r"(?ms)^### Capability vocabulary\s*$(.*?)^##", spec)
+        tokens = sorted(re.findall(r"(?m)^- `([a-z0-9-]+)`", section.group(1))) if section else []
+        self.ok(tokens == list(BASELINE_CAPABILITIES), "connect.md capability vocabulary matches the reference negotiator")
+        examples = {}
+        for block in re.findall(r"```json\s*(.*?)```", spec, flags=re.DOTALL):
+            try:
+                message = json.loads(block, object_pairs_hook=_json_object)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if isinstance(message, dict) and isinstance(message.get("message_id"), str):
+                examples[message["message_id"]] = message
+        request = examples.get("msg-0001")
+        without_scope = [token for token in BASELINE_CAPABILITIES if token != "bounded-scope"]
+        for message_id, advertised in (("msg-0002", list(BASELINE_CAPABILITIES)), ("msg-0006", without_scope)):
+            reply = examples.get(message_id)
+            try:
+                expected = negotiate(request, advertised) if request is not None else None
+            except ValueError:
+                expected = None
+            self.ok(
+                expected is not None and isinstance(reply, dict) and reply.get("payload") == expected,
+                f"connect example {message_id} follows the negotiation rules",
+            )
+
     def check_changelog_version(self, current: str) -> None:
         """Ensure the newest CHANGELOG entry matches the current VERSION.
 
@@ -719,6 +788,7 @@ class Checker:
         self.check_connect_conformance()
         self.check_connect_examples("docs/connect-v0.2.md", "schemas/connect-v0.2.schema.json")
         self.check_connect_conformance("conformance/connect-v0.2/cases.json", "schemas/connect-v0.2.schema.json")
+        self.check_negotiation_conformance()
         self.check_operator_fixtures()
         self.check_packet_fixture()
         self.check_text_files()

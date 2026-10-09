@@ -11,6 +11,7 @@ from scripts.inspect_records import (
     compare_evidence,
     inspect_audit,
     inspect_evidence,
+    inspect_negotiation,
     inspect_plan,
     inspect_handoff,
 )
@@ -50,6 +51,55 @@ class InspectionTests(unittest.TestCase):
                                     cwd=ROOT, capture_output=True, text=True, timeout=5)
             self.assertEqual(result.returncode, 1)
             self.assertFalse(json.loads(result.stdout)['inspection']['contract_valid'])
+
+    def connect_request(self):
+        suite = json.loads((ROOT / 'conformance/connect/cases.json').read_text(encoding='utf-8'))
+        return next(case['message'] for case in suite['cases'] if case['name'] == 'request-valid')
+
+    def test_negotiation_reports_decision_and_conforming_payload(self):
+        request = self.connect_request()
+        accepted = inspect_negotiation(request, ['route', 'evidence-trace', 'bounded-scope'])
+        self.assertEqual(accepted['missing'], [])
+        self.assertEqual(accepted['negotiated'], ['bounded-scope', 'evidence-trace'])
+        self.assertEqual(accepted['response_payload'],
+                         {'accepted': True, 'negotiated_capabilities': ['bounded-scope', 'evidence-trace']})
+        refused = inspect_negotiation(request, ['route'])
+        self.assertEqual(refused['missing'], ['bounded-scope', 'evidence-trace'])
+        self.assertEqual(refused['response_payload']['refusal_reason'],
+                         'missing required capabilities: bounded-scope, evidence-trace')
+        self.assertIn('grants no permission', refused['note'])
+        handoff = {**request, 'type': 'handoff', 'payload': {'role_brief': self.plan()['assignments'][1]['brief']}}
+        for record, advertised in [(handoff, ['route']), ({}, ['route']), (request, ['Route']),
+                                   (request, ['route', 'route'])]:
+            with self.assertRaises(ValueError):
+                inspect_negotiation(record, advertised)
+
+    def test_negotiation_cli_in_script_and_module_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            request = root / 'request.json'
+            request.write_text(json.dumps(self.connect_request()), encoding='utf-8')
+            handoff = root / 'handoff.json'
+            handoff.write_text(json.dumps({**self.connect_request(), 'type': 'handoff',
+                                           'payload': {'role_brief': self.plan()['assignments'][1]['brief']}}),
+                               encoding='utf-8')
+            cases = [([str(request), '--advertise', 'evidence-trace', '--advertise', 'bounded-scope'], 0, True),
+                     ([str(request), '--advertise', 'evidence-trace'], 0, False),
+                     ([str(handoff), '--advertise', 'route'], 1, None),
+                     ([str(request), '--advertise', 'Bad Token'], 1, None)]
+            for entry in [['scripts/inspect_records.py'], ['-m', 'scripts.inspect_records']]:
+                for args, code, accepted in cases:
+                    with self.subTest(entry=entry, args=args):
+                        result = subprocess.run([sys.executable, *entry, 'negotiate', *args], cwd=ROOT,
+                                                capture_output=True, text=True, timeout=10)
+                        self.assertEqual(result.returncode, code, result.stdout + result.stderr)
+                        self.assertEqual(result.stderr, '')
+                        report = json.loads(result.stdout)
+                        if accepted is None:
+                            self.assertEqual(report['ok'], False)
+                        else:
+                            self.assertTrue(report['ok'])
+                            self.assertIs(report['inspection']['response_payload']['accepted'], accepted)
 
     def test_handoff_pair_requires_matching_version_correlation_and_endpoints(self):
         handoff = {'connect_version': 'agent-team-connect/v0.2', 'type': 'handoff', 'message_id': 'h1',
