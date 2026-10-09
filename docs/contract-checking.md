@@ -18,7 +18,11 @@ It sends no messages and executes no content from the document.
 The checker implements the schema keywords used in this repository, including
 nested types, required keys, unknown-field rejection, local references and
 conditional payloads. It is not a general JSON Schema implementation. It rejects
-unsupported assertion keywords rather than pretending to validate them.
+unsupported assertion keywords rather than pretending to validate them, and it
+rejects malformed keyword values: `type` must be one supported type name (not a
+list), counts and bounds must be numbers, and `required` must be an array of
+strings. A `$` in a `pattern` anchors only at the end of the string, as in
+ECMA-262, so a trailing newline does not match.
 
 Passing checks establishes shape, not truthful evidence, useful scope, actual
 permission enforcement, authenticated identity or successful execution. Review

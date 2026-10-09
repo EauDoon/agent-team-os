@@ -12,10 +12,10 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 
 try:
-    from .contracts import KEYWORDS as SCHEMA_KEYWORDS, violations as schema_violations
+    from .contracts import KEYWORDS as SCHEMA_KEYWORDS, keyword_value_problems, violations as schema_violations
     from .workflows import refusal_text_violations
 except ImportError:
-    from contracts import KEYWORDS as SCHEMA_KEYWORDS, violations as schema_violations
+    from contracts import KEYWORDS as SCHEMA_KEYWORDS, keyword_value_problems, violations as schema_violations
     from workflows import refusal_text_violations
 
 
@@ -85,7 +85,8 @@ def schema_problems(schema: dict) -> list[str]:
     fixture visits stays silent and the field it should have constrained is
     never constrained. Every subschema is inspected here instead, and every
     local reference is resolved, because an unresolvable one fails only when a
-    document happens to traverse it.
+    document happens to traverse it. Keyword values are checked at schema
+    positions only, so a property that happens to be named ``type`` is data.
     """
     problems: list[str] = []
 
@@ -94,6 +95,8 @@ def schema_problems(schema: dict) -> list[str]:
             return
         for keyword in sorted(set(node) - SCHEMA_KEYWORDS):
             problems.append(f"{location}: unsupported keyword {keyword}")
+        for problem in keyword_value_problems(node):
+            problems.append(f"{location}: {problem}")
         ref = node.get("$ref")
         if isinstance(ref, str):
             target: object = schema if ref.startswith("#/") else None
@@ -348,7 +351,12 @@ class Checker:
                 self.ok(isinstance(arm, dict) and key in arm, f"arm has required key {key}")
         # The checks above only cover const, enum, and required. The shipped
         # schema also rejects extra fields, short arms, and wrong nested types.
-        for error in schema_violations(result, schema):
+        try:
+            errors = schema_violations(result, schema)
+        except ValueError:
+            self.ok(False, "schema is usable: evals/result.schema.json")
+            return
+        for error in errors:
             self.ok(False, f"result conforms to schema: {error}")
 
     def check_documented_package_name(self, version: str) -> None:
@@ -473,13 +481,15 @@ class Checker:
             "connect handoff requires the six role brief fields",
         )
 
-    def connect_violations(self, message: object, schema: dict) -> list[str]:
+    def connect_violations(self, message: object, schema: dict,
+                           schema_relative: str = "schemas/connect.schema.json") -> list[str]:
         """Return human-readable conformance violations for one connect message.
 
         Reads the constraints from schemas/connect.schema.json so the check stays
         in sync with the contract: the required envelope, const values, the type
         enum, each type's required payload keys, and the handoff role brief
-        fields. Uses only the standard library.
+        fields. Uses only the standard library. A schema the bundled checker
+        cannot apply is recorded once as a failed check instead of a traceback.
         """
         if not isinstance(message, dict):
             return ["message is not an object"]
@@ -520,7 +530,13 @@ class Checker:
             for key in role_brief_required:
                 if not (isinstance(role_brief, dict) and key in role_brief):
                     violations.append(f"role_brief missing required field {key}")
-        violations.extend(schema_violations(message, schema))
+        try:
+            violations.extend(schema_violations(message, schema))
+        except ValueError:
+            unusable = f"schema is usable: {schema_relative}"
+            if unusable not in self.failures:
+                self.ok(False, unusable)
+            violations.append("schema could not be applied")
         violations.extend(refusal_text_violations(message))
         return violations
 
@@ -541,7 +557,7 @@ class Checker:
             except (json.JSONDecodeError, ValueError) as exc:
                 self.ok(False, f"connect example {index} is valid JSON: {exc}")
                 continue
-            violations = self.connect_violations(msg, schema)
+            violations = self.connect_violations(msg, schema, schema_relative)
             if violations:
                 for violation in violations:
                     self.ok(False, f"connect example {index} {violation}")
@@ -591,7 +607,7 @@ class Checker:
             if declared not in ("valid", "invalid"):
                 self.ok(False, f"connect conformance case {name} declares valid or invalid")
                 continue
-            found = self.connect_violations(case.get("message"), schema)
+            found = self.connect_violations(case.get("message"), schema, schema_relative)
             conforms = not found
             self.ok(conforms == (declared == "valid"), f"connect conformance case {name} matches its expectation")
             # A declared reason that is not among the diagnostics lets a copied

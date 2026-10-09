@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import math
 import re
+from functools import lru_cache
 
 _MAX_EXACT_INTEGER = 2 ** 53
 
@@ -52,6 +53,103 @@ KEYWORDS = {
     "minLength", "maxLength", "pattern", "minItems", "maxItems", "items", "uniqueItems", "minimum",
     "maximum", "allOf", "if", "then", "else",
 }
+TYPES = frozenset({"object", "array", "string", "boolean", "integer", "number", "null"})
+_COUNTS = ("minLength", "maxLength", "minItems", "maxItems")
+_BOUNDS = ("minimum", "maximum")
+_SUBSCHEMAS = ("additionalProperties", "items", "if", "then", "else")
+
+
+@lru_cache(maxsize=256)
+def _compile_pattern(pattern: str) -> re.Pattern[str]:
+    """Compile a schema pattern with ECMA-262 end anchoring.
+
+    Python's ``$`` also matches before a trailing newline, but a JSON Schema
+    ``$`` (ECMA-262, no multiline flag) matches only at the end of the input.
+    Every ``$`` that is neither escaped nor inside a character class is
+    rewritten to ``\\Z``, which matches only at the very end.
+    """
+    rewritten: list[str] = []
+    index = 0
+    in_class = False
+    while index < len(pattern):
+        char = pattern[index]
+        if char == "\\":
+            rewritten.append(pattern[index:index + 2])
+            index += 2
+            continue
+        if in_class:
+            if char == "]":
+                in_class = False
+        elif char == "[":
+            in_class = True
+            rewritten.append(char)
+            index += 1
+            # A leading `]` (or `^]`) is a literal member, not the class end.
+            if pattern.startswith("^", index):
+                rewritten.append("^")
+                index += 1
+            if pattern.startswith("]", index):
+                rewritten.append("]")
+                index += 1
+            continue
+        elif char == "$":
+            rewritten.append("\\Z")
+            index += 1
+            continue
+        rewritten.append(char)
+        index += 1
+    try:
+        return re.compile("".join(rewritten))
+    except re.error as exc:
+        raise ValueError("invalid schema pattern") from exc
+
+
+def keyword_value_problems(schema: object) -> list[str]:
+    """Return malformed keyword values at one schema node.
+
+    Unknown keyword names are reported elsewhere. This covers values whose
+    shape would otherwise raise a ``TypeError`` (an unhashable ``type`` list)
+    or be silently misread (a string ``required`` iterated per character).
+    """
+    if not isinstance(schema, dict):
+        return []
+    problems: list[str] = []
+    if "type" in schema and not (isinstance(schema["type"], str) and schema["type"] in TYPES):
+        problems.append("type must be one supported type name")
+    for keyword in _COUNTS:
+        if keyword in schema:
+            value = schema[keyword]
+            if not (is_json_integer(value) and value >= 0):
+                problems.append(f"{keyword} must be a non-negative integer")
+    for keyword in _BOUNDS:
+        if keyword in schema:
+            value = schema[keyword]
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                problems.append(f"{keyword} must be a finite number")
+    if "required" in schema:
+        value = schema["required"]
+        if not (isinstance(value, list) and all(isinstance(item, str) for item in value)):
+            problems.append("required must be an array of strings")
+    for keyword in ("enum", "allOf"):
+        if keyword in schema and not isinstance(schema[keyword], list):
+            problems.append(f"{keyword} must be an array")
+    if "uniqueItems" in schema and not isinstance(schema["uniqueItems"], bool):
+        problems.append("uniqueItems must be a boolean")
+    if "properties" in schema and not isinstance(schema["properties"], dict):
+        problems.append("properties must be an object")
+    for keyword in _SUBSCHEMAS:
+        if keyword in schema and not isinstance(schema[keyword], (dict, bool)):
+            problems.append(f"{keyword} must be a schema object or boolean")
+    if "pattern" in schema:
+        pattern = schema["pattern"]
+        if not isinstance(pattern, str):
+            problems.append("pattern must be a string")
+        else:
+            try:
+                _compile_pattern(pattern)
+            except ValueError:
+                problems.append("pattern must be a valid regular expression")
+    return problems
 
 
 class _ContractLimit(Exception):
@@ -86,6 +184,9 @@ def _violations(value: object, schema: dict, *, root: dict | None = None,
     unknown = set(schema) - KEYWORDS
     if unknown:
         raise ValueError(f"unsupported schema keywords: {sorted(unknown)}")
+    malformed = keyword_value_problems(schema)
+    if malformed:
+        raise ValueError(f"malformed schema keyword value: {malformed[0]}")
     errors: list[str] = []
 
     def check(child: object, spec: dict, location: str = path) -> list[str]:
@@ -137,16 +238,8 @@ def _violations(value: object, schema: dict, *, root: dict | None = None,
             errors.append(f"{path}: string is too short")
         if "maxLength" in schema and len(value) > schema["maxLength"]:
             errors.append(f"{path}: string is too long")
-        if "pattern" in schema:
-            pattern = schema["pattern"]
-            if not isinstance(pattern, str):
-                raise ValueError("pattern must be a string")
-            try:
-                matched = re.search(pattern, value) is not None
-            except re.error as exc:
-                raise ValueError("invalid schema pattern") from exc
-            if not matched:
-                errors.append(f"{path}: does not match pattern")
+        if "pattern" in schema and _compile_pattern(schema["pattern"]).search(value) is None:
+            errors.append(f"{path}: does not match pattern")
     if isinstance(value, list):
         if len(value) < schema.get("minItems", 0):
             errors.append(f"{path}: too few items")

@@ -1,11 +1,15 @@
 import copy
 import json
+import shutil
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 from scripts.check import check_document
-from scripts.contracts import violations
-from scripts.validate import Checker
+from scripts.contracts import keyword_value_problems, violations
+from scripts.validate import Checker, schema_problems
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -88,6 +92,67 @@ class ContractTests(unittest.TestCase):
         for schema in [{'format': 'date'}, {'$ref': 'https://example.invalid/schema'}]:
             with self.assertRaises(ValueError):
                 violations('x', schema)
+
+    def test_malformed_keyword_values_raise_value_error(self):
+        # A nullable type list used to escape every handler as a TypeError, and
+        # a string `required` was iterated one character at a time.
+        for schema in [{'type': ['string', 'null']}, {'type': 'strng'}, {'minLength': '2'},
+                       {'minimum': '3'}, {'maxItems': -1}, {'minLength': True},
+                       {'required': 'a'}, {'enum': 'a'}, {'uniqueItems': 1},
+                       {'pattern': 3}, {'pattern': '('}, {'items': []},
+                       {'properties': ['a']}, {'maximum': float('nan')}]:
+            with self.subTest(schema=schema), self.assertRaises(ValueError):
+                violations({'a': 'x'} if 'required' in schema or 'properties' in schema else 'x', schema)
+        self.assertEqual(keyword_value_problems({'type': 'string', 'minLength': 1, 'maximum': 1.5,
+                                                 'required': [], 'items': True}), [])
+
+    def test_pattern_dollar_anchors_only_at_the_end_of_input(self):
+        # ECMA-262 `$` never matches before a trailing newline; Python's does.
+        self.assertEqual(violations('ab', {'type': 'string', 'pattern': '^ab$'}), [])
+        self.assertEqual(violations('ab\n', {'type': 'string', 'pattern': '^ab$'}),
+                         ['$: does not match pattern'])
+        self.assertEqual(violations('a$', {'pattern': '^a[$]$'}), [])
+        self.assertEqual(violations('a$', {'pattern': '^a\\$$'}), [])
+        self.assertEqual(violations('a]$', {'pattern': '^a[]$]+$'}), [])
+        self.assertEqual(violations('ab', {'pattern': '^a[^]$]$'}), [])
+        self.assertEqual(violations('a$\n', {'pattern': '^a[$]$'}), ['$: does not match pattern'])
+        digest = 'ab' * 32
+        receipt = {'pattern': '^[0-9a-fA-F]{64}$'}
+        self.assertEqual(violations(digest, receipt), [])
+        self.assertEqual(violations(digest + '\n', receipt), ['$: does not match pattern'])
+
+    def test_schema_walk_reports_malformed_values_at_schema_positions_only(self):
+        schema = {'type': 'object',
+                  'properties': {'type': {'enum': ['request']},
+                                 'a': {'type': ['string', 'null']},
+                                 'b': {'minLength': '2'}},
+                  'required': 'a'}
+        self.assertEqual(schema_problems(schema), [
+            '$: required must be an array of strings',
+            '$.properties.a: type must be one supported type name',
+            '$.properties.b: minLength must be a non-negative integer',
+        ])
+        # The shipped connect schemas use a property named `type`; it is data.
+        for name in ('connect.schema.json', 'connect-v0.2.schema.json'):
+            self.assertEqual(schema_problems(json.loads((ROOT / 'schemas' / name).read_text())), [])
+
+    def test_malformed_schema_fails_cleanly_in_the_check_cli(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shutil.copytree(ROOT / 'scripts', root / 'scripts',
+                            ignore=shutil.ignore_patterns('__pycache__'))
+            (root / 'schemas').mkdir()
+            (root / 'schemas/role-brief.schema.json').write_text(
+                json.dumps({'type': ['object', 'null']}), encoding='utf-8')
+            with self.assertRaises(ValueError):
+                check_document('brief', {}, schema_root=root)
+            brief = root / 'brief.json'
+            brief.write_text('{}', encoding='utf-8')
+            result = subprocess.run([sys.executable, str(root / 'scripts/check.py'), 'brief', str(brief)],
+                                    capture_output=True, text=True, timeout=30)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertNotIn('Traceback', result.stderr)
+            self.assertTrue(result.stdout.startswith('FAIL input could not be checked'), result.stdout)
 
     def test_additional_properties_schema_constrains_unknown_fields(self):
         schema = {'type': 'object', 'properties': {'known': {'type': 'string'}},

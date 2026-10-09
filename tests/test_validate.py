@@ -430,6 +430,38 @@ class ValidateTests(unittest.TestCase):
         self.assertIn("unknown field", joined)
         self.assertIn("too few items", joined)
 
+    def test_unenforceable_result_schema_is_reported_without_a_traceback(self) -> None:
+        source = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "evals").mkdir()
+            schema = json.loads((source / "evals/result.schema.json").read_text(encoding="utf-8"))
+            schema["typo_keyword"] = True
+            (root / "evals/result.schema.json").write_text(json.dumps(schema), encoding="utf-8")
+            shutil.copy2(source / "evals/results.v0.1.json", root / "evals/results.v0.1.json")
+            checker = Checker(root)
+            checker.run()
+            self.assertIn(
+                "schema is enforceable: evals/result.schema.json $: unsupported keyword typo_keyword",
+                checker.failures,
+            )
+            self.assertIn("schema is usable: evals/result.schema.json", checker.failures)
+            completed = subprocess.run(
+                [sys.executable, str(source / "scripts/validate.py"), "--repo-root", str(root)],
+                capture_output=True, text=True, encoding="utf-8", check=False,
+            )
+            self.assertEqual(completed.returncode, 1)
+            self.assertNotIn("Traceback", completed.stderr)
+            self.assertIn("FAIL schema is usable: evals/result.schema.json", completed.stdout)
+
+    def test_unusable_connect_schema_is_reported_once(self) -> None:
+        checker = Checker(Path("."))
+        schema = {"type": ["object", "null"]}
+        message = {"type": "request"}
+        self.assertIn("schema could not be applied", checker.connect_violations(message, schema, "schemas/x.json"))
+        self.assertIn("schema could not be applied", checker.connect_violations(message, schema, "schemas/x.json"))
+        self.assertEqual(checker.failures.count("schema is usable: schemas/x.json"), 1)
+
     def test_link_destination_with_parenthesis_is_parsed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
