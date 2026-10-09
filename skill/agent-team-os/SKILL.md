@@ -19,6 +19,11 @@ ships:
 - Worked role briefs and three synthetic routing scenarios (`templates/`,
   `examples/`).
 
+The referenced paths live in the Agent Team source package: the
+`agent-team-<version>/` folder inside the release ZIP, or a source checkout.
+An installed skill folder holds only `SKILL.md` and `agents/openai.yaml`, so
+run the tools from the source package, not from the installed skill.
+
 The coordination protocol itself (delegation gates, stop conditions, audit
 taxonomy, result delivery) is part of the host runtime that consumes this
 skill, not part of the skill. The skill is intentionally thin: it standardizes
@@ -63,8 +68,10 @@ the security boundaries that keep a connection bounded.
 
 The connect spec is a contract, not a runtime. The transport (queue, RPC,
 files, channel) and the real permission enforcement remain the deployment's
-job. The conformance suite at `conformance/connect/` exercises the spec
-against named expected outcomes; `scripts/check.py connect` runs it in CI.
+job. The conformance suites at `conformance/connect/`,
+`conformance/connect-v0.2/` and `conformance/negotiation/` exercise the spec
+against named expected outcomes, and `scripts/validate.py` runs all three in
+CI. `scripts/check.py connect` checks one authored message.
 
 ## Verify before installing
 

@@ -806,6 +806,44 @@ class ValidateTests(unittest.TestCase):
             self.assertIn("connect schema requires the message envelope", joined)
             self.assertIn("connect handoff requires the six role brief fields", joined)
 
+    def test_skill_references_must_exist_and_ship(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            skill = root / "skill" / "agent-team-os"
+            (skill / "agents").mkdir(parents=True)
+            (root / "schemas").mkdir()
+            (root / "schemas" / "present.json").write_text("{}", encoding="utf-8")
+            (root / "schemas" / "unshipped.json").write_text("{}", encoding="utf-8")
+            (root / "package-manifest.json").write_text(
+                json.dumps(["schemas/present.json", "skill/agent-team-os/SKILL.md"]), encoding="utf-8")
+            (skill / "SKILL.md").write_text(
+                "Cites `schemas/present.json`, `schemas/missing.json` and `schemas/unshipped.json`.\n"
+                "Ignores `agent-team-<version>/`, `dist/out.zip` and `--json`, and resolves `SKILL.md`.\n"
+                "```text\n`schemas/in-code-block.json`\n```\n",
+                encoding="utf-8",
+            )
+            (skill / "agents" / "openai.yaml").write_text(
+                'interface:\n  short_description: "Route work across agents"\n'
+                '  default_prompt: "Coordinate a task."\n',
+                encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.check_skill_references()
+            self.assertEqual(sorted(checker.failures), sorted([
+                "SKILL.md reference exists: schemas/missing.json",
+                "SKILL.md reference ships in the package: schemas/unshipped.json",
+                "skill metadata default prompt names $agent-team-os",
+                "skill metadata does not advertise coordination",
+            ]))
+            self.assertIn("SKILL.md reference ships in the package: SKILL.md", checker.checks)
+
+    def test_shipped_skill_references_and_metadata_pass(self) -> None:
+        checker = Checker(Path(__file__).resolve().parents[1])
+        checker.check_skill_references()
+        self.assertEqual(checker.failures, [])
+        self.assertIn("SKILL.md reference exists: scripts/validate.py", checker.checks)
+        self.assertIn("skill metadata does not advertise coordination", checker.checks)
+
     def negotiation_root(self, root: Path) -> None:
         source = Path(__file__).resolve().parents[1]
         for relative in ("connect.md", "schemas/connect.schema.json", "schemas/connect-v0.2.schema.json",

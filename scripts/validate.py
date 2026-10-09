@@ -691,6 +691,47 @@ class Checker:
                 f"connect example {message_id} follows the negotiation rules",
             )
 
+    def check_skill_references(self) -> None:
+        """Hold SKILL.md path references and the skill metadata to the package.
+
+        SKILL.md cites schemas, scripts and suites that an installer looks for
+        in the source package, and a renamed or unshipped file left it pointing
+        nowhere. Every backticked path is checked, against the source root or
+        the skill folder itself, and a cited file must ship. The metadata must
+        name the skill and must not advertise coordination, which the skill has
+        not done since 0.5.0.
+        """
+        skill_dir = "skill/agent-team-os"
+        skill = self.text(f"{skill_dir}/SKILL.md")
+        prose = re.sub(r"(?ms)^```.*?^```", "", skill)
+        manifest = self.json_file("package-manifest.json")
+        shipped = set(manifest) if isinstance(manifest, list) and all(isinstance(item, str) for item in manifest) else set()
+        seen = set()
+        for token in re.findall(r"`([^`\n]+)`", prose):
+            words = token.split()
+            if not words:
+                continue
+            reference = words[0]
+            if not ("/" in reference or reference.endswith((".md", ".json"))):
+                continue
+            if "<" in reference or reference.startswith("dist/") or reference in seen:
+                continue
+            seen.add(reference)
+            relative = reference.rstrip("/")
+            candidates = [relative, f"{skill_dir}/{relative}"]
+            found = next((item for item in candidates if (self.root / item).exists()), None)
+            self.ok(found is not None, f"SKILL.md reference exists: {reference}")
+            if found is not None and (self.root / found).is_file():
+                self.ok(found in shipped, f"SKILL.md reference ships in the package: {reference}")
+        metadata = self.text(f"{skill_dir}/agents/openai.yaml")
+        fields = dict(re.findall(r'(?m)^\s*(short_description|default_prompt):\s*"(.*)"\s*$', metadata))
+        self.ok("$agent-team-os" in fields.get("default_prompt", ""), "skill metadata default prompt names $agent-team-os")
+        summary = fields.get("short_description", "")
+        self.ok(
+            bool(summary) and "coordinate" not in summary.lower() and "route" not in summary.lower(),
+            "skill metadata does not advertise coordination",
+        )
+
     def check_changelog_version(self, current: str) -> None:
         """Ensure the newest CHANGELOG entry matches the current VERSION.
 
@@ -743,6 +784,7 @@ class Checker:
         examples = self.text("examples/routing-scenarios.md")
         self.check_frontmatter(skill)
         self.check_manifest()
+        self.check_skill_references()
         self.check_fields("SKILL.md", skill)
         self.check_fields("role brief template", template)
         self.check_fields("routing examples", examples)
