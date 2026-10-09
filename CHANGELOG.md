@@ -6,11 +6,17 @@ package version follows [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 Wire and schema versions such as `agent-team-connect/v0.2` are versioned
 separately and pinned in `schemas/VERSIONS.md`.
 
-Only v0.1.1 and v0.5.0 were tagged and published as GitHub Releases. The other
-dates are those of the commit that set `VERSION`; those versions were never
-tagged or published.
+Only v0.1.1, v0.5.0 and versions from 0.6.0 on are tagged and published as
+GitHub Releases. The dates of the other entries are those of the commit that
+set `VERSION`; those versions were never tagged or published.
 
 ## [Unreleased]
+
+## [0.6.0] - 2026-10-09
+
+No schema or wire version changed. Connect v0.1 and v0.2, packet v0.1 and
+v0.2, and every other contract keep their acceptance behavior. See
+`docs/release-notes-0.6.0.md`.
 
 ### Added
 
@@ -42,9 +48,9 @@ tagged or published.
 
 - Package members are stored uncompressed (method 0) instead of Deflate, so the
   release digest reproduces from source on any supported Python, including
-  CPython builds that ship zlib-ng. Archive bytes and the digest change and the
-  archive is larger. The verifier still accepts Deflate archives from 0.5.0
-  and earlier.
+  CPython builds that ship zlib-ng. Archive bytes and the digest change, and
+  the archive is about 400 KB instead of about 115 KB. The verifier still
+  accepts Deflate archives from 0.5.0 and earlier.
 - Audit author and auditor IDs, and paired-evaluation runner and reviewer IDs,
   are compared ignoring case, surrounding whitespace and Unicode compatibility
   forms. A record whose two IDs differ only in those ways now fails, and a
@@ -53,7 +59,8 @@ tagged or published.
   negotiates `["bounded-scope", "evidence-trace"]`, and example 3 is the rules'
   refusal of example 1 under its own `message_id` (`msg-0006`). The refusal
   separator is pinned to a comma and a space. Implementers who copied the old
-  example text should update it. No schema or conformance case changed.
+  example text should update it. No schema or existing conformance case
+  changed.
 - `skill/agent-team-os/agents/openai.yaml` describes the contract layer instead
   of coordination. `SKILL.md` names `scripts/validate.py` as the conformance
   runner and says the paths it cites live in the source package.
@@ -310,6 +317,7 @@ tagged or published.
 - Added deterministic packaging and checksum generation.
 - Added CI and PowerShell or Bash installation guidance.
 
-[Unreleased]: https://github.com/EauDoon/agent-team-os/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/EauDoon/agent-team-os/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/EauDoon/agent-team-os/releases/tag/v0.6.0
 [0.5.0]: https://github.com/EauDoon/agent-team-os/releases/tag/v0.5.0
 [0.1.1]: https://github.com/EauDoon/agent-team-os/releases/tag/v0.1.1

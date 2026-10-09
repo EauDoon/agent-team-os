@@ -80,7 +80,7 @@ The shipped package is deterministic. From a reviewed source checkout:
 ```text
 python3 scripts/validate.py
 python3 scripts/package.py --output dist
-python3 scripts/verify_package.py dist/agent-team-0.5.0.zip
+python3 scripts/verify_package.py dist/agent-team-0.6.0.zip
 ```
 
 The builder emits `<archive>.zip.sha256`. `verify_package.py` compares archive

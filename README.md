@@ -66,19 +66,19 @@ python .\scripts\validate.py
 if ($LASTEXITCODE -ne 0) { throw 'Validation failed.' }
 python .\scripts\package.py --output .\dist
 if ($LASTEXITCODE -ne 0) { throw 'Packaging failed.' }
-$digest = (Get-Content -LiteralPath .\dist\agent-team-0.5.0.zip.sha256 -Raw).Split()[0]
-python .\scripts\verify_package.py .\dist\agent-team-0.5.0.zip --sha256 $digest
+$digest = (Get-Content -LiteralPath .\dist\agent-team-0.6.0.zip.sha256 -Raw).Split()[0]
+python .\scripts\verify_package.py .\dist\agent-team-0.6.0.zip --sha256 $digest
 if ($LASTEXITCODE -ne 0) { throw 'Package verification failed.' }
 if (Test-Path -LiteralPath .\dist\expanded) { throw 'Extraction directory already exists. Choose a fresh directory.' }
 New-Item -ItemType Directory -Path .\dist\expanded -ErrorAction Stop | Out-Null
-Expand-Archive -LiteralPath .\dist\agent-team-0.5.0.zip -DestinationPath .\dist\expanded
+Expand-Archive -LiteralPath .\dist\agent-team-0.6.0.zip -DestinationPath .\dist\expanded
 $project = (Get-Item -LiteralPath (Read-Host 'Existing target project directory')).FullName
 if (-not (Test-Path -LiteralPath $project -PathType Container)) { throw 'Choose an existing directory.' }
 $destination = Join-Path $project '.agents\skills\agent-team-os'
 New-Item -ItemType Directory -Path (Split-Path $destination) -Force | Out-Null
 if (Test-Path -LiteralPath $destination) { throw 'Skill already exists. Review an explicit upgrade separately.' }
 New-Item -ItemType Directory -Path $destination -ErrorAction Stop | Out-Null
-Get-ChildItem -LiteralPath .\dist\expanded\agent-team-0.5.0\skill\agent-team-os -Force | Copy-Item -Destination $destination -Recurse
+Get-ChildItem -LiteralPath .\dist\expanded\agent-team-0.6.0\skill\agent-team-os -Force | Copy-Item -Destination $destination -Recurse
 ```
 
 On Bash:
@@ -86,20 +86,20 @@ On Bash:
 ```bash
 python3 scripts/validate.py || exit 1
 python3 scripts/package.py --output dist || exit 1
-read -r digest archive_name < dist/agent-team-0.5.0.zip.sha256 || exit 1
-python3 scripts/verify_package.py dist/agent-team-0.5.0.zip --sha256 "$digest" || exit 1
+read -r digest archive_name < dist/agent-team-0.6.0.zip.sha256 || exit 1
+python3 scripts/verify_package.py dist/agent-team-0.6.0.zip --sha256 "$digest" || exit 1
 mkdir -- dist/expanded || { echo 'Choose a fresh extraction directory.' >&2; exit 1; }
-unzip -q dist/agent-team-0.5.0.zip -d dist/expanded || exit 1
+unzip -q dist/agent-team-0.6.0.zip -d dist/expanded || exit 1
 read -r -p 'Existing target project directory: ' project || exit 1
 project=$(cd -- "$project" && pwd -P) || exit 1
 destination="$project/.agents/skills/agent-team-os"
 mkdir -p -- "$project/.agents/skills" || exit 1
 mkdir -- "$destination" || { echo 'Skill already exists. Review an explicit upgrade separately.' >&2; exit 1; }
-cp -R -- dist/expanded/agent-team-0.5.0/skill/agent-team-os/. "$destination/" || exit 1
+cp -R -- dist/expanded/agent-team-0.6.0/skill/agent-team-os/. "$destination/" || exit 1
 ```
 
 Verify the checksum before copying. From the reviewed source checkout, run
-`python3 scripts/verify_package.py dist/agent-team-0.5.0.zip` to compare
+`python3 scripts/verify_package.py dist/agent-team-0.6.0.zip` to compare
 archive members with source bytes before extraction. For a downloaded release,
 also [verify publisher provenance](docs/package-verification.md#verify-publisher-provenance)
 with its build attestation. The package contains the
@@ -266,7 +266,7 @@ agent-team-os/
 |   |-- version.py                  # The one reader of VERSION
 |   `-- workflows.py                # Semantic checks and the reference negotiator
 |-- docs/
-|   |-- release-notes-0.5.0.md      # Versioned release notes (one per release)
+|   |-- release-notes-0.6.0.md      # Versioned release notes (one per release)
 |   `-- ...                         # Operator guides (authoring, handoffs, etc.)
 |-- .github/workflows/ci.yml        # Pull request and push checks
 |-- .github/workflows/release.yml   # Tag-triggered release build
