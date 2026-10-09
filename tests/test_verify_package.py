@@ -92,7 +92,17 @@ class PackageVerificationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with patch('sys.argv', ['package.py', '--output', directory]), contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(package_main(), 0)
-            archive = next(Path(directory).glob('*.zip'))
+            built = next(Path(directory).glob('*.zip'))
+            # The builder stores members. Archives from 0.5.0 and earlier use
+            # Deflate, so rewrite the built members to keep that path covered.
+            archive = Path(directory) / 'deflate.zip'
+            with ZipFile(built) as source, ZipFile(archive, 'w') as target:
+                for member in source.infolist():
+                    info = ZipInfo(member.filename, member.date_time)
+                    info.create_system = member.create_system
+                    info.external_attr = member.external_attr
+                    info.compress_type = ZIP_DEFLATED
+                    target.writestr(info, source.read(member))
             original = archive.read_bytes()
             with ZipFile(archive) as handle:
                 first = handle.infolist()[0]
@@ -126,6 +136,49 @@ class PackageVerificationTests(unittest.TestCase):
                         self.assertTrue(payload['ok'])
                     else:
                         self.assertEqual(payload, {'ok': False, 'error': 'archive could not be verified against the current source tree'})
+
+    def test_builder_stores_members_without_any_compression_codec(self):
+        # crc32 is a fixed function; a compressor is the only part whose bytes
+        # vary between zlib implementations. Refusing it proves none is used.
+        def refuse(*_args, **_kwargs):
+            raise AssertionError('the builder must not compress')
+
+        with tempfile.TemporaryDirectory() as directory:
+            with patch('sys.argv', ['package.py', '--output', directory]), \
+                 patch.object(zlib, 'compressobj', refuse), patch.object(zlib, 'compress', refuse), \
+                 contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(package_main(), 0)
+            archive = next(Path(directory).glob('*.zip'))
+            with ZipFile(archive) as handle:
+                members = handle.infolist()
+            self.assertEqual(len(members), len(files_for(ROOT)))
+            self.assertEqual({member.compress_type for member in members}, {ZIP_STORED})
+            self.assertTrue(verify(archive, ROOT)['ok'])
+
+    def test_two_builds_are_byte_identical_despite_source_mtimes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            root = base / 'source'
+            for path in files_for(ROOT):
+                target = root / path.relative_to(ROOT)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(path.read_bytes())
+            for name in ('VERSION', 'package-manifest.json'):
+                (root / name).write_bytes((ROOT / name).read_bytes())
+            sources = sorted(path for path in root.rglob('*') if path.is_file())
+
+            def build(output, stamp):
+                for path in sources:
+                    os.utime(path, (stamp, stamp))
+                result = subprocess.run([sys.executable, str(root / 'scripts/package.py'), '--output', str(output)],
+                                        capture_output=True, text=True, timeout=60)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                archive = next(output.glob('*.zip'))
+                return archive.read_bytes(), archive.with_suffix('.zip.sha256').read_bytes()
+
+            first = build(base / 'one', 1_000_000_000)
+            second = build(base / 'two', 1_700_000_000)
+            self.assertEqual(first, second)
 
     def test_source_match_digest_and_unexpected_entry(self):
         with tempfile.TemporaryDirectory() as directory:

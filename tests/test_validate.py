@@ -68,10 +68,11 @@ class ValidateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "project"
             (root / "scripts").mkdir(parents=True)
-            shutil.copy2(
-                Path(__file__).resolve().parents[1] / "scripts/package.py",
-                root / "scripts/package.py",
-            )
+            for name in ("package.py", "version.py"):
+                shutil.copy2(
+                    Path(__file__).resolve().parents[1] / "scripts" / name,
+                    root / "scripts" / name,
+                )
             (root / "VERSION").write_text("0.1.1\n", encoding="utf-8")
             (root / "payload.txt").write_text("release content\n", encoding="utf-8")
             manifest = root / "package-manifest.json"
@@ -191,6 +192,43 @@ class ValidateTests(unittest.TestCase):
         # The release step must require a versioned notes file, not silently fall back to a stale one.
         self.assertIn('NOTES="docs/release-notes-${VERSION}.md"', workflow)
         self.assertNotIn('release-notes-v0.1.0.md', workflow)
+
+    def test_release_tag_must_match_version_changelog_and_notes(self) -> None:
+        source = Path(__file__).resolve().parents[1]
+        version = version_for(source)
+        script = source / "scripts" / "validate.py"
+        passed = subprocess.run([sys.executable, str(script), "--release-tag", f"v{version}"],
+                                capture_output=True, text=True, encoding="utf-8", check=False)
+        self.assertEqual(passed.returncode, 0, passed.stdout[-2000:])
+        self.assertIn("PASS release tag matches VERSION", passed.stdout)
+        for tag in ("v9.9.9", "release-1", version, f"v{version}-rc1"):
+            with self.subTest(tag=tag):
+                checker = Checker(source)
+                checker.check_release_tag(tag)
+                self.assertEqual(checker.failures, ["release tag matches VERSION"])
+        failed = subprocess.run([sys.executable, str(script), "--release-tag", "v9.9.9"],
+                                capture_output=True, text=True, encoding="utf-8", check=False)
+        self.assertEqual(failed.returncode, 1)
+        self.assertIn("FAIL release tag matches VERSION", failed.stdout)
+
+    def test_release_tag_needs_a_dated_changelog_entry_and_shipped_notes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "docs").mkdir()
+            (root / "VERSION").write_text("1.2.3\n", encoding="utf-8")
+            (root / "CHANGELOG.md").write_text("# Changelog\n\n## 1.2.3\n\n- undated\n", encoding="utf-8")
+            (root / "docs/release-notes-1.2.3.md").write_text("# Agent Team 1.2.3\n", encoding="utf-8")
+            (root / "package-manifest.json").write_text("[]", encoding="utf-8")
+            checker = Checker(root)
+            checker.check_release_tag("v1.2.3")
+            self.assertEqual(checker.failures, ["CHANGELOG has a dated entry for the release",
+                                                "release notes exist and ship for the release"])
+            (root / "CHANGELOG.md").write_text("# Changelog\n\n## [Unreleased]\n\n## [1.2.3] - 2026-10-09\n",
+                                               encoding="utf-8")
+            (root / "package-manifest.json").write_text('["docs/release-notes-1.2.3.md"]', encoding="utf-8")
+            checker = Checker(root)
+            checker.check_release_tag("v1.2.3")
+            self.assertEqual(checker.failures, [])
 
     def test_readme_package_commands_track_version(self) -> None:
         checker = Checker(Path(__file__).resolve().parents[1])
@@ -430,6 +468,38 @@ class ValidateTests(unittest.TestCase):
         self.assertIn("unknown field", joined)
         self.assertIn("too few items", joined)
 
+    def test_unenforceable_result_schema_is_reported_without_a_traceback(self) -> None:
+        source = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "evals").mkdir()
+            schema = json.loads((source / "evals/result.schema.json").read_text(encoding="utf-8"))
+            schema["typo_keyword"] = True
+            (root / "evals/result.schema.json").write_text(json.dumps(schema), encoding="utf-8")
+            shutil.copy2(source / "evals/results.v0.1.json", root / "evals/results.v0.1.json")
+            checker = Checker(root)
+            checker.run()
+            self.assertIn(
+                "schema is enforceable: evals/result.schema.json $: unsupported keyword typo_keyword",
+                checker.failures,
+            )
+            self.assertIn("schema is usable: evals/result.schema.json", checker.failures)
+            completed = subprocess.run(
+                [sys.executable, str(source / "scripts/validate.py"), "--repo-root", str(root)],
+                capture_output=True, text=True, encoding="utf-8", check=False,
+            )
+            self.assertEqual(completed.returncode, 1)
+            self.assertNotIn("Traceback", completed.stderr)
+            self.assertIn("FAIL schema is usable: evals/result.schema.json", completed.stdout)
+
+    def test_unusable_connect_schema_is_reported_once(self) -> None:
+        checker = Checker(Path("."))
+        schema = {"type": ["object", "null"]}
+        message = {"type": "request"}
+        self.assertIn("schema could not be applied", checker.connect_violations(message, schema, "schemas/x.json"))
+        self.assertIn("schema could not be applied", checker.connect_violations(message, schema, "schemas/x.json"))
+        self.assertEqual(checker.failures.count("schema is usable: schemas/x.json"), 1)
+
     def test_link_destination_with_parenthesis_is_parsed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -444,6 +514,53 @@ class ValidateTests(unittest.TestCase):
             self.assertTrue(
                 any("link exists" in item and "target(x).md" in item for item in checker.checks),
             )
+
+    def test_ancestor_named_dist_or_git_does_not_silence_checks(self) -> None:
+        # An extracted package lives under dist/expanded/, and it ships this
+        # validator. A parent directory name must not exempt the whole tree.
+        for ancestor in ("dist", ".git"):
+            with self.subTest(ancestor=ancestor), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory) / ancestor / "checkout"
+                (root / "docs").mkdir(parents=True)
+                (root / "docs" / "a.md").write_text("[x](missing.md) \u2014\n", encoding="utf-8")
+                checker = Checker(root)
+                checker.check_links()
+                checker.check_text_files()
+                self.assertIn("link exists: docs/a.md -> missing.md", checker.failures)
+                self.assertIn("no em dash: docs/a.md", checker.failures)
+
+    def test_environment_and_build_directories_below_the_root_are_pruned(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative in (".venv", "node_modules", "docs/dist", ".git", "venv"):
+                folder = root / relative
+                folder.mkdir(parents=True)
+                (folder / "x.md").write_text("[x](missing.md) \u2014\n", encoding="utf-8")
+            (root / "kept.md").write_text("plain\n", encoding="utf-8")
+            checker = Checker(root)
+            self.assertEqual(checker.repo_files(), [root / "kept.md"])
+            checker.check_links()
+            checker.check_text_files()
+            self.assertEqual(checker.failures, [])
+
+    def test_empty_link_target_is_reported_without_a_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a.md").write_text("See [the guide]().\nAnd [x](   ).\n", encoding="utf-8")
+            checker = Checker(root)
+            checker.check_links()
+            self.assertEqual(
+                checker.failures,
+                ["link target is not empty: a.md", "link target is not empty: a.md"],
+            )
+            script = Path(__file__).resolve().parents[1] / "scripts" / "validate.py"
+            completed = subprocess.run(
+                [sys.executable, str(script), "--repo-root", str(root)],
+                capture_output=True, text=True, encoding="utf-8", check=False,
+            )
+            self.assertEqual(completed.returncode, 1)
+            self.assertNotIn("Traceback", completed.stderr)
+            self.assertIn("FAIL link target is not empty: a.md", completed.stdout)
 
     def test_connect_violations_detects_contract_breaks(self) -> None:
         schema = {
@@ -726,6 +843,149 @@ class ValidateTests(unittest.TestCase):
             self.assertIn("connect schema requires the message envelope", joined)
             self.assertIn("connect handoff requires the six role brief fields", joined)
 
+    def completeness_root(self, root: Path, version: str = "1.2.3") -> list[str]:
+        shipped = ["CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "PROVENANCE.md", "README.md", "SECURITY.md",
+                   "VERSION", "connect.md", "package-manifest.json", "docs/guide.md",
+                   f"docs/release-notes-{version}.md", "scripts/tool.py"]
+        for relative in shipped:
+            (root / relative).parent.mkdir(parents=True, exist_ok=True)
+            (root / relative).write_text("x\n", encoding="utf-8")
+        (root / f"docs/release-notes-{version}.md").write_text(f"# Agent Team {version}\n\nNotes.\n", encoding="utf-8")
+        (root / "package-manifest.json").write_text(json.dumps(shipped), encoding="utf-8")
+        return shipped
+
+    def test_manifest_must_ship_every_distributable_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shipped = self.completeness_root(root)
+            checker = Checker(root)
+            checker.check_manifest_completeness("1.2.3")
+            self.assertEqual(checker.failures, [])
+            self.assertIn("manifest ships docs/guide.md", checker.checks)
+            (root / "docs" / "extra.md").write_text("new\n", encoding="utf-8")
+            cache = root / "scripts" / "__pycache__"
+            cache.mkdir()
+            (cache / "tool.cpython-312.pyc").write_bytes(b"\x00")
+            (root / "scripts" / "stale.pyc").write_bytes(b"\x00")
+            (root / "tests").mkdir()
+            (root / "tests" / "test_tool.py").write_text("pass\n", encoding="utf-8")
+            (root / "package-manifest.json").write_text(
+                json.dumps([entry for entry in shipped if entry != "SECURITY.md"]), encoding="utf-8")
+            checker = Checker(root)
+            checker.check_manifest_completeness("1.2.3")
+            self.assertEqual(sorted(checker.failures), ["manifest ships SECURITY.md", "manifest ships docs/extra.md"])
+
+    def test_current_release_notes_must_exist_ship_and_carry_the_title(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shipped = self.completeness_root(root)
+            notes = root / "docs/release-notes-1.2.3.md"
+            notes.write_text("# Release notes for 1.2.3\n", encoding="utf-8")
+            checker = Checker(root)
+            checker.check_manifest_completeness("1.2.3")
+            self.assertEqual(checker.failures, ["current release notes are titled Agent Team 1.2.3"])
+            checker = Checker(root)
+            checker.check_manifest_completeness("1.2.4")
+            self.assertEqual(checker.failures, ["current release notes exist: docs/release-notes-1.2.4.md"])
+            notes.write_text("# Agent Team 1.2.3\n", encoding="utf-8")
+            (root / "package-manifest.json").write_text(
+                json.dumps([entry for entry in shipped if not entry.startswith("docs/release-notes")]),
+                encoding="utf-8")
+            checker = Checker(root)
+            checker.check_manifest_completeness("1.2.3")
+            self.assertEqual(checker.failures, ["manifest ships docs/release-notes-1.2.3.md",
+                                                "current release notes ship in the package: "
+                                                "docs/release-notes-1.2.3.md"])
+
+    def test_skill_references_must_exist_and_ship(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            skill = root / "skill" / "agent-team-os"
+            (skill / "agents").mkdir(parents=True)
+            (root / "schemas").mkdir()
+            (root / "schemas" / "present.json").write_text("{}", encoding="utf-8")
+            (root / "schemas" / "unshipped.json").write_text("{}", encoding="utf-8")
+            (root / "package-manifest.json").write_text(
+                json.dumps(["schemas/present.json", "skill/agent-team-os/SKILL.md"]), encoding="utf-8")
+            (skill / "SKILL.md").write_text(
+                "Cites `schemas/present.json`, `schemas/missing.json` and `schemas/unshipped.json`.\n"
+                "Ignores `agent-team-<version>/`, `dist/out.zip` and `--json`, and resolves `SKILL.md`.\n"
+                "```text\n`schemas/in-code-block.json`\n```\n",
+                encoding="utf-8",
+            )
+            (skill / "agents" / "openai.yaml").write_text(
+                'interface:\n  short_description: "Route work across agents"\n'
+                '  default_prompt: "Coordinate a task."\n',
+                encoding="utf-8",
+            )
+            checker = Checker(root)
+            checker.check_skill_references()
+            self.assertEqual(sorted(checker.failures), sorted([
+                "SKILL.md reference exists: schemas/missing.json",
+                "SKILL.md reference ships in the package: schemas/unshipped.json",
+                "skill metadata default prompt names $agent-team-os",
+                "skill metadata does not advertise coordination",
+            ]))
+            self.assertIn("SKILL.md reference ships in the package: SKILL.md", checker.checks)
+
+    def test_shipped_skill_references_and_metadata_pass(self) -> None:
+        checker = Checker(Path(__file__).resolve().parents[1])
+        checker.check_skill_references()
+        self.assertEqual(checker.failures, [])
+        self.assertIn("SKILL.md reference exists: scripts/validate.py", checker.checks)
+        self.assertIn("skill metadata does not advertise coordination", checker.checks)
+
+    def negotiation_root(self, root: Path) -> None:
+        source = Path(__file__).resolve().parents[1]
+        for relative in ("connect.md", "schemas/connect.schema.json", "schemas/connect-v0.2.schema.json",
+                         "conformance/negotiation/cases.json"):
+            (root / relative).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source / relative, root / relative)
+
+    def test_negotiation_suite_and_connect_examples_pass_as_shipped(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.negotiation_root(root)
+            checker = Checker(root)
+            checker.check_negotiation_conformance()
+            self.assertEqual(checker.failures, [])
+            self.assertIn("connect example msg-0002 follows the negotiation rules", checker.checks)
+            self.assertIn("connect example msg-0006 follows the negotiation rules", checker.checks)
+            self.assertIn("connect.md capability vocabulary matches the reference negotiator", checker.checks)
+
+    def test_negotiation_case_with_a_wrong_expectation_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.negotiation_root(root)
+            path = root / "conformance/negotiation/cases.json"
+            suite = json.loads(path.read_text(encoding="utf-8"))
+            suite["cases"][0]["expect"]["negotiated_capabilities"].reverse()
+            suite["cases"][1]["name"] = suite["cases"][0]["name"]
+            path.write_text(json.dumps(suite), encoding="utf-8")
+            checker = Checker(root)
+            checker.check_negotiation_conformance()
+            self.assertIn(f"negotiation conformance case {suite['cases'][0]['name']} matches", checker.failures)
+            self.assertIn("negotiation conformance case names are unique", checker.failures)
+
+    def test_connect_examples_that_drift_from_the_rules_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.negotiation_root(root)
+            spec = root / "connect.md"
+            text = spec.read_text(encoding="utf-8")
+            unsorted = text.replace('["bounded-scope", "evidence-trace"]', '["evidence-trace", "bounded-scope"]', 1)
+            self.assertNotEqual(unsorted, text)
+            spec.write_text(unsorted, encoding="utf-8")
+            checker = Checker(root)
+            checker.check_negotiation_conformance()
+            self.assertEqual(checker.failures, ["connect example msg-0002 follows the negotiation rules"])
+            vocabulary = text.replace("- `audit` - runs", "- `auditing` - runs", 1)
+            self.assertNotEqual(vocabulary, text)
+            spec.write_text(vocabulary, encoding="utf-8")
+            checker = Checker(root)
+            checker.check_negotiation_conformance()
+            self.assertIn("connect.md capability vocabulary matches the reference negotiator", checker.failures)
+
     def test_changelog_top_entry_must_match_version(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -751,6 +1011,31 @@ class ValidateTests(unittest.TestCase):
             checker = Checker(root)
             checker.check_changelog_version("0.1.2")
             self.assertIn("CHANGELOG top entry matches VERSION", checker.failures)
+
+    def test_changelog_keep_a_changelog_headings_are_ordered_and_dated(self) -> None:
+        def check(document: str, version: str = "0.2.0") -> Checker:
+            with tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                (root / "CHANGELOG.md").write_text(document, encoding="utf-8")
+                checker = Checker(root)
+                checker.check_changelog_version(version)
+                return checker
+
+        dated = ("# Changelog\n\n## [Unreleased]\n\n### Added\n\n- next\n\n"
+                 "## [0.2.0] - 2026-09-09\n\n- new\n\n## 0.1.1\n\n- legacy heading\n\n"
+                 "## [0.1.0] - 2026-08-03\n\n- old\n\n"
+                 "[Unreleased]: https://example.invalid/compare\n")
+        self.assertEqual(check(dated).failures, [])
+        self.assertIn("CHANGELOG dates do not increase down the file", check(dated).checks)
+        self.assertIn("CHANGELOG top entry matches VERSION", check(dated, "0.3.0").failures)
+        self.assertIn("CHANGELOG date is valid: 0.2.0 - 2026-13-01",
+                      check(dated.replace("2026-09-09", "2026-13-01")).failures)
+        self.assertIn("CHANGELOG versions are unique and descending",
+                      check(dated.replace("## [0.1.0]", "## [0.3.0]"), "0.2.0").failures)
+        self.assertIn("CHANGELOG versions are unique and descending",
+                      check(dated.replace("## 0.1.1", "## 0.2.0")).failures)
+        self.assertIn("CHANGELOG dates do not increase down the file",
+                      check(dated.replace("2026-08-03", "2026-10-01")).failures)
 
     def test_checksum_write_supports_legacy_pathlib(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

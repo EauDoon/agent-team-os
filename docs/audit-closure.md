@@ -26,4 +26,6 @@ completion gate. The Orchestrator owns the final recommendation and must not
 silently remove inconvenient findings.
 
 The JSON checker verifies closure bookkeeping and separate author/auditor IDs.
+IDs are compared ignoring case, surrounding whitespace and Unicode
+compatibility forms, so `Maker` and ` maker` count as the same person.
 It does not authenticate reviewers, execute tests or prove review quality.

@@ -4,6 +4,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path, PurePosixPath
 
 try:
@@ -17,11 +18,13 @@ try:
     )
     from .contracts import violations
     from .evaluate import summarize
+    from .version import add_version_flag
 except ImportError:
     from author import write_new_json
     from check import ROOT, check_document, load_json, parse_json_bytes, read_json_bytes
     from contracts import violations
     from evaluate import summarize
+    from version import add_version_flag
 
 MAX_PACKET_BYTES = 4 * 1024 * 1024
 
@@ -32,6 +35,10 @@ def record_path(root: Path, name: str) -> Path:
         raise ValueError('record path must be canonical and relative')
     if any(part in {'.', '..'} for part in relative.parts) or not relative.parts:
         raise ValueError('record path cannot traverse parents')
+    # Windows strips a trailing dot or space when opening, so `plan.json.`
+    # would silently name `plan.json` and count one file as two records.
+    if any(part != part.rstrip('. ') for part in relative.parts):
+        raise ValueError('record path must be canonical and relative')
     candidate = root
     for part in relative.parts:
         candidate = candidate / part
@@ -41,6 +48,14 @@ def record_path(root: Path, name: str) -> Path:
     if not resolved.is_relative_to(root.resolve()) or not resolved.is_file():
         raise ValueError('record must be a file inside the packet directory')
     return resolved
+
+
+def file_identity(path: Path) -> object:
+    """Identify the file a resolved record path opens, across name aliases."""
+    status = os.stat(path)
+    if status.st_ino:
+        return (status.st_dev, status.st_ino)
+    return os.path.normcase(str(path))
 
 
 def inspect_closure(packet: dict, records: list[dict], documents: dict,
@@ -108,17 +123,25 @@ def inspect_packet(path: Path, schema_root: Path = ROOT, *, target_revision: str
     total = len(raw_index)
     records = []
     documents = {}
+    seen = set()
     for item in packet['records']:
         result = {**item, 'ok': False, 'sha256': None, 'bytes': None}
         try:
-            raw = read_json_bytes(record_path(path.parent, item['path']))
+            resolved = record_path(path.parent, item['path'])
+            identity = file_identity(resolved)
+            if identity in seen:
+                result.update(failure_count=1, failures=['record names a file already listed in this packet'])
+                records.append(result)
+                continue
+            seen.add(identity)
+            raw = read_json_bytes(resolved)
             total += len(raw)
             if total > MAX_PACKET_BYTES:
                 raise OverflowError('packet exceeds the total byte budget')
             document = parse_json_bytes(raw)
             result.update(sha256=hashlib.sha256(raw).hexdigest(), bytes=len(raw))
             if item['kind'] == 'evaluation':
-                summarize(document, load_json(schema_root / 'evals/tasks.json'))
+                summarize(document, load_json(schema_root / 'evals/tasks.json'), schema_root=schema_root)
                 failures = []
             else:
                 failures = check_document(item['kind'], document, schema_root=schema_root)
@@ -177,6 +200,7 @@ def verify_receipt(result: dict, receipt: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    add_version_flag(parser)
     parser.add_argument('file', type=Path)
     parser.add_argument('--target-revision', help='require v0.2 closure for this independently expected revision')
     output = parser.add_mutually_exclusive_group()

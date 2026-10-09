@@ -5,17 +5,21 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
+from datetime import date
 from pathlib import Path, PurePosixPath
 from urllib.parse import unquote, urlsplit
 
 try:
-    from .contracts import KEYWORDS as SCHEMA_KEYWORDS, violations as schema_violations
-    from .workflows import refusal_text_violations
+    from .contracts import KEYWORDS as SCHEMA_KEYWORDS, keyword_value_problems, violations as schema_violations
+    from .version import add_version_flag
+    from .workflows import BASELINE_CAPABILITIES, negotiate, refusal_text_violations
 except ImportError:
-    from contracts import KEYWORDS as SCHEMA_KEYWORDS, violations as schema_violations
-    from workflows import refusal_text_violations
+    from contracts import KEYWORDS as SCHEMA_KEYWORDS, keyword_value_problems, violations as schema_violations
+    from version import add_version_flag
+    from workflows import BASELINE_CAPABILITIES, negotiate, refusal_text_violations
 
 
 FIELDS = [
@@ -33,6 +37,19 @@ UNSAFE = re.compile(
 LINK = re.compile(r"\[[^\]]+\]\(([^()]*(?:\([^()]*\))?[^()]*)\)")
 BINARY_SUFFIXES = {".bin", ".gif", ".ico", ".jpeg", ".jpg", ".pdf", ".png", ".pyc", ".webp", ".zip"}
 EXTERNAL_SCHEMES = {"http", "https", "mailto"}
+# Directory names pruned below the checked root. They hold build output, VCS
+# state or local environments, never reviewed source. `__pycache__` is not here:
+# a manifest may list a text file under it, and that file must still be read.
+IGNORED_DIRS = frozenset({
+    ".git", "dist", ".venv", "venv", "node_modules", ".tox",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache",
+})
+# Every file under these trees is distributable and must ship in the package.
+SHIPPED_TREES = ("conformance", "docs", "evals", "examples", "schemas", "scripts", "skill", "templates")
+SHIPPED_ROOT_FILES = (
+    "CHANGELOG.md", "CONTRIBUTING.md", "LICENSE", "PROVENANCE.md", "README.md",
+    "SECURITY.md", "VERSION", "connect.md", "package-manifest.json",
+)
 
 
 def _display_path(path: Path, root: Path) -> str:
@@ -63,6 +80,20 @@ def _json_object(items):
     return result
 
 
+CHANGELOG_HEADING = re.compile(
+    r"(?m)^## (?:\[(\d+\.\d+\.\d+)\]|(\d+\.\d+\.\d+))(?: - (\d{4}-\d{2}-\d{2}))?[ \t]*$"
+)
+
+
+def changelog_entries(changelog: str) -> list[tuple[str, str | None]]:
+    """Return ``(version, date)`` for each versioned heading, newest first.
+
+    Keep a Changelog headings (``## [X.Y.Z] - YYYY-MM-DD``) and the older bare
+    ``## X.Y.Z`` form both count. ``## [Unreleased]`` and other headings do not.
+    """
+    return [(bracketed or bare, stamp or None) for bracketed, bare, stamp in CHANGELOG_HEADING.findall(changelog)]
+
+
 def object_ids(value: object) -> list[object] | None:
     if not isinstance(value, list) or not all(isinstance(item, dict) for item in value):
         return None
@@ -77,7 +108,8 @@ def schema_problems(schema: dict) -> list[str]:
     fixture visits stays silent and the field it should have constrained is
     never constrained. Every subschema is inspected here instead, and every
     local reference is resolved, because an unresolvable one fails only when a
-    document happens to traverse it.
+    document happens to traverse it. Keyword values are checked at schema
+    positions only, so a property that happens to be named ``type`` is data.
     """
     problems: list[str] = []
 
@@ -86,6 +118,8 @@ def schema_problems(schema: dict) -> list[str]:
             return
         for keyword in sorted(set(node) - SCHEMA_KEYWORDS):
             problems.append(f"{location}: unsupported keyword {keyword}")
+        for problem in keyword_value_problems(node):
+            problems.append(f"{location}: {problem}")
         ref = node.get("$ref")
         if isinstance(ref, str):
             target: object = schema if ref.startswith("#/") else None
@@ -122,6 +156,24 @@ class Checker:
             self.checks.append(message)
         else:
             self.failures.append(message)
+
+    def repo_files(self, suffixes: set[str] | None = None) -> list[Path]:
+        """Return checked files under the root, pruning ignored directory names.
+
+        Only names below the root are tested. An ancestor of the root that is
+        named ``dist`` or ``.git`` (an extracted package under ``dist/expanded``,
+        for example) must not turn every check into a silent pass.
+        """
+        found: list[Path] = []
+        for directory, dirnames, filenames in os.walk(self.root):
+            dirnames[:] = [name for name in dirnames if name not in IGNORED_DIRS]
+            for name in filenames:
+                path = Path(directory) / name
+                if suffixes is not None and path.suffix not in suffixes:
+                    continue
+                if path.is_file():
+                    found.append(path)
+        return sorted(found)
 
     def read_text(self, path: Path, *, allow_binary: bool = False) -> str | None:
         try:
@@ -194,14 +246,15 @@ class Checker:
         return re.compile(pattern)
 
     def check_links(self) -> None:
-        for path in sorted(self.root.rglob("*.md")):
-            if any(part in {".git", "dist"} for part in path.parts):
-                continue
+        for path in self.repo_files({".md"}):
             content = self.read_text(path)
             if content is None:
                 continue
             display_path = _display_path(path, self.root)
             for raw_target in LINK.findall(content):
+                if not raw_target.strip():
+                    self.ok(False, f"link target is not empty: {display_path}")
+                    continue
                 target = raw_target.strip().split()[0].strip("<>")
                 try:
                     parsed = urlsplit(target)
@@ -273,6 +326,35 @@ class Checker:
                 f"manifest entry is a repo file: {entry}",
             )
 
+    def check_manifest_completeness(self, version: str) -> None:
+        """Require the manifest to ship every distributable file.
+
+        ``check_manifest`` proves only that listed entries exist, so the 0.5.0
+        package shipped without its own release notes while the README said
+        the validators enforce manifest completeness. Every file under a
+        shipped tree, the root documents, and the current release notes must be
+        listed. Generated bytecode is never distributable and is skipped.
+        """
+        manifest = self.json_file("package-manifest.json")
+        if not isinstance(manifest, list) or not all(isinstance(item, str) for item in manifest):
+            return
+        listed = set(manifest)
+        for path in self.repo_files():
+            relative = _display_path(path, self.root)
+            parts = relative.split("/")
+            if parts[0] not in SHIPPED_TREES or "__pycache__" in parts or path.suffix in {".pyc", ".pyo"}:
+                continue
+            self.ok(relative in listed, f"manifest ships {relative}")
+        for name in SHIPPED_ROOT_FILES:
+            self.ok(name in listed, f"manifest ships {name}")
+        notes = f"docs/release-notes-{version}.md"
+        exists = (self.root / notes).is_file()
+        self.ok(exists, f"current release notes exist: {notes}")
+        if exists:
+            self.ok(notes in listed, f"current release notes ship in the package: {notes}")
+            first = (self.read_text(self.root / notes) or "").splitlines()[:1]
+            self.ok(first == [f"# Agent Team {version}"], f"current release notes are titled Agent Team {version}")
+
     def check_release_notes_references(self) -> None:
         """Verify release-notes filenames listed in the README repository map exist.
 
@@ -321,7 +403,12 @@ class Checker:
                 self.ok(isinstance(arm, dict) and key in arm, f"arm has required key {key}")
         # The checks above only cover const, enum, and required. The shipped
         # schema also rejects extra fields, short arms, and wrong nested types.
-        for error in schema_violations(result, schema):
+        try:
+            errors = schema_violations(result, schema)
+        except ValueError:
+            self.ok(False, "schema is usable: evals/result.schema.json")
+            return
+        for error in errors:
             self.ok(False, f"result conforms to schema: {error}")
 
     def check_documented_package_name(self, version: str) -> None:
@@ -336,9 +423,7 @@ class Checker:
         they name past archives on purpose.
         """
         pattern = re.compile(r"agent-team-(\d+\.\d+\.\d+)\.zip")
-        for path in sorted(self.root.rglob("*.md")):
-            if {".git", "dist"} & set(path.parts):
-                continue
+        for path in self.repo_files({".md"}):
             relative = _display_path(path, self.root)
             if relative == "CHANGELOG.md" or relative.startswith("docs/release-notes-"):
                 continue
@@ -448,13 +533,15 @@ class Checker:
             "connect handoff requires the six role brief fields",
         )
 
-    def connect_violations(self, message: object, schema: dict) -> list[str]:
+    def connect_violations(self, message: object, schema: dict,
+                           schema_relative: str = "schemas/connect.schema.json") -> list[str]:
         """Return human-readable conformance violations for one connect message.
 
         Reads the constraints from schemas/connect.schema.json so the check stays
         in sync with the contract: the required envelope, const values, the type
         enum, each type's required payload keys, and the handoff role brief
-        fields. Uses only the standard library.
+        fields. Uses only the standard library. A schema the bundled checker
+        cannot apply is recorded once as a failed check instead of a traceback.
         """
         if not isinstance(message, dict):
             return ["message is not an object"]
@@ -495,7 +582,13 @@ class Checker:
             for key in role_brief_required:
                 if not (isinstance(role_brief, dict) and key in role_brief):
                     violations.append(f"role_brief missing required field {key}")
-        violations.extend(schema_violations(message, schema))
+        try:
+            violations.extend(schema_violations(message, schema))
+        except ValueError:
+            unusable = f"schema is usable: {schema_relative}"
+            if unusable not in self.failures:
+                self.ok(False, unusable)
+            violations.append("schema could not be applied")
         violations.extend(refusal_text_violations(message))
         return violations
 
@@ -516,7 +609,7 @@ class Checker:
             except (json.JSONDecodeError, ValueError) as exc:
                 self.ok(False, f"connect example {index} is valid JSON: {exc}")
                 continue
-            violations = self.connect_violations(msg, schema)
+            violations = self.connect_violations(msg, schema, schema_relative)
             if violations:
                 for violation in violations:
                     self.ok(False, f"connect example {index} {violation}")
@@ -566,7 +659,7 @@ class Checker:
             if declared not in ("valid", "invalid"):
                 self.ok(False, f"connect conformance case {name} declares valid or invalid")
                 continue
-            found = self.connect_violations(case.get("message"), schema)
+            found = self.connect_violations(case.get("message"), schema, schema_relative)
             conforms = not found
             self.ok(conforms == (declared == "valid"), f"connect conformance case {name} matches its expectation")
             # A declared reason that is not among the diagnostics lets a copied
@@ -579,6 +672,116 @@ class Checker:
                     f"connect conformance case {name} fails for its declared violation",
                 )
 
+    def check_negotiation_conformance(self, relative: str = "conformance/negotiation/cases.json") -> None:
+        """Run the negotiation suite and hold connect.md to its own rules.
+
+        The negotiation algorithm in connect.md is normative but was prose only,
+        so its worked examples drifted from it unnoticed. Each case's expected
+        response payload must equal what the reference negotiator computes, the
+        specification's capability vocabulary must match the reference baseline,
+        and its acceptance and refusal examples must be the rules' replies to its
+        request example.
+        """
+        suite = self.json_file(relative)
+        cases = suite.get("cases") if isinstance(suite, dict) else None
+        self.ok(isinstance(cases, list) and len(cases) >= 6, "negotiation conformance suite has at least six cases")
+        if isinstance(cases, list):
+            names = [case.get("name") if isinstance(case, dict) else None for case in cases]
+            self.ok(
+                bool(names) and all(isinstance(name, str) and name for name in names)
+                and len(names) == len(set(names)),
+                "negotiation conformance case names are unique",
+            )
+            for case in cases:
+                if not isinstance(case, dict):
+                    self.ok(False, "negotiation conformance case is an object")
+                    continue
+                name = case.get("name", "<unnamed>")
+                request = case.get("request")
+                version = request.get("connect_version") if isinstance(request, dict) else None
+                schema_relative = {
+                    "agent-team-connect/v0.1": "schemas/connect.schema.json",
+                    "agent-team-connect/v0.2": "schemas/connect-v0.2.schema.json",
+                }.get(version, "schemas/connect.schema.json")
+                schema = self.json_file(schema_relative)
+                if isinstance(schema, dict):
+                    self.ok(
+                        not self.connect_violations(request, schema, schema_relative),
+                        f"negotiation conformance case {name} request conforms",
+                    )
+                try:
+                    computed = negotiate(request, case.get("advertised"))
+                except ValueError:
+                    computed = None
+                self.ok(computed is not None and computed == case.get("expect"),
+                        f"negotiation conformance case {name} matches")
+
+        spec = self.text("connect.md")
+        section = re.search(r"(?ms)^### Capability vocabulary\s*$(.*?)^##", spec)
+        tokens = sorted(re.findall(r"(?m)^- `([a-z0-9-]+)`", section.group(1))) if section else []
+        self.ok(tokens == list(BASELINE_CAPABILITIES), "connect.md capability vocabulary matches the reference negotiator")
+        examples = {}
+        for block in re.findall(r"```json\s*(.*?)```", spec, flags=re.DOTALL):
+            try:
+                message = json.loads(block, object_pairs_hook=_json_object)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if isinstance(message, dict) and isinstance(message.get("message_id"), str):
+                examples[message["message_id"]] = message
+        request = examples.get("msg-0001")
+        without_scope = [token for token in BASELINE_CAPABILITIES if token != "bounded-scope"]
+        for message_id, advertised in (("msg-0002", list(BASELINE_CAPABILITIES)), ("msg-0006", without_scope)):
+            reply = examples.get(message_id)
+            try:
+                expected = negotiate(request, advertised) if request is not None else None
+            except ValueError:
+                expected = None
+            self.ok(
+                expected is not None and isinstance(reply, dict) and reply.get("payload") == expected,
+                f"connect example {message_id} follows the negotiation rules",
+            )
+
+    def check_skill_references(self) -> None:
+        """Hold SKILL.md path references and the skill metadata to the package.
+
+        SKILL.md cites schemas, scripts and suites that an installer looks for
+        in the source package, and a renamed or unshipped file left it pointing
+        nowhere. Every backticked path is checked, against the source root or
+        the skill folder itself, and a cited file must ship. The metadata must
+        name the skill and must not advertise coordination, which the skill has
+        not done since 0.5.0.
+        """
+        skill_dir = "skill/agent-team-os"
+        skill = self.text(f"{skill_dir}/SKILL.md")
+        prose = re.sub(r"(?ms)^```.*?^```", "", skill)
+        manifest = self.json_file("package-manifest.json")
+        shipped = set(manifest) if isinstance(manifest, list) and all(isinstance(item, str) for item in manifest) else set()
+        seen = set()
+        for token in re.findall(r"`([^`\n]+)`", prose):
+            words = token.split()
+            if not words:
+                continue
+            reference = words[0]
+            if not ("/" in reference or reference.endswith((".md", ".json"))):
+                continue
+            if "<" in reference or reference.startswith("dist/") or reference in seen:
+                continue
+            seen.add(reference)
+            relative = reference.rstrip("/")
+            candidates = [relative, f"{skill_dir}/{relative}"]
+            found = next((item for item in candidates if (self.root / item).exists()), None)
+            self.ok(found is not None, f"SKILL.md reference exists: {reference}")
+            if found is not None and (self.root / found).is_file():
+                self.ok(found in shipped, f"SKILL.md reference ships in the package: {reference}")
+        metadata = self.text(f"{skill_dir}/agents/openai.yaml")
+        fields = dict(re.findall(r'(?m)^\s*(short_description|default_prompt):\s*"(.*)"\s*$', metadata))
+        self.ok("$agent-team-os" in fields.get("default_prompt", ""), "skill metadata default prompt names $agent-team-os")
+        summary = fields.get("short_description", "")
+        self.ok(
+            bool(summary) and "coordinate" not in summary.lower() and "route" not in summary.lower(),
+            "skill metadata does not advertise coordination",
+        )
+
     def check_changelog_version(self, current: str) -> None:
         """Ensure the newest CHANGELOG entry matches the current VERSION.
 
@@ -587,10 +790,46 @@ class Checker:
         already checked, so the changelog's top entry is checked too.
         """
         changelog = self.text("CHANGELOG.md")
-        versions = re.findall(r"(?m)^##\s+(\d+\.\d+\.\d+)\s*$", changelog)
+        entries = changelog_entries(changelog)
         self.ok(
-            bool(versions) and versions[0] == current,
+            bool(entries) and entries[0][0] == current,
             "CHANGELOG top entry matches VERSION",
+        )
+        if not entries:
+            return
+        dates = []
+        for version, stamp in entries:
+            if stamp is None:
+                continue
+            try:
+                dates.append(date.fromisoformat(stamp))
+            except ValueError:
+                self.ok(False, f"CHANGELOG date is valid: {version} - {stamp}")
+        keys = [tuple(int(part) for part in version.split(".")) for version, _ in entries]
+        self.ok(all(newer > older for newer, older in zip(keys, keys[1:])),
+                "CHANGELOG versions are unique and descending")
+        self.ok(all(newer >= older for newer, older in zip(dates, dates[1:])),
+                "CHANGELOG dates do not increase down the file")
+
+    def check_release_tag(self, tag: str) -> None:
+        """Gate a release tag on VERSION, a dated changelog entry and its notes.
+
+        A tag that disagreed with VERSION used to fail only at the verify step,
+        with a generic archive error, after everything else had run. Each
+        requirement for publishing is now a named check that runs first.
+        """
+        version = self.text("VERSION").strip()
+        self.ok(
+            re.fullmatch(r"v\d+\.\d+\.\d+", tag) is not None and tag == f"v{version}",
+            "release tag matches VERSION",
+        )
+        dated = [stamp for entry, stamp in changelog_entries(self.text("CHANGELOG.md")) if entry == version]
+        self.ok(bool(dated) and dated[0] is not None, "CHANGELOG has a dated entry for the release")
+        notes = f"docs/release-notes-{version}.md"
+        manifest = self.json_file("package-manifest.json")
+        self.ok(
+            (self.root / notes).is_file() and isinstance(manifest, list) and notes in manifest,
+            "release notes exist and ship for the release",
         )
 
     def check_operator_fixtures(self) -> None:
@@ -631,6 +870,7 @@ class Checker:
         examples = self.text("examples/routing-scenarios.md")
         self.check_frontmatter(skill)
         self.check_manifest()
+        self.check_skill_references()
         self.check_fields("SKILL.md", skill)
         self.check_fields("role brief template", template)
         self.check_fields("routing examples", examples)
@@ -643,6 +883,7 @@ class Checker:
         documented_versions = set(re.findall(r"agent-team-(\d+\.\d+\.\d+)\.zip", readme))
         self.ok(documented_versions == {version}, "README package commands use VERSION")
         self.check_documented_package_name(version)
+        self.check_manifest_completeness(version)
         self.check_changelog_version(version)
         self.check_release_notes_references()
 
@@ -678,12 +919,15 @@ class Checker:
         self.check_connect_conformance()
         self.check_connect_examples("docs/connect-v0.2.md", "schemas/connect-v0.2.schema.json")
         self.check_connect_conformance("conformance/connect-v0.2/cases.json", "schemas/connect-v0.2.schema.json")
+        self.check_negotiation_conformance()
         self.check_operator_fixtures()
         self.check_packet_fixture()
+        self.check_text_files()
+        self.check_links()
 
-        for path in sorted(self.root.rglob("*")):
-            if not path.is_file() or ".git" in path.parts or "dist" in path.parts:
-                continue
+    def check_text_files(self) -> None:
+        """Reject an em dash anywhere and unsafe structure in documents and data."""
+        for path in self.repo_files():
             content = self.read_text(
                 path,
                 allow_binary=path.suffix.lower() in BINARY_SUFFIXES,
@@ -695,15 +939,19 @@ class Checker:
             if path.suffix in {".md", ".yaml", ".yml", ".json"}:
                 match = UNSAFE.search(content)
                 self.ok(match is None, f"no prohibited unsafe structure: {display_path}")
-        self.check_links()
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    add_version_flag(parser)
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--json", action="store_true", dest="as_json")
+    parser.add_argument("--release-tag", metavar="TAG",
+                        help="also require TAG to be v<VERSION> with a dated changelog entry and shipped notes")
     args = parser.parse_args()
     checker = Checker(args.repo_root.resolve())
+    if args.release_tag is not None:
+        checker.check_release_tag(args.release_tag)
     checker.run()
     payload = {"ok": not checker.failures, "checks": checker.checks, "failures": checker.failures}
     if args.as_json:

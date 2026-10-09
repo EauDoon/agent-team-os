@@ -1,8 +1,24 @@
 """Semantic checks for operator records. These never schedule or execute work."""
 
+import re
+import unicodedata
+
 MAX_RESOURCES_PER_ASSIGNMENT = 256
 MAX_TOTAL_WRITE_RESOURCES = 1024
 MAX_ROUTING_DIAGNOSTICS = 32
+# The connect.md capability vocabulary, in sorted order. validate.py checks
+# that the specification's bullet list and this tuple stay identical.
+BASELINE_CAPABILITIES = ('audit', 'bounded-scope', 'evidence-trace', 'route', 'structured-gaps')
+CAPABILITY_TOKEN = re.compile(r'[a-z0-9]+(?:-[a-z0-9]+)*\Z')
+
+
+def identity_key(value: str) -> str:
+    """Normalize an identity for independence checks.
+
+    Two IDs that differ only by case, surrounding whitespace or a Unicode
+    compatibility form (a fullwidth letter, for example) name one person.
+    """
+    return unicodedata.normalize('NFKC', value).strip().casefold()
 
 
 def routing_violations(plan: dict) -> list[str]:
@@ -112,13 +128,59 @@ def refusal_text_violations(message: object) -> list[str]:
     return errors
 
 
+def _string_list(value: object, label: str) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise ValueError(f'{label} must be a list of strings')
+    return value
+
+
+def negotiation_sets(request: object, advertised: list[str]) -> tuple[list[str], list[str]]:
+    """Return ``(missing, negotiated)`` for a request, as connect.md defines them.
+
+    ``R`` is the request's required capabilities, ``Ci`` the capabilities the
+    initiator offers and ``Co`` the capabilities the Orchestrator advertises:
+    ``missing = sorted(R - Co)`` and ``negotiated = sorted((Ci | R) & Co)``.
+    """
+    advertised = _string_list(advertised, 'advertised capabilities')
+    if any(CAPABILITY_TOKEN.match(token) is None for token in advertised):
+        raise ValueError('advertised capabilities must be lowercase hyphen-separated tokens')
+    if len(set(advertised)) != len(advertised):
+        raise ValueError('advertised capabilities must be unique')
+    if not isinstance(request, dict) or request.get('type') != 'request':
+        raise ValueError('negotiation needs a request message')
+    payload = request.get('payload')
+    if not isinstance(payload, dict):
+        raise ValueError('request payload must be an object')
+    required = set(_string_list(payload.get('required_capabilities'), 'required capabilities'))
+    offered = set(_string_list(request.get('capabilities'), 'offered capabilities'))
+    supported = set(advertised)
+    return sorted(required - supported), sorted((offered | required) & supported)
+
+
+def negotiate(request: object, advertised: list[str]) -> dict:
+    """Compute the response payload an Orchestrator owes a connect request.
+
+    This is the reference implementation of the connect.md negotiation rules.
+    It decides only; it sends nothing and grants no permission.
+    """
+    missing, negotiated = negotiation_sets(request, advertised)
+    if missing:
+        joined = ', '.join(missing)
+        return {'accepted': False,
+                'refusal_reason': 'missing required capabilities: ' + joined,
+                'next_step': 'authorize or remove: ' + joined}
+    return {'accepted': True, 'negotiated_capabilities': negotiated}
+
+
 def audit_violations(report: dict) -> list[str]:
     errors = []
     if isinstance(report.get('target_revision'), str) and not report['target_revision'].strip():
         errors.append('audit: target revision must not be blank')
     if not report['author'].strip() or not report['auditor'].strip():
         errors.append('audit: author and auditor must not be blank')
-    if report['author'] == report['auditor']:
+    if identity_key(report['author']) == identity_key(report['auditor']):
         errors.append('audit: author and independent auditor must be distinct')
     ids = [finding['id'] for finding in report['findings']]
     if len(set(ids)) != len(ids):

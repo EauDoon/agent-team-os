@@ -2,8 +2,10 @@
 
 This file pins the version metadata for each JSON Schema under `schemas/`.
 The package-level version lives in `VERSION` at the repo root and is the
-single source of truth for the package release (consumed by the Makefile
-via `pathlib.Path('VERSION').read_text().strip()`).
+single source of truth for the package release. Every consumer reads it
+through `scripts/version.py` (`package_version()`), which requires one strict
+UTF-8 `X.Y.Z` line: the CLIs' `--version`, the package builder and verifier,
+the evaluation report, the Makefile and CI.
 
 The version strings below are extracted directly from each schema file
 (`connect_version`, `audit_version`, `ledger_version`, `packet_version`,
@@ -27,10 +29,10 @@ versions are invented.
 
 ## Notes
 
-- `VERSION` is intentionally left untouched here. The Makefile reads
-  `VERSION` with `pathlib.Path('VERSION').read_text().strip()`, so the file
-  must stay a single bare version line. Schema versions therefore live
-  alongside the schemas in this `schemas/VERSIONS.md` file instead.
+- `VERSION` is intentionally left untouched here. `scripts/version.py` reads
+  it and rejects anything but a single bare `X.Y.Z` line, so the file must
+  stay that way. Schema versions therefore live alongside the schemas in this
+  `schemas/VERSIONS.md` file instead.
 - Every schema in `schemas/` carries an inline version const, so there
   are no `unspecified` entries. If a future schema lands without one,
   list it as `version: unspecified` rather than guessing.

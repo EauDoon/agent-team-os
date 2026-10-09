@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from scripts.check import check_document
+from scripts.workflows import BASELINE_CAPABILITIES, identity_key, negotiate
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -45,6 +46,56 @@ class WorkflowTests(unittest.TestCase):
         blank['auditor'] = '\t'
         errors = check_document('audit', blank)
         self.assertTrue(any('author and auditor must not be blank' in error for error in errors), errors)
+
+    def test_audit_independence_ignores_case_whitespace_and_compatibility_forms(self):
+        report = json.loads((ROOT / 'templates/audit-closure.json').read_text())
+        self.assertEqual(check_document('audit', report), [])
+        for author, auditor in [('Maker', ' maker'), ('maker', 'MAKER\t'),
+                                ('\N{FULLWIDTH LATIN CAPITAL LETTER M}aker', 'maker')]:
+            with self.subTest(author=author, auditor=auditor):
+                broken = copy.deepcopy(report)
+                broken.update(author=author, auditor=auditor)
+                self.assertIn('audit: author and independent auditor must be distinct',
+                              check_document('audit', broken))
+        self.assertEqual(identity_key(' \N{FULLWIDTH LATIN CAPITAL LETTER M}aker\n'), 'maker')
+        self.assertNotEqual(identity_key('maker'), identity_key('auditor'))
+
+    def request(self, required=None, offered=None):
+        message = {'connect_version': 'agent-team-connect/v0.1', 'type': 'request', 'message_id': 'm1',
+                   'correlation_id': 'c1', 'from': 'initiator', 'to': 'orchestrator',
+                   'payload': {'objective': 'Fictional objective.', 'completion_test': 'Fictional test.'}}
+        if required is not None:
+            message['payload']['required_capabilities'] = required
+        if offered is not None:
+            message['capabilities'] = offered
+        return message
+
+    def test_negotiation_sorts_and_limits_to_advertised_capabilities(self):
+        baseline = list(BASELINE_CAPABILITIES)
+        self.assertEqual(baseline, sorted(baseline))
+        self.assertEqual(negotiate(self.request(['evidence-trace', 'bounded-scope'], ['evidence-trace']), baseline),
+                         {'accepted': True, 'negotiated_capabilities': ['bounded-scope', 'evidence-trace']})
+        # An offered token the Orchestrator lacks is dropped, never a refusal.
+        self.assertEqual(negotiate(self.request(None, ['telepathy', 'route']), baseline),
+                         {'accepted': True, 'negotiated_capabilities': ['route']})
+        self.assertEqual(negotiate(self.request(['audit', 'audit']), ['audit']),
+                         {'accepted': True, 'negotiated_capabilities': ['audit']})
+
+    def test_negotiation_refusal_text_is_exact(self):
+        self.assertEqual(negotiate(self.request(['route', 'external-write', 'audit']), ['bounded-scope']), {
+            'accepted': False,
+            'refusal_reason': 'missing required capabilities: audit, external-write, route',
+            'next_step': 'authorize or remove: audit, external-write, route'})
+
+    def test_negotiation_rejects_bad_advertised_tokens_and_non_requests(self):
+        for advertised in [['Route'], ['route', 'route'], ['bounded_scope'], ['-route'], ['route-'], [''],
+                           'route', [1]]:
+            with self.subTest(advertised=advertised), self.assertRaises(ValueError):
+                negotiate(self.request(), advertised)
+        for message in [{**self.request(), 'type': 'handoff'}, [], {**self.request(), 'payload': []},
+                        self.request('route'), self.request(None, [3])]:
+            with self.subTest(message=message), self.assertRaises(ValueError):
+                negotiate(message, ['route'])
 
     def test_budget_inconsistency_fails(self):
         for key, value in [('max_assignments', 2), ('max_parallel', 4), ('review_reserve', 8), ('total_work_units', -1)]:

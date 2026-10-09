@@ -1,7 +1,7 @@
 interface:
   display_name: "Agent Team"
-  short_description: "Route complex work across specialist AI agents"
-  default_prompt: "Use $agent-team-os to coordinate a complex task across specialist AI agents."
+  short_description: "Six-field role briefs and connect contracts for delegated work"
+  default_prompt: "Use $agent-team-os to draft a six-field role brief and check it against the shipped schema before handing it off."
 
 policy:
   allow_implicit_invocation: true

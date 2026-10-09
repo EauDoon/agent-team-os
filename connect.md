@@ -19,9 +19,10 @@ version. Both use the six-field role-brief model; v0.2 enforces the complete
 
 ## Why a connect contract
 
-Agent Team coordinates work by giving each role a bounded brief and evidence-backed
-handoffs. An external agent that wants to join that coordination must agree to the
-same discipline, or it will reintroduce the failure modes the skill exists to
+The contract lets a host that coordinates work hold external agents to the same
+bounded-brief discipline it applies internally: every role gets a bounded brief
+and evidence-backed handoffs. An external agent that joins must agree to that
+discipline, or it will reintroduce the failure modes the contract exists to
 prevent: unbounded access, untraceable claims, and conflicting ownership. This
 spec makes that agreement explicit and machine-checkable, so a third party can
 plug in without being trusted blindly.
@@ -127,8 +128,8 @@ negotiated = sorted((Ci ∪ R) ∩ Co)   # capabilities both sides will actually
 
 if missing is not empty:
     reply response(accepted = false,
-                   refusal_reason = "missing required capabilities: " + join(missing),
-                   next_step      = "authorize or remove: " + join(missing))
+                   refusal_reason = "missing required capabilities: " + join(", ", missing),
+                   next_step      = "authorize or remove: " + join(", ", missing))
 else:
     reply response(accepted = true, negotiated_capabilities = negotiated)
 ```
@@ -142,6 +143,8 @@ Rules and edge cases:
   it is dropped from `negotiated` rather than treated as an error.
 - All sets are sorted lexicographically so `negotiated_capabilities` and the
   refusal reason are reproducible byte-for-byte.
+- `join(", ", missing)` separates the sorted tokens with a comma and a single
+  space, for example `missing required capabilities: audit, route`.
 - On refusal, `refusal_reason` names exactly the missing capabilities and
   `next_step` states the bounded action (authorize them or remove them from
   `required_capabilities`). Never refuse without a reason.
@@ -303,25 +306,28 @@ The examples below are synthetic. Each is a full envelope conforming to the sche
   "to": "vendor-intake-agent",
   "payload": {
     "accepted": true,
-    "negotiated_capabilities": ["evidence-trace", "bounded-scope", "route", "audit"]
+    "negotiated_capabilities": ["bounded-scope", "evidence-trace"]
   }
 }
 ```
 
 ### 3. Refusal with a reason
 
+This is the alternative reply to example 1 from an Orchestrator that does not
+advertise `bounded-scope`, so the one required capability it lacks is missing.
+
 ```json
 {
   "connect_version": "agent-team-connect/v0.1",
   "type": "response",
-  "message_id": "msg-0002",
+  "message_id": "msg-0006",
   "correlation_id": "conn-42",
   "from": "orchestrator",
   "to": "vendor-intake-agent",
   "payload": {
     "accepted": false,
-    "refusal_reason": "required capability 'external-write' is not supported",
-    "next_step": "Remove the external-write requirement or supply an authorized writer."
+    "refusal_reason": "missing required capabilities: bounded-scope",
+    "next_step": "authorize or remove: bounded-scope"
   }
 }
 ```
@@ -393,8 +399,8 @@ The examples below are synthetic. Each is a full envelope conforming to the sche
 
 - The `handoff` payload reuses the six-field role brief, so internal and external
   delegation share one contract.
-- A `result` payload mirrors the delivery summary in `SKILL.md` and the shape of
-  the bounded evaluation result in [`evals/result.schema.json`](evals/result.schema.json).
+- A `result` payload mirrors the shape of the bounded evaluation result in
+  [`evals/result.schema.json`](evals/result.schema.json).
 - The security boundaries here restate, not replace, [`SECURITY.md`](SECURITY.md).
 
 ## Limitations

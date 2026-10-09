@@ -1,6 +1,7 @@
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -64,6 +65,80 @@ class PacketTests(unittest.TestCase):
             path.write_text(json.dumps(packet))
             with self.assertRaises(ValueError):
                 inspect_packet(path)
+
+    def test_trailing_dot_or_space_components_fail_before_any_read(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name in ['plan.json.', 'plan.json ', 'dir./plan.json', 'dir /plan.json', 'plan.json. .']:
+                with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'canonical and relative'):
+                    record_path(root, name)
+
+    def test_aliased_record_path_cannot_count_one_file_twice(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'routing-plan.json').write_bytes((ROOT / 'templates/routing-plan.json').read_bytes())
+            packet = {'packet_version': 'agent-team-packet/v0.1', 'task_id': 'fictional-task',
+                      'records': [{'id': 'plan', 'kind': 'plan', 'path': 'routing-plan.json'},
+                                  {'id': 'alias', 'kind': 'plan', 'path': 'routing-plan.json.'}]}
+            index = root / 'packet.json'
+            index.write_text(json.dumps(packet), encoding='utf-8')
+            result = inspect_packet(index)
+            self.assertFalse(result['ok'])
+            self.assertTrue(result['records'][0]['ok'])
+            self.assertFalse(result['records'][1]['ok'])
+            self.assertIsNone(result['records'][1]['sha256'])
+            with self.assertRaises(ValueError):
+                make_receipt(result)
+
+    def test_hard_link_alias_is_reported_as_an_already_listed_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'routing-plan.json').write_bytes((ROOT / 'templates/routing-plan.json').read_bytes())
+            try:
+                os.link(root / 'routing-plan.json', root / 'alias.json')
+            except OSError:
+                self.skipTest('hard links are unavailable on this filesystem')
+            packet = {'packet_version': 'agent-team-packet/v0.1', 'task_id': 'fictional-task',
+                      'records': [{'id': 'plan', 'kind': 'plan', 'path': 'routing-plan.json'},
+                                  {'id': 'alias', 'kind': 'plan', 'path': 'alias.json'}]}
+            index = root / 'packet.json'
+            index.write_text(json.dumps(packet), encoding='utf-8')
+            result = inspect_packet(index)
+            self.assertFalse(result['ok'])
+            self.assertTrue(result['records'][0]['ok'])
+            self.assertEqual(result['records'][1]['failures'],
+                             ['record names a file already listed in this packet'])
+
+    def test_evaluation_records_use_the_requested_schema_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            schema_root = base / 'alternate'
+            for relative in ('schemas/packet.schema.json', 'evals/tasks.json', 'evals/run.schema.json'):
+                (schema_root / relative).parent.mkdir(parents=True, exist_ok=True)
+                (schema_root / relative).write_bytes((ROOT / relative).read_bytes())
+            suite = json.loads((ROOT / 'evals/tasks.json').read_text(encoding='utf-8'))
+            run = {'run_version': 'agent-team-run/v0.1', 'suite_version': suite['suite_version'],
+                   'status': 'synthetic', 'runner': 'runner', 'reviewer': 'reviewer',
+                   'records': [{'task_id': task['id'], 'arm': arm, 'output_revision': 'fixture-o1',
+                                'review_evidence': 'Synthetic check record.',
+                                'configuration': 'Synthetic runner configuration.',
+                                'prompt_revision': 'fixture-p1', 'evidence_revision': 'fixture-e1',
+                                'checks': ['pass'] * len(task['acceptance']), 'tokens': 10,
+                                'duration_seconds': 2.5}
+                               for task in suite['tasks'] for arm in ('solo', 'current')]}
+            packet_dir = base / 'packet'
+            packet_dir.mkdir()
+            (packet_dir / 'run.json').write_text(json.dumps(run), encoding='utf-8')
+            index = packet_dir / 'packet.json'
+            index.write_text(json.dumps({'packet_version': 'agent-team-packet/v0.1', 'task_id': 'fictional-task',
+                                         'records': [{'id': 'run', 'kind': 'evaluation', 'path': 'run.json'}]}),
+                             encoding='utf-8')
+            self.assertTrue(inspect_packet(index, schema_root=schema_root)['ok'])
+            schema = json.loads((schema_root / 'evals/run.schema.json').read_text(encoding='utf-8'))
+            schema['required'] = schema['required'] + ['alternate_only_field']
+            (schema_root / 'evals/run.schema.json').write_text(json.dumps(schema), encoding='utf-8')
+            self.assertFalse(inspect_packet(index, schema_root=schema_root)['ok'])
+            self.assertTrue(inspect_packet(index)['ok'])
 
     def test_actual_packet_cli_in_both_modes(self):
         for entry in [['scripts/packet.py'], ['-m', 'scripts.packet']]:

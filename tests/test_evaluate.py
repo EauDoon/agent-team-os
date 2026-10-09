@@ -129,6 +129,18 @@ class EvaluationTests(unittest.TestCase):
                     self.assertFalse(json.loads(result.stdout, parse_constant=reject_constant)['ok'])
                     self.assertEqual(result.stderr, '')
 
+    def test_runner_and_reviewer_must_be_distinct_people_and_not_blank(self):
+        for runner, reviewer, message in [('reviewer-1', 'Reviewer-1 ', 'must be distinct'),
+                                          ('R1', 'r1', 'must be distinct'),
+                                          ('   ', 'reviewer', 'must not be blank'),
+                                          ('runner', '\t', 'must not be blank')]:
+            with self.subTest(runner=runner, reviewer=reviewer):
+                run = copy.deepcopy(self.run)
+                run.update(runner=runner, reviewer=reviewer)
+                with self.assertRaisesRegex(ValueError, message):
+                    summarize(run, self.suite)
+        self.assertEqual(summarize(self.run, self.suite)['status'], 'synthetic')
+
     def test_incomplete_unpaired_duplicate_and_invalid_scores_fail(self):
         for mutation in ['missing', 'duplicate', 'evidence', 'checks', 'negative', 'reviewer']:
             run = copy.deepcopy(self.run)

@@ -7,11 +7,15 @@ from datetime import datetime
 from pathlib import Path
 
 try:
-    from .check import ROOT, check_document, load_json
+    from .check import CONNECT_CONTRACTS, ROOT, check_document, load_json
     from .contracts import violations
+    from .version import add_version_flag
+    from .workflows import negotiate, negotiation_sets
 except ImportError:
-    from check import ROOT, check_document, load_json
+    from check import CONNECT_CONTRACTS, ROOT, check_document, load_json
     from contracts import violations
+    from version import add_version_flag
+    from workflows import negotiate, negotiation_sets
 
 
 def require_record(kind: str, document: object) -> None:
@@ -246,8 +250,24 @@ def inspect_handoff(handoff: object, response: object) -> dict:
             'note': 'Matching connection identifiers do not bind the response to this handoff. Recorded acceptance is the response claim only; it does not accept this handoff, release dependent work, authenticate senders, prevent replay or grant access.'}
 
 
+def inspect_negotiation(request: object, advertised: list[str]) -> dict:
+    """Apply the connect.md negotiation rules to one conforming request."""
+    require_record('connect', request)
+    if request['type'] != 'request':
+        raise ValueError('supply a request message')
+    missing, negotiated = negotiation_sets(request, advertised)
+    payload = negotiate(request, advertised)
+    schema = load_json(ROOT / CONNECT_CONTRACTS[request['connect_version']])
+    if violations(payload, schema['$defs']['response'], root=schema):
+        raise ValueError('computed response does not conform')
+    return {'connect_version': request['connect_version'], 'missing': missing,
+            'negotiated': negotiated, 'response_payload': payload,
+            'note': 'Computes the negotiation decision only; it sends nothing and grants no permission.'}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    add_version_flag(parser)
     commands = parser.add_subparsers(dest='command', required=True)
     plan = commands.add_parser('plan')
     plan.add_argument('file', type=Path)
@@ -272,6 +292,10 @@ def main() -> int:
     handoff = commands.add_parser('handoff')
     handoff.add_argument('handoff', type=Path)
     handoff.add_argument('response', type=Path)
+    negotiation = commands.add_parser('negotiate', help='compute the response a connect request is owed')
+    negotiation.add_argument('request', type=Path)
+    negotiation.add_argument('--advertise', action='append', default=[],
+                             help='a capability the Orchestrator advertises; repeat for each')
     args = parser.parse_args()
     try:
         if args.command == 'compare-plans':
@@ -285,6 +309,8 @@ def main() -> int:
             result = inspect_audit(load_json(args.file), args.target_revision, owner=args.owner)
         elif args.command == 'handoff':
             result = inspect_handoff(load_json(args.handoff), load_json(args.response))
+        elif args.command == 'negotiate':
+            result = inspect_negotiation(load_json(args.request), args.advertise)
         else:
             result = inspect_plan(load_json(args.file), args.accepted, blocked=args.blocked, invalidate=args.invalidate)
         rendered = json.dumps({'ok': result.get('contract_valid', True), 'inspection': result}, indent=2, allow_nan=False)

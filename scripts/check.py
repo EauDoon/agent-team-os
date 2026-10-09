@@ -11,9 +11,11 @@ from pathlib import Path
 
 try:
     from .contracts import violations
+    from .version import add_version_flag
     from .workflows import audit_violations, evidence_violations, refusal_text_violations, routing_violations
 except ImportError:
     from contracts import violations
+    from version import add_version_flag
     from workflows import audit_violations, evidence_violations, refusal_text_violations, routing_violations
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -97,6 +99,7 @@ def check_document(kind: str, document: object, *, schema_root: Path = ROOT) -> 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    add_version_flag(parser)
     parser.add_argument('kind', choices=sorted(CONTRACTS))
     parser.add_argument('file', type=Path)
     parser.add_argument('--json', action='store_true', dest='as_json')

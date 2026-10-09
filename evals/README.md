@@ -8,7 +8,7 @@ fixture, not evidence that one arm outperforms another.
 - **Strong solo baseline:** one capable generalist receives the task, the
   supplied evidence, and the same acceptance criteria. It may not delegate.
 - **Current Agent Team instructions:** the same task and evidence, with the
-  skill available and the delegation gate enabled.
+  skill available.
 
 Run both arms on the same task order, record the prompt and evidence version,
 and score only the acceptance checks in `tasks.json`. Keep any holdout tasks
@@ -53,7 +53,8 @@ holdout material outside the public repository.
 
 Record `run_version` as `agent-team-run/v0.1`, the suite version, status
 (`synthetic` for tool checks or `reviewed` for an independently reviewed run),
-and distinct runner and reviewer IDs. Each record names the task ID, arm (`solo`
+and distinct, non-blank runner and reviewer IDs. IDs are compared ignoring
+case, surrounding whitespace and Unicode compatibility forms. Each record names the task ID, arm (`solo`
 or `current`), prompt revision, evidence revision, ordered acceptance `checks`,
 total `tokens`, and `duration_seconds`. Also record `output_revision`,
 `review_evidence` (the scoring record locator), and `configuration` (model,

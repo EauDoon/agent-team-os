@@ -15,3 +15,4 @@
 ## Environment
 
 <!-- OS, language or runtime version, repo commit if known -->
+<!-- Agent Team version (output of python3 scripts/check.py --version) -->
