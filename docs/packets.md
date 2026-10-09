@@ -28,6 +28,10 @@ Packets permit at most 16 records and 4 MiB of total index and record bytes,
 with the usual 1 MiB limit per file. Paths use canonical forward slashes and
 must resolve to files inside the index's directory. Absolute paths, parent
 traversal, drive/stream names, duplicate paths and symbolic-link references fail.
+A path component that ends in a dot or a space fails too, because Windows opens
+`plan.json.` as `plan.json`. A record that resolves to a file another record
+already names (through such an alias or a hard link) fails with its own
+diagnostic while the first record keeps its result.
 The tool never follows a recursive packet index or searches for extra files.
 
 The report identifies checked byte snapshots by SHA-256, records per-file

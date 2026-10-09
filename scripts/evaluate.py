@@ -33,8 +33,8 @@ def duration_total(rows: list[dict]) -> float:
     return total
 
 
-def summarize(run: object, suite: dict) -> dict:
-    errors = violations(run, load_json(ROOT / 'evals/run.schema.json'))
+def summarize(run: object, suite: dict, *, schema_root: Path = ROOT) -> dict:
+    errors = violations(run, load_json(schema_root / 'evals/run.schema.json'))
     if errors:
         raise ValueError('; '.join(errors))
     if not run['runner'].strip() or not run['reviewer'].strip():
