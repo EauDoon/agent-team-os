@@ -19,7 +19,7 @@ Contributions should improve clarity, generality, or verification without making
 1. Explain the contract or tooling problem the change addresses.
 2. Make the smallest change that resolves it.
 3. Update metadata when the triggering behavior changes.
-4. Run `python3 scripts/validate.py` and inspect the generated package checksum when packaging is part of the change.
+4. Run `make ci`, which runs every CI step in order. Without `make` (on Windows, for example), run `py scripts/validate.py`, `py -m unittest discover -s tests -v`, `py evals/runner.py`, `py scripts/package.py --output dist` and `py scripts/verify_package.py dist/agent-team-<version>.zip`, where `py scripts/version.py` prints the version.
 5. Check all repository text for unfinished markers, identifying details, disallowed punctuation, and credential-like strings.
 6. Review the complete change against the original purpose and safety boundaries.
 
