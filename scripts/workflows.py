@@ -1,8 +1,19 @@
 """Semantic checks for operator records. These never schedule or execute work."""
 
+import unicodedata
+
 MAX_RESOURCES_PER_ASSIGNMENT = 256
 MAX_TOTAL_WRITE_RESOURCES = 1024
 MAX_ROUTING_DIAGNOSTICS = 32
+
+
+def identity_key(value: str) -> str:
+    """Normalize an identity for independence checks.
+
+    Two IDs that differ only by case, surrounding whitespace or a Unicode
+    compatibility form (a fullwidth letter, for example) name one person.
+    """
+    return unicodedata.normalize('NFKC', value).strip().casefold()
 
 
 def routing_violations(plan: dict) -> list[str]:
@@ -118,7 +129,7 @@ def audit_violations(report: dict) -> list[str]:
         errors.append('audit: target revision must not be blank')
     if not report['author'].strip() or not report['auditor'].strip():
         errors.append('audit: author and auditor must not be blank')
-    if report['author'] == report['auditor']:
+    if identity_key(report['author']) == identity_key(report['auditor']):
         errors.append('audit: author and independent auditor must be distinct')
     ids = [finding['id'] for finding in report['findings']]
     if len(set(ids)) != len(ids):

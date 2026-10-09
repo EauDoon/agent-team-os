@@ -12,10 +12,12 @@ try:
     from .author import write_new_text
     from .check import ROOT, load_json, load_json_snapshot
     from .contracts import is_json_integer, violations
+    from .workflows import identity_key
 except ImportError:
     from author import write_new_text
     from check import ROOT, load_json, load_json_snapshot
     from contracts import is_json_integer, violations
+    from workflows import identity_key
 
 MAX_EXACT_INTEGER = 2 ** 53 - 1
 
@@ -35,7 +37,9 @@ def summarize(run: object, suite: dict) -> dict:
     errors = violations(run, load_json(ROOT / 'evals/run.schema.json'))
     if errors:
         raise ValueError('; '.join(errors))
-    if run['runner'] == run['reviewer']:
+    if not run['runner'].strip() or not run['reviewer'].strip():
+        raise ValueError('runner and reviewer must not be blank')
+    if identity_key(run['runner']) == identity_key(run['reviewer']):
         raise ValueError('runner and independent reviewer must be distinct')
     if run['suite_version'] != suite['suite_version']:
         raise ValueError('suite version differs from supplied suite')
