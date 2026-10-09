@@ -127,8 +127,8 @@ negotiated = sorted((Ci ∪ R) ∩ Co)   # capabilities both sides will actually
 
 if missing is not empty:
     reply response(accepted = false,
-                   refusal_reason = "missing required capabilities: " + join(missing),
-                   next_step      = "authorize or remove: " + join(missing))
+                   refusal_reason = "missing required capabilities: " + join(", ", missing),
+                   next_step      = "authorize or remove: " + join(", ", missing))
 else:
     reply response(accepted = true, negotiated_capabilities = negotiated)
 ```
@@ -142,6 +142,8 @@ Rules and edge cases:
   it is dropped from `negotiated` rather than treated as an error.
 - All sets are sorted lexicographically so `negotiated_capabilities` and the
   refusal reason are reproducible byte-for-byte.
+- `join(", ", missing)` separates the sorted tokens with a comma and a single
+  space, for example `missing required capabilities: audit, route`.
 - On refusal, `refusal_reason` names exactly the missing capabilities and
   `next_step` states the bounded action (authorize them or remove them from
   `required_capabilities`). Never refuse without a reason.
@@ -303,25 +305,28 @@ The examples below are synthetic. Each is a full envelope conforming to the sche
   "to": "vendor-intake-agent",
   "payload": {
     "accepted": true,
-    "negotiated_capabilities": ["evidence-trace", "bounded-scope", "route", "audit"]
+    "negotiated_capabilities": ["bounded-scope", "evidence-trace"]
   }
 }
 ```
 
 ### 3. Refusal with a reason
 
+This is the alternative reply to example 1 from an Orchestrator that does not
+advertise `bounded-scope`, so the one required capability it lacks is missing.
+
 ```json
 {
   "connect_version": "agent-team-connect/v0.1",
   "type": "response",
-  "message_id": "msg-0002",
+  "message_id": "msg-0006",
   "correlation_id": "conn-42",
   "from": "orchestrator",
   "to": "vendor-intake-agent",
   "payload": {
     "accepted": false,
-    "refusal_reason": "required capability 'external-write' is not supported",
-    "next_step": "Remove the external-write requirement or supply an authorized writer."
+    "refusal_reason": "missing required capabilities: bounded-scope",
+    "next_step": "authorize or remove: bounded-scope"
   }
 }
 ```
