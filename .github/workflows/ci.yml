@@ -25,4 +25,4 @@ jobs:
       - run: python scripts/package.py --output dist
       - name: Verify package against source
         shell: bash
-        run: python scripts/verify_package.py "dist/agent-team-$(python -c "import pathlib;print(pathlib.Path('VERSION').read_text().strip())").zip"
+        run: python scripts/verify_package.py "dist/agent-team-$(python scripts/version.py).zip"

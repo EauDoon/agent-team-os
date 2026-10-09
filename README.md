@@ -139,7 +139,8 @@ Use only the records that help the task.
 Checks and inspections are read-only. Authoring, report exports, and packet
 receipts write only explicitly requested new files; the package builder
 writes its archive and checksum. They do not send messages, execute role
-instructions, authenticate agents, or enforce permissions. See
+instructions, authenticate agents, or enforce permissions. Each tool accepts
+`--version` and prints `agent-team X.Y.Z`. See
 [contract checking](docs/contract-checking.md) for input limits and exit codes.
 
 ## Good use cases for the contract layer

@@ -13,9 +13,11 @@ from urllib.parse import unquote, urlsplit
 
 try:
     from .contracts import KEYWORDS as SCHEMA_KEYWORDS, keyword_value_problems, violations as schema_violations
+    from .version import add_version_flag
     from .workflows import BASELINE_CAPABILITIES, negotiate, refusal_text_violations
 except ImportError:
     from contracts import KEYWORDS as SCHEMA_KEYWORDS, keyword_value_problems, violations as schema_violations
+    from version import add_version_flag
     from workflows import BASELINE_CAPABILITIES, negotiate, refusal_text_violations
 
 
@@ -812,6 +814,7 @@ class Checker:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    add_version_flag(parser)
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()

@@ -1,5 +1,5 @@
 PYTHON ?= python
-PKG_VERSION := $(shell $(PYTHON) -c "import pathlib; print(pathlib.Path('VERSION').read_text(encoding='utf-8').strip())")
+PKG_VERSION := $(shell $(PYTHON) scripts/version.py)
 PKG_ZIP := dist/agent-team-$(PKG_VERSION).zip
 
 .PHONY: install test lint validate package clean evals

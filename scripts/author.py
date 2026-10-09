@@ -10,8 +10,10 @@ from tempfile import NamedTemporaryFile
 
 try:
     from .check import MAX_BYTES, check_document, load_json
+    from .version import add_version_flag
 except ImportError:
     from check import MAX_BYTES, check_document, load_json
+    from version import add_version_flag
 
 
 def write_new_text(path: Path, text: str) -> None:
@@ -76,6 +78,9 @@ def brief_from_plan(plan: object, assignment_id: str) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    # Package version on the top-level parser only: the handoff and refusal
+    # subcommands keep their own --version for the connect wire version.
+    add_version_flag(parser)
     commands = parser.add_subparsers(dest='command', required=True)
     brief = commands.add_parser('brief', help='compose all six fields explicitly')
     for field in ('role', 'scope', 'task', 'evidence', 'deliver', 'stop'):

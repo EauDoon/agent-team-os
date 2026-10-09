@@ -18,11 +18,13 @@ try:
     )
     from .contracts import violations
     from .evaluate import summarize
+    from .version import add_version_flag
 except ImportError:
     from author import write_new_json
     from check import ROOT, check_document, load_json, parse_json_bytes, read_json_bytes
     from contracts import violations
     from evaluate import summarize
+    from version import add_version_flag
 
 MAX_PACKET_BYTES = 4 * 1024 * 1024
 
@@ -198,6 +200,7 @@ def verify_receipt(result: dict, receipt: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    add_version_flag(parser)
     parser.add_argument('file', type=Path)
     parser.add_argument('--target-revision', help='require v0.2 closure for this independently expected revision')
     output = parser.add_mutually_exclusive_group()

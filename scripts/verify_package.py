@@ -11,8 +11,10 @@ from zipfile import ZIP_DEFLATED, ZIP_STORED, BadZipFile, ZipFile
 
 try:
     from .package import files_for, version_for
+    from .version import add_version_flag
 except ImportError:
     from package import files_for, version_for
+    from version import add_version_flag
 
 MAX_ARCHIVE_BYTES = 32 * 1024 * 1024
 SUPPORTED_COMPRESSION = {ZIP_STORED, ZIP_DEFLATED}
@@ -63,6 +65,7 @@ def verify(archive: Path, root: Path, expected_sha256: str | None = None) -> dic
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    add_version_flag(parser)
     parser.add_argument('archive', type=Path)
     parser.add_argument('--sha256', help='digest obtained through a trusted channel')
     args = parser.parse_args()

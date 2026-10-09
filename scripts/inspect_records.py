@@ -9,10 +9,12 @@ from pathlib import Path
 try:
     from .check import CONNECT_CONTRACTS, ROOT, check_document, load_json
     from .contracts import violations
+    from .version import add_version_flag
     from .workflows import negotiate, negotiation_sets
 except ImportError:
     from check import CONNECT_CONTRACTS, ROOT, check_document, load_json
     from contracts import violations
+    from version import add_version_flag
     from workflows import negotiate, negotiation_sets
 
 
@@ -265,6 +267,7 @@ def inspect_negotiation(request: object, advertised: list[str]) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    add_version_flag(parser)
     commands = parser.add_subparsers(dest='command', required=True)
     plan = commands.add_parser('plan')
     plan.add_argument('file', type=Path)

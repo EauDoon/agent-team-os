@@ -68,10 +68,11 @@ class ValidateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "project"
             (root / "scripts").mkdir(parents=True)
-            shutil.copy2(
-                Path(__file__).resolve().parents[1] / "scripts/package.py",
-                root / "scripts/package.py",
-            )
+            for name in ("package.py", "version.py"):
+                shutil.copy2(
+                    Path(__file__).resolve().parents[1] / "scripts" / name,
+                    root / "scripts" / name,
+                )
             (root / "VERSION").write_text("0.1.1\n", encoding="utf-8")
             (root / "payload.txt").write_text("release content\n", encoding="utf-8")
             manifest = root / "package-manifest.json"

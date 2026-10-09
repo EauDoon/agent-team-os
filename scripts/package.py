@@ -10,14 +10,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import re
 import sys
 from pathlib import Path, PurePosixPath
 from shutil import copyfile, rmtree
 from tempfile import mkdtemp
 from zipfile import ZIP_STORED, ZipFile, ZipInfo
 
-VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z")
+try:
+    from .version import add_version_flag, package_version
+except ImportError:
+    from version import add_version_flag, package_version
 
 
 class IncompleteRollbackError(RuntimeError):
@@ -25,10 +27,7 @@ class IncompleteRollbackError(RuntimeError):
 
 
 def version_for(root: Path) -> str:
-    version = (root / "VERSION").read_text(encoding="utf-8").strip()
-    if VERSION_PATTERN.fullmatch(version) is None:
-        raise ValueError("VERSION must contain a semantic X.Y.Z version")
-    return version
+    return package_version(root)
 
 
 def files_for(root: Path) -> list[Path]:
@@ -105,6 +104,7 @@ def promote_pair(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    add_version_flag(parser)
     parser.add_argument("--output", type=Path, default=Path("dist"))
     args = parser.parse_args()
     if hasattr(sys.stdout, "reconfigure"):

@@ -64,6 +64,7 @@
   "scripts/packet.py",
   "scripts/validate.py",
   "scripts/verify_package.py",
+  "scripts/version.py",
   "scripts/workflows.py",
   "skill/agent-team-os/SKILL.md",
   "skill/agent-team-os/agents/openai.yaml",

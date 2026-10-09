@@ -12,11 +12,13 @@ try:
     from .author import write_new_text
     from .check import ROOT, load_json, load_json_snapshot
     from .contracts import is_json_integer, violations
+    from .version import add_version_flag, package_version
     from .workflows import identity_key
 except ImportError:
     from author import write_new_text
     from check import ROOT, load_json, load_json_snapshot
     from contracts import is_json_integer, violations
+    from version import add_version_flag, package_version
     from workflows import identity_key
 
 MAX_EXACT_INTEGER = 2 ** 53 - 1
@@ -121,6 +123,7 @@ def markdown_report(summary: dict) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    add_version_flag(parser)
     parser.add_argument('file', type=Path)
     parser.add_argument('--format', choices=['json', 'markdown'], default='json')
     parser.add_argument('--output', type=Path, help='new output file; never replace existing work')
@@ -130,7 +133,7 @@ def main() -> int:
         suite, suite_digest = load_json_snapshot(ROOT / 'evals/tasks.json')
         result = summarize(run, suite)
         result.update(input_sha256=input_digest, suite_sha256=suite_digest,
-                      package_version=(ROOT / 'VERSION').read_text(encoding='utf-8').strip())
+                      package_version=package_version(ROOT))
         rendered = markdown_report(result) if args.format == 'markdown' else json.dumps({'ok': True, **result}, indent=2, allow_nan=False)
         if args.output is not None:
             write_new_text(args.output, rendered + ('\n' if not rendered.endswith('\n') else ''))

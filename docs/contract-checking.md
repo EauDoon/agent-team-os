@@ -24,6 +24,13 @@ list), counts and bounds must be numbers, and `required` must be an array of
 strings. A `$` in a `pattern` anchors only at the end of the string, as in
 ECMA-262, so a trailing newline does not match.
 
+Every command-line tool (`check`, `author`, `inspect_records`, `evaluate`,
+`packet`, `validate`, `package` and `verify_package`) accepts `--version`, which
+prints `agent-team X.Y.Z` from the `VERSION` file and exits 0. Cite it in bug
+reports. `python3 scripts/version.py` prints the bare version. The flag reads
+the file only when given, so a damaged `VERSION` does not break checking,
+authoring or inspection; packaging and evaluation reports still require it.
+
 Passing checks establishes shape, not truthful evidence, useful scope, actual
 permission enforcement, authenticated identity or successful execution. Review
 all six brief fields for meaningful content before delegation.
