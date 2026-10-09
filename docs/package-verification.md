@@ -14,7 +14,10 @@ without extracting or executing any member. Archives are limited to 32 MiB;
 decompression is bounded to each expected source file's size.
 
 Supported member methods are Stored (0) and Deflate (8). The included builder
-uses Deflate. The verifier deliberately rejects BZIP2, LZMA, Zstandard and all
+stores members uncompressed (method 0), so the archive digest does not depend
+on the interpreter's zlib: CPython builds that ship zlib-ng produce different
+Deflate bytes from the same source. Deflate remains accepted so archives from
+0.5.0 and earlier still verify. The verifier deliberately rejects BZIP2, LZMA, Zstandard and all
 other methods before opening their members, even when the installed Python
 supports those codecs. This narrows acceptance of custom recompressed archives;
 rebuild from reviewed source with the included builder to obtain a supported

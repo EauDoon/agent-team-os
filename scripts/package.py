@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Build a deterministic installable ZIP and SHA-256 checksum."""
+"""Build a deterministic installable ZIP and SHA-256 checksum.
+
+Members are stored uncompressed, so the archive bytes depend only on the
+manifest, the source bytes and this builder, never on the interpreter's zlib.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +15,7 @@ import sys
 from pathlib import Path, PurePosixPath
 from shutil import copyfile, rmtree
 from tempfile import mkdtemp
-from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
+from zipfile import ZIP_STORED, ZipFile, ZipInfo
 
 VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z")
 
@@ -118,12 +122,15 @@ def main() -> int:
     try:
         staged_archive = Path(staging) / archive.name
         staged_checksum = Path(staging) / checksum.name
-        with ZipFile(staged_archive, "w", compression=ZIP_DEFLATED, compresslevel=9) as handle:
+        # Deflate output differs between zlib and zlib-ng (CPython 3.14 builds),
+        # which made the release digest depend on the interpreter. Stored
+        # members keep the checksum reproducible from source on any Python.
+        with ZipFile(staged_archive, "w", compression=ZIP_STORED) as handle:
             for path in files:
                 relative = path.relative_to(root).as_posix()
                 info = ZipInfo(f"{prefix}/{relative}")
                 info.date_time = (2020, 1, 1, 0, 0, 0)
-                info.compress_type = ZIP_DEFLATED
+                info.compress_type = ZIP_STORED
                 info.create_system = 3
                 info.external_attr = 0o100644 << 16
                 handle.writestr(info, path.read_bytes())
