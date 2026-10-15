@@ -11,7 +11,11 @@ The verifier compares every archive entry with the current source manifest and
 file bytes. It rejects extra, missing or duplicate entries, non-regular files,
 encrypted entries, changed content and oversized archives. It reads the ZIP
 without extracting or executing any member. Archives are limited to 32 MiB;
-decompression is bounded to each expected source file's size.
+decompression is bounded to each expected source file's size. The digest and
+member checks use the same bounded in-memory archive snapshot, even if the
+archive path is replaced during verification. The result describes that
+snapshot, not later changes to the file; keep the verified archive unchanged
+until installation.
 
 Supported member methods are Stored (0) and Deflate (8). The included builder
 stores members uncompressed (method 0), so the archive digest does not depend

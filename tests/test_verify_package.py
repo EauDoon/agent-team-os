@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 import io
 import json
 import lzma
@@ -10,7 +11,7 @@ import tempfile
 import unittest
 import zlib
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 from zipfile import (
     ZIP_BZIP2,
     ZIP_DEFLATED,
@@ -194,6 +195,58 @@ class PackageVerificationTests(unittest.TestCase):
                 handle.writestr('../unexpected.txt', 'untrusted')
             with self.assertRaises(ValueError):
                 verify(archive, ROOT)
+
+    def test_digest_and_member_checks_use_the_same_archive_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'VERSION').write_text('1.0.0')
+            (root / 'package-manifest.json').write_text('["payload.txt"]')
+            (root / 'payload.txt').write_text('good')
+            archive = root / 'fixture.zip'
+
+            def encoded_archive(payload):
+                buffer = io.BytesIO()
+                info = ZipInfo('agent-team-1.0.0/payload.txt')
+                info.external_attr = 0o100644 << 16
+                with ZipFile(buffer, 'w') as handle:
+                    handle.writestr(info, payload)
+                return buffer.getvalue()
+
+            good, bad = encoded_archive('good'), encoded_archive('evil')
+            for original, replacement in ((good, bad), (bad, good)):
+                with self.subTest(original_matches_source=original == good):
+                    archive.write_bytes(original)
+                    digest = hashlib.sha256(original).hexdigest()
+
+                    def replace_during_source_discovery(source_root):
+                        # The file can be replaced after hashing but before the
+                        # old verifier reopens its path to inspect ZIP members.
+                        archive.write_bytes(replacement)
+                        return files_for(source_root)
+
+                    with patch('scripts.verify_package.files_for',
+                               side_effect=replace_during_source_discovery):
+                        if original == good:
+                            result = verify(archive, root, digest)
+                            self.assertTrue(result['ok'])
+                            self.assertEqual(result['sha256'], digest)
+                        else:
+                            with self.assertRaisesRegex(ValueError, 'content differs'):
+                                verify(archive, root, digest)
+
+    def test_archive_snapshot_read_is_bounded_even_after_the_file_grows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archive = Path(directory) / 'growing.zip'
+            archive.write_bytes(b'x')
+            opened = io.BytesIO(b'x' * 65)
+            with patch('scripts.verify_package.MAX_ARCHIVE_BYTES', 64), \
+                 patch.object(Path, 'open', return_value=opened), \
+                 patch.object(opened, 'read', wraps=opened.read) as read, \
+                 patch('scripts.verify_package.files_for') as discover:
+                with self.assertRaisesRegex(ValueError, 'archive exceeds'):
+                    verify(archive, ROOT)
+                self.assertEqual(read.call_args_list, [call(65)])
+                discover.assert_not_called()
 
     def test_modified_source_bytes_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
