@@ -12,6 +12,13 @@ set `VERSION`; those versions were never tagged or published.
 
 ## [Unreleased]
 
+### Fixed
+
+- Package verification now hashes and checks one bounded ZIP snapshot. Replacing
+  an archive during verification can no longer combine one file's digest with
+  another file's contents, and a file that grows after opening still respects
+  the 32 MiB archive limit.
+
 ## [0.6.0] - 2026-10-09
 
 No schema or wire version changed. Connect v0.1 and v0.2, packet v0.1 and

@@ -3,6 +3,7 @@
 
 import argparse
 import hashlib
+import io
 import json
 import re
 import zlib
@@ -21,10 +22,13 @@ SUPPORTED_COMPRESSION = {ZIP_STORED, ZIP_DEFLATED}
 
 
 def verify(archive: Path, root: Path, expected_sha256: str | None = None) -> dict:
-    if archive.stat().st_size > MAX_ARCHIVE_BYTES:
-        raise ValueError('archive exceeds 32 MiB')
+    # Hash and inspect one bounded snapshot. Reopening the path after hashing
+    # could validate a replacement ZIP while reporting the original digest.
     with archive.open('rb') as handle:
-        digest = hashlib.file_digest(handle, 'sha256').hexdigest()
+        raw = handle.read(MAX_ARCHIVE_BYTES + 1)
+    if len(raw) > MAX_ARCHIVE_BYTES:
+        raise ValueError('archive exceeds 32 MiB')
+    digest = hashlib.sha256(raw).hexdigest()
     if expected_sha256 is not None:
         if not re.fullmatch('[0-9a-fA-F]{64}', expected_sha256):
             raise ValueError('expected SHA-256 must be 64 hexadecimal characters')
@@ -32,7 +36,7 @@ def verify(archive: Path, root: Path, expected_sha256: str | None = None) -> dic
             raise ValueError('archive SHA-256 does not match expected digest')
     prefix = f'agent-team-{version_for(root)}/'
     expected = {prefix + path.relative_to(root).as_posix(): path for path in files_for(root)}
-    with ZipFile(archive) as handle:
+    with ZipFile(io.BytesIO(raw)) as handle:
         entries = handle.infolist()
         names = [info.filename for info in entries]
         if len(names) != len(set(names)) or set(names) != set(expected):
