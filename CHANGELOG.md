@@ -18,6 +18,12 @@ set `VERSION`; those versions were never tagged or published.
   an archive during verification can no longer combine one file's digest with
   another file's contents, and a file that grows after opening still respects
   the 32 MiB archive limit.
+- A role brief whose field holds only whitespace is rejected. The schema's
+  `minLength: 1` accepted a string of spaces, so a brief could name no role,
+  no scope and no task and still pass `check.py`, even though the authoring
+  tool already refused such a brief. The checker now rejects a blank brief
+  field wherever a brief appears: a standalone brief, a routing plan
+  assignment, and the role brief carried by a connect handoff.
 
 ## [0.6.0] - 2026-10-09
 

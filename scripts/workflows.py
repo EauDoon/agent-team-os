@@ -6,6 +6,9 @@ import unicodedata
 MAX_RESOURCES_PER_ASSIGNMENT = 256
 MAX_TOTAL_WRITE_RESOURCES = 1024
 MAX_ROUTING_DIAGNOSTICS = 32
+# The six fields a role brief must state, in the order the brief schema lists
+# them. The authoring tool already refuses a blank one of these.
+BRIEF_FIELDS = ('role', 'access_scope', 'task', 'evidence', 'output_contract', 'stop_condition')
 # The connect.md capability vocabulary, in sorted order. validate.py checks
 # that the specification's bullet list and this tuple stay identical.
 BASELINE_CAPABILITIES = ('audit', 'bounded-scope', 'evidence-trace', 'route', 'structured-gaps')
@@ -19,6 +22,33 @@ def identity_key(value: str) -> str:
     compatibility form (a fullwidth letter, for example) name one person.
     """
     return unicodedata.normalize('NFKC', value).strip().casefold()
+
+
+def brief_violations(brief: object, label: str = 'brief') -> list[str]:
+    """Reject a role brief whose field holds only whitespace.
+
+    ``minLength: 1`` accepts a string of spaces, so a brief could name no
+    role, no scope and no task and still satisfy the schema. The authoring
+    tool already refuses such a brief, so the checker agrees with it.
+    """
+    if not isinstance(brief, dict):
+        return []
+    errors = []
+    for field in BRIEF_FIELDS:
+        value = brief.get(field)
+        if isinstance(value, str) and not value.strip():
+            errors.append(f'{label}.{field}: must not be blank')
+    return errors
+
+
+def handoff_brief_violations(message: object) -> list[str]:
+    """Reject a handoff that carries a role brief with a blank field."""
+    if not isinstance(message, dict) or message.get('type') != 'handoff':
+        return []
+    payload = message.get('payload')
+    if not isinstance(payload, dict):
+        return []
+    return brief_violations(payload.get('role_brief'), 'payload.role_brief')
 
 
 def routing_violations(plan: dict) -> list[str]:
@@ -38,6 +68,7 @@ def routing_violations(plan: dict) -> list[str]:
         for dependency in item['depends_on']:
             if dependency not in by_id:
                 errors.append(f"{item['id']}: unknown dependency {dependency}")
+        errors.extend(brief_violations(item['brief'], f"{item['id']}.brief"))
     remaining = {key: set(item['depends_on']) for key, item in by_id.items()}
     while remaining:
         ready = {key for key, dependencies in remaining.items() if not dependencies}

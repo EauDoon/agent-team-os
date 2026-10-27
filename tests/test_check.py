@@ -29,6 +29,22 @@ class CheckTests(unittest.TestCase):
                     self.assertNotIn('\x1b', result.stdout)
                     self.assertIn(json.dumps(key)[1:-1], result.stdout)
 
+    def test_blank_brief_field_is_reported_by_the_cli(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'brief.json'
+            brief = dict.fromkeys(
+                ['role', 'access_scope', 'task', 'evidence', 'output_contract', 'stop_condition'],
+                'Supplied fictional task.')
+            brief['task'] = ' \t '
+            path.write_text(json.dumps(brief), encoding='utf-8')
+            for entry in [['scripts/check.py'], ['-m', 'scripts.check']]:
+                result = subprocess.run([sys.executable, *entry, 'brief', str(path), '--json'],
+                                        cwd=ROOT, capture_output=True, text=True, timeout=5)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                payload = json.loads(result.stdout)
+                self.assertFalse(payload['ok'])
+                self.assertTrue(any('task: must not be blank' in failure for failure in payload['failures']), payload)
+
     def test_connection_cli_selects_declared_wire_version(self):
         suite = json.loads((ROOT / 'conformance/connect/cases.json').read_text())
         message = next(case['message'] for case in suite['cases'] if case['name'] == 'handoff-valid')

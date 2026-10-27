@@ -113,6 +113,28 @@ class WorkflowTests(unittest.TestCase):
     def test_valid_plan(self):
         self.assertEqual(check_document('plan', self.plan()), [])
 
+    def test_blank_brief_fields_are_rejected_wherever_a_brief_appears(self):
+        fields = ('role', 'access_scope', 'task', 'evidence', 'output_contract', 'stop_condition')
+        plan = self.plan()
+        self.assertEqual(check_document('plan', plan), [])
+        brief = copy.deepcopy(plan['assignments'][0]['brief'])
+        self.assertEqual(check_document('brief', brief), [])
+        suite = json.loads((ROOT / 'conformance/connect/cases.json').read_text())
+        handoff = next(case['message'] for case in suite['cases'] if case['name'] == 'handoff-valid')
+        self.assertEqual(check_document('connect', handoff), [])
+        for field in fields:
+            for kind, document in (('brief', brief), ('plan', plan), ('connect', handoff)):
+                broken = copy.deepcopy(document)
+                if kind == 'plan':
+                    broken['assignments'][0]['brief'][field] = ' \t '
+                elif kind == 'connect':
+                    broken['payload']['role_brief'][field] = ' \t '
+                else:
+                    broken[field] = ' \t '
+                with self.subTest(kind=kind, field=field):
+                    errors = check_document(kind, broken)
+                    self.assertTrue(any(f'{field}: must not be blank' in error for error in errors), errors)
+
     def test_resource_limits_reject_per_assignment_and_total_excess(self):
         plan = self.plan()
         plan['assignments'][0]['write_resources'] = [str(index) for index in range(257)]
