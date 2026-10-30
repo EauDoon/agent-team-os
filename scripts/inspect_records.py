@@ -7,20 +7,22 @@ from datetime import datetime
 from pathlib import Path
 
 try:
-    from .check import CONNECT_CONTRACTS, ROOT, check_document, load_json
+    from .check import CONNECT_CONTRACTS, ROOT, check_document, load_json, masked_diagnostics, shape_failures
     from .contracts import violations
     from .version import add_version_flag
-    from .workflows import negotiate, negotiation_sets, resource_key
+    from .workflows import RecordError, negotiate, negotiation_sets, resource_key
 except ImportError:
-    from check import CONNECT_CONTRACTS, ROOT, check_document, load_json
+    from check import CONNECT_CONTRACTS, ROOT, check_document, load_json, masked_diagnostics, shape_failures
     from contracts import violations
     from version import add_version_flag
-    from workflows import negotiate, negotiation_sets, resource_key
+    from workflows import RecordError, negotiate, negotiation_sets, resource_key
+
+GENERIC_ERROR = 'records or inspection arguments are invalid or unreadable'
 
 
 def require_record(kind: str, document: object) -> None:
     if check_document(kind, document):
-        raise ValueError('record does not conform')
+        raise RecordError('record does not conform', shape_failures(kind, document))
 
 
 def downstream(assignments: dict, seeds: set[str]) -> set[str]:
@@ -38,22 +40,22 @@ def inspect_plan(plan: object, accepted: list[str] | None = None, *, blocked: li
     by_id = {item['id']: item for item in plan['assignments']}
     accepted = [] if accepted is None else accepted
     if any(not isinstance(item, str) for item in accepted) or len(set(accepted)) != len(accepted):
-        raise ValueError('accepted assignment IDs must be unique strings')
+        raise RecordError('accepted assignment IDs must be unique strings')
     accepted_ids = set(accepted)
     if not accepted_ids <= by_id.keys():
-        raise ValueError('unknown accepted assignment')
+        raise RecordError('unknown accepted assignment')
     if any(not set(by_id[item]['depends_on']) <= accepted_ids for item in accepted_ids):
-        raise ValueError('accepted assignments must include their accepted dependencies')
+        raise RecordError('accepted assignments must include their accepted dependencies')
     invalidate = [] if invalidate is None else invalidate
     if (any(not isinstance(item, str) for item in invalidate) or len(set(invalidate)) != len(invalidate)
             or not set(invalidate) <= accepted_ids):
-        raise ValueError('invalidated IDs must be unique accepted assignments')
+        raise RecordError('invalidated IDs must be unique accepted assignments')
     invalidated = downstream(by_id, set(invalidate)) & accepted_ids
     accepted_ids -= invalidated
     blocked = [] if blocked is None else blocked
     if (any(not isinstance(item, str) for item in blocked) or len(set(blocked)) != len(blocked)
             or not set(blocked) <= by_id.keys() or set(blocked) & accepted_ids):
-        raise ValueError('blocked IDs must be unique known unaccepted assignments')
+        raise RecordError('blocked IDs must be unique known unaccepted assignments')
     blocked_ids = set(blocked)
     held = downstream(by_id, blocked_ids)
     remaining = {key: set(item['depends_on']) for key, item in by_id.items()}
@@ -61,7 +63,7 @@ def inspect_plan(plan: object, accepted: list[str] | None = None, *, blocked: li
     while remaining:
         ready = sorted(key for key, dependencies in remaining.items() if not dependencies)
         if not ready:
-            raise ValueError('routing dependency cycle')
+            raise RecordError('routing dependency cycle')
         stages.append(ready)
         remaining = {key: dependencies - set(ready) for key, dependencies in remaining.items() if key not in ready}
     waiting = [{'id': key, 'unaccepted_dependencies': sorted(set(item['depends_on']) - accepted_ids)}
@@ -117,10 +119,14 @@ def compare_plans(before: object, after: object) -> dict:
 
 def inspection_date(value: str):
     if not isinstance(value, str):
-        raise ValueError('date must use DD-MM-YYYY')
-    parsed = datetime.strptime(value, '%d-%m-%Y').date()
+        raise RecordError('date must use DD-MM-YYYY')
+    try:
+        parsed = datetime.strptime(value, '%d-%m-%Y').date()
+    except ValueError:
+        # strptime quotes its input in the message; replace it with fixed text.
+        raise RecordError('date must use DD-MM-YYYY') from None
     if parsed.strftime('%d-%m-%Y') != value:
-        raise ValueError('date must use DD-MM-YYYY')
+        raise RecordError('date must use DD-MM-YYYY')
     return parsed
 
 
@@ -130,14 +136,14 @@ def inspect_evidence(ledger: object, changed_sources: list[str] | None = None, *
     changed_sources = [] if changed_sources is None else changed_sources
     sources = {source['id']: source for source in ledger['sources']}
     if any(not isinstance(item, str) for item in changed_sources) or len(set(changed_sources)) != len(changed_sources):
-        raise ValueError('changed source IDs must be unique strings')
+        raise RecordError('changed source IDs must be unique strings')
     if not set(changed_sources) <= sources.keys():
-        raise ValueError('unknown changed source')
+        raise RecordError('unknown changed source')
     freshness = None
     review_sources = set(changed_sources)
     if as_of is not None or max_age_days is not None:
         if as_of is None or type(max_age_days) is not int or max_age_days < 0:
-            raise ValueError('freshness requires a date and nonnegative maximum age')
+            raise RecordError('freshness requires a date and nonnegative maximum age')
         reference_date = inspection_date(as_of)
         freshness = {'as_of': as_of, 'max_age_days': max_age_days, 'stale_sources': [],
                      'future_sources': [], 'unknown_date_sources': []}
@@ -198,14 +204,16 @@ def compare_evidence(before: object, after: object) -> dict:
 
 
 def inspect_audit(report: object, target_revision: str | None = None, *, owner: str | None = None) -> dict:
-    if violations(report, load_json(ROOT / 'schemas/audit-closure.schema.json')):
-        raise ValueError('audit report shape is invalid')
+    schema = load_json(ROOT / 'schemas/audit-closure.schema.json')
+    shape = violations(report, schema)
+    if shape:
+        raise RecordError('audit report shape is invalid', masked_diagnostics(shape, schema))
     if owner is not None and (not isinstance(owner, str) or not owner.strip()
                               or owner not in {finding['owner'] for finding in report['findings']}):
-        raise ValueError('owner must match a recorded finding owner')
+        raise RecordError('owner must match a recorded finding owner')
     target = report['target_revision'] if target_revision is None else target_revision
     if not isinstance(target, str) or not target.strip():
-        raise ValueError('target revision must not be blank')
+        raise RecordError('target revision must not be blank')
     failures = check_document('audit', report)
     revision_changed = target != report['target_revision']
     queue = []
@@ -235,7 +243,7 @@ def inspect_handoff(handoff: object, response: object) -> dict:
     require_record('connect', response)
     failures = []
     if handoff['type'] != 'handoff' or response['type'] != 'response':
-        raise ValueError('supply a handoff and a response')
+        raise RecordError('supply a handoff and a response')
     for field in ('connect_version', 'correlation_id'):
         if handoff[field] != response[field]:
             failures.append(field + ' does not match')
@@ -254,12 +262,12 @@ def inspect_negotiation(request: object, advertised: list[str]) -> dict:
     """Apply the connect.md negotiation rules to one conforming request."""
     require_record('connect', request)
     if request['type'] != 'request':
-        raise ValueError('supply a request message')
+        raise RecordError('supply a request message')
     missing, negotiated = negotiation_sets(request, advertised)
     payload = negotiate(request, advertised)
     schema = load_json(ROOT / CONNECT_CONTRACTS[request['connect_version']])
     if violations(payload, schema['$defs']['response'], root=schema):
-        raise ValueError('computed response does not conform')
+        raise RecordError('computed response does not conform')
     return {'connect_version': request['connect_version'], 'missing': missing,
             'negotiated': negotiated, 'response_payload': payload,
             'note': 'Computes the negotiation decision only; it sends nothing and grants no permission.'}
@@ -314,8 +322,12 @@ def main() -> int:
         else:
             result = inspect_plan(load_json(args.file), args.accepted, blocked=args.blocked, invalidate=args.invalidate)
         rendered = json.dumps({'ok': result.get('contract_valid', True), 'inspection': result}, indent=2, allow_nan=False)
+    except RecordError as exc:
+        # A named rule failed. The reason and masked diagnostics are fixed text.
+        print(json.dumps({'ok': False, 'error': GENERIC_ERROR, **exc.details()}))
+        return 1
     except (OSError, ValueError, RecursionError, OverflowError):
-        print(json.dumps({'ok': False, 'error': 'records or inspection arguments are invalid or unreadable'}))
+        print(json.dumps({'ok': False, 'error': GENERIC_ERROR}))
         return 1
     print(rendered)
     return 0 if result.get('contract_valid', True) else 1

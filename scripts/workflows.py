@@ -10,6 +10,30 @@ MAX_ROUTING_DIAGNOSTICS = 32
 # that the specification's bullet list and this tuple stay identical.
 BASELINE_CAPABILITIES = ('audit', 'bounded-scope', 'evidence-trace', 'route', 'structured-gaps')
 CAPABILITY_TOKEN = re.compile(r'[a-z0-9]+(?:-[a-z0-9]+)*\Z')
+MAX_ERROR_FAILURES = 20
+
+
+class RecordError(ValueError):
+    """A documented record or argument rule failed.
+
+    The message names the rule in fixed tool text and never contains input.
+    ``failures`` optionally carries schema diagnostics whose undeclared keys
+    are already masked; at most 20 are kept. The class lives here, not in
+    check.py, because check.py imports this module and this module imports
+    no sibling, so every tool can raise it without an import cycle.
+    """
+
+    def __init__(self, reason: str, failures: list[str] | None = None) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.failures = [str(item) for item in (failures or [])][:MAX_ERROR_FAILURES]
+
+    def details(self) -> dict:
+        """Return the additive ``reason`` and optional ``failures`` keys for CLI output."""
+        details = {'reason': self.reason}
+        if self.failures:
+            details['failures'] = self.failures
+        return details
 
 
 def identity_key(value: str) -> str:
@@ -144,7 +168,7 @@ def _string_list(value: object, label: str) -> list[str]:
     if value is None:
         return []
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
-        raise ValueError(f'{label} must be a list of strings')
+        raise RecordError(f'{label} must be a list of strings')
     return value
 
 
@@ -157,14 +181,14 @@ def negotiation_sets(request: object, advertised: list[str]) -> tuple[list[str],
     """
     advertised = _string_list(advertised, 'advertised capabilities')
     if any(CAPABILITY_TOKEN.match(token) is None for token in advertised):
-        raise ValueError('advertised capabilities must be lowercase hyphen-separated tokens')
+        raise RecordError('advertised capabilities must be lowercase hyphen-separated tokens')
     if len(set(advertised)) != len(advertised):
-        raise ValueError('advertised capabilities must be unique')
+        raise RecordError('advertised capabilities must be unique')
     if not isinstance(request, dict) or request.get('type') != 'request':
-        raise ValueError('negotiation needs a request message')
+        raise RecordError('negotiation needs a request message')
     payload = request.get('payload')
     if not isinstance(payload, dict):
-        raise ValueError('request payload must be an object')
+        raise RecordError('request payload must be an object')
     required = set(_string_list(payload.get('required_capabilities'), 'required capabilities'))
     offered = set(_string_list(request.get('capabilities'), 'offered capabilities'))
     supported = set(advertised)

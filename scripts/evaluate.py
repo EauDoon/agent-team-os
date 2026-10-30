@@ -10,18 +10,19 @@ from pathlib import Path
 
 try:
     from .author import write_new_text
-    from .check import ROOT, load_json, load_json_snapshot
+    from .check import ROOT, load_json, load_json_snapshot, masked_diagnostics
     from .contracts import is_json_integer, violations
     from .version import add_version_flag, package_version
-    from .workflows import identity_key
+    from .workflows import RecordError, identity_key
 except ImportError:
     from author import write_new_text
-    from check import ROOT, load_json, load_json_snapshot
+    from check import ROOT, load_json, load_json_snapshot, masked_diagnostics
     from contracts import is_json_integer, violations
     from version import add_version_flag, package_version
-    from workflows import identity_key
+    from workflows import RecordError, identity_key
 
 MAX_EXACT_INTEGER = 2 ** 53 - 1
+GENERIC_ERROR = 'evaluation record is invalid or unreadable'
 
 
 def duration_total(rows: list[dict]) -> float:
@@ -29,47 +30,48 @@ def duration_total(rows: list[dict]) -> float:
     try:
         total = math.fsum(row['duration_seconds'] for row in rows)
     except (OverflowError, ValueError) as exc:
-        raise ValueError('duration total is not representable as a finite number') from exc
+        raise RecordError('duration total is not representable as a finite number') from exc
     if not math.isfinite(total):
-        raise ValueError('duration total must be finite')
+        raise RecordError('duration total must be finite')
     return total
 
 
 def summarize(run: object, suite: dict, *, schema_root: Path = ROOT) -> dict:
-    errors = violations(run, load_json(schema_root / 'evals/run.schema.json'))
+    schema = load_json(schema_root / 'evals/run.schema.json')
+    errors = violations(run, schema)
     if errors:
-        raise ValueError('; '.join(errors))
+        raise RecordError('evaluation record does not match its schema', masked_diagnostics(errors, schema))
     if not run['runner'].strip() or not run['reviewer'].strip():
-        raise ValueError('runner and reviewer must not be blank')
+        raise RecordError('runner and reviewer must not be blank')
     if identity_key(run['runner']) == identity_key(run['reviewer']):
-        raise ValueError('runner and independent reviewer must be distinct')
+        raise RecordError('runner and independent reviewer must be distinct')
     if run['suite_version'] != suite['suite_version']:
-        raise ValueError('suite version differs from supplied suite')
+        raise RecordError('suite version differs from supplied suite')
     expected = {task['id']: len(task['acceptance']) for task in suite['tasks']}
     rows = {}
     for row in run['records']:
         key = (row['task_id'], row['arm'])
         if key in rows:
-            raise ValueError('duplicate task and arm record')
+            raise RecordError('duplicate task and arm record')
         if row['task_id'] not in expected or len(row['checks']) != expected[row['task_id']]:
-            raise ValueError('unknown task or wrong acceptance check count')
+            raise RecordError('unknown task or wrong acceptance check count')
         rows[key] = row
     if set(rows) != {(task, arm) for task in expected for arm in ('solo', 'current')}:
-        raise ValueError('every suite task needs both arms; missing runs cannot be dropped')
+        raise RecordError('every suite task needs both arms; missing runs cannot be dropped')
     for task in expected:
         solo, current = rows[(task, 'solo')], rows[(task, 'current')]
         for field in ('prompt_revision', 'evidence_revision'):
             if solo[field] != current[field]:
-                raise ValueError('paired arms must use identical prompt and evidence revisions')
+                raise RecordError('paired arms must use identical prompt and evidence revisions')
     totals = {}
     for arm in ('solo', 'current'):
         selected = [row for row in rows.values() if row['arm'] == arm]
         checks = [check for row in selected for check in row['checks']]
         if not all(is_json_integer(row['tokens']) for row in selected):
-            raise ValueError('token count must be an integer')
+            raise RecordError('token count must be an integer')
         tokens = sum(int(row['tokens']) for row in selected)
         if tokens > MAX_EXACT_INTEGER:
-            raise ValueError('token total exceeds the interoperable JSON integer limit')
+            raise RecordError('token total exceeds the interoperable JSON integer limit')
         totals[arm] = {
             'tasks': len(selected), 'passed': checks.count('pass'),
             'failed': checks.count('fail'), 'unverified': checks.count('unverified'),
@@ -137,9 +139,13 @@ def main() -> int:
         rendered = markdown_report(result) if args.format == 'markdown' else json.dumps({'ok': True, **result}, indent=2, allow_nan=False)
         if args.output is not None:
             write_new_text(args.output, rendered + ('\n' if not rendered.endswith('\n') else ''))
+    except RecordError as exc:
+        # The reason is fixed text and schema diagnostics have undeclared keys
+        # masked, so no source value, unknown field name or path is printed.
+        print(json.dumps({'ok': False, 'error': GENERIC_ERROR, **exc.details()}, allow_nan=False))
+        return 1
     except (OSError, ValueError, OverflowError, RecursionError):
-        # Schema diagnostics may contain field names; never include source values.
-        print(json.dumps({'ok': False, 'error': 'evaluation record is invalid or unreadable'}, allow_nan=False))
+        print(json.dumps({'ok': False, 'error': GENERIC_ERROR}, allow_nan=False))
         return 1
     print(json.dumps({'ok': True, 'format': args.format}) if args.output is not None else rendered)
     return 0

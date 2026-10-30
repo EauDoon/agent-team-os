@@ -81,6 +81,10 @@ transport authentication and enforcement in the deployment environment.
 
 ## Troubleshooting
 
+Inspection, authoring and evaluation failures print a fixed `reason` beside the
+generic `error`; find the row for that reason. Run `scripts/check.py KIND FILE`
+for the full diagnostics of a record that does not conform.
+
 | Failure | Bounded correction |
 | --- | --- |
 | Unreadable JSON | Check UTF-8 encoding, unique keys, finite numbers and the 1 MiB limit. |
@@ -91,3 +95,7 @@ transport authentication and enforcement in the deployment environment.
 | Audit revision mismatch | Recheck the revision actually being delivered. |
 | Incomplete evaluation pair | Retain the failed or interrupted row and mark unverified checks. |
 | Archive mismatch | Stop installation and reconcile the reviewed source revision and archive. |
+| `record does not conform` | Fix the listed `failures`, then rerun `scripts/check.py` for semantic rules. |
+| `unknown accepted assignment` or `accepted assignments must include their accepted dependencies` | Assert only plan IDs, and accept each dependency before its dependents. |
+| `date must use DD-MM-YYYY` | Write the date as day, month and four-digit year, for example `12-09-2026`. |
+| `unknown task or wrong acceptance check count` | Record one check per acceptance criterion for every suite task. |

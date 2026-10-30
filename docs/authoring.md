@@ -16,9 +16,13 @@ The writer stages complete UTF-8 content, then publishes it with an exclusive
 same-directory hard link. If the filesystem cannot support that operation, it
 fails without silently falling back to overwrite behavior. Records are limited
 to 1 MiB. Success returns JSON with `ok: true`; invalid input or an unavailable
-output returns generic JSON with `ok: false` and exit status 1. No role is started
-and no message is sent. Module invocation via `python3 -m scripts.author` is also
-supported.
+output returns generic JSON with `ok: false` and exit status 1. When a documented
+authoring rule failed, the output adds `reason`, such as `each brief field needs
+meaningful text`, and a non-conforming record adds masked schema `failures`, as
+described in [failure reasons](record-inspection.md#read-a-failure-reason). An
+existing output file or another I/O failure keeps the generic error alone. No
+role is started and no message is sent. Module invocation via
+`python3 -m scripts.author` is also supported.
 
 ## Compose a handoff or an actionable refusal
 

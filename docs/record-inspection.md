@@ -1,5 +1,23 @@
 # Inspect records before the next decision
 
+## Read a failure reason
+
+Every inspection that cannot run prints `ok: false`, the unchanged generic
+`error` and exit status 1. When a documented rule failed, the output also
+carries `reason`, fixed tool text naming the rule, such as
+`unknown accepted assignment`, `accepted assignments must include their
+accepted dependencies`, `date must use DD-MM-YYYY` or
+`record does not conform`. A non-conforming record adds `failures`: up to 20
+schema diagnostics in the JSON-path form `scripts/check.py` prints, with every
+field name the schema does not declare shown as `*`. Semantic rule diagnostics,
+which can quote record IDs, are left to `scripts/check.py KIND FILE`.
+
+Neither key ever contains input values, argument text or file paths. An
+unreadable or oversized file, invalid JSON and other I/O failures keep the
+generic `error` alone. Match on `reason`, not on `error`, to tell the rules
+apart; the [troubleshooting table](operator-quickstart.md#troubleshooting)
+maps the common ones to a correction.
+
 ## Compare a handoff and a response envelope
 
 Run `python3 scripts/inspect_records.py handoff handoff.json response.json`.
@@ -39,7 +57,8 @@ must be unique, lowercase and hyphen-separated. The command applies the
 is checked against the declared version's response schema. Missing
 capabilities are sorted and joined with a comma and a space in both refusal
 fields. An accept and a refusal both exit 0; an invalid request, a non-request
-message or a malformed token exits 1 with the generic input error.
+message or a malformed token exits 1 with the generic input error and the
+`reason` that names it (see [failure reasons](#read-a-failure-reason)).
 
 The result is a decision only. The command sends no response, grants no
 permission and does not record the negotiated set anywhere. The
@@ -144,7 +163,8 @@ and next action. Resolved findings become recheck work when the requested target
 revision differs. Accepted risks stay visible separately. A pass recommendation
 with an unresolved significant finding returns `ok: false` and exit status 1
 while retaining the actionable queue. Structurally malformed reports receive
-the generic input error. `closure_ready` refers only to supplied bookkeeping;
+the generic input error with `reason: "audit report shape is invalid"` and the
+masked schema `failures`. `closure_ready` refers only to supplied bookkeeping;
 the command does not independently verify the artifact or authorize release.
 
 Use `audit FILE --owner maker` to give one recorded owner their remediation

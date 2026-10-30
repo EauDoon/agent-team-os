@@ -12,6 +12,18 @@ set `VERSION`; those versions were never tagged or published.
 
 ## [Unreleased]
 
+### Added
+
+- Failure output from `scripts/inspect_records.py`, `scripts/author.py` and
+  `scripts/evaluate.py` names the rule that failed. Each tool keeps its exact
+  generic `error` string and exit status, and adds `reason`, fixed tool text
+  such as `unknown accepted assignment` or `date must use DD-MM-YYYY`. A record
+  that does not conform also adds `failures`: up to 20 schema diagnostics in
+  JSON-path form, with any field name the schema does not declare shown as
+  `*`. Neither key ever echoes input values, argument text or file paths, and
+  unreadable input keeps the generic error alone. The rules raise the new
+  `RecordError` in `scripts/workflows.py`, a `ValueError` subclass.
+
 ### Fixed
 
 - Package verification now hashes and checks one bounded ZIP snapshot. Replacing

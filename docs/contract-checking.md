@@ -11,7 +11,9 @@ python3 -m scripts.check connect my-message.json --json
 
 Exit status is 0 for a conforming document and 1 for an invalid or unreadable
 document. Argument errors return 2. JSON output contains `ok`, `kind`, and
-`failures`. Inputs must be UTF-8, at most 1 MiB, and have unique object keys and
+`failures`. `scripts/inspect_records.py`, `scripts/author.py` and
+`scripts/evaluate.py` keep one generic `error` per tool and add a fixed `reason`
+naming the failed rule; see [failure reasons](record-inspection.md#read-a-failure-reason). Inputs must be UTF-8, at most 1 MiB, and have unique object keys and
 finite numbers. The CLI reads the named file and local bundled schemas only.
 It sends no messages and executes no content from the document.
 
