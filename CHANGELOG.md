@@ -25,6 +25,22 @@ set `VERSION`; those versions were never tagged or published.
   field, the final `result` worked example carries it, and
   `scripts/validate.py` holds the connect.md field tables and rules to the
   shipped connect schemas.
+- Package verification rejects an archive whose bytes hold anything besides the
+  listed entries, or whose local headers disagree with the central directory.
+  An extra local entry, such as a second `SKILL.md` placed before the central
+  directory, used to pass verification while an extractor that streams local
+  headers, such as `bsdtar` reading a pipe, unpacked it over the verified file.
+  Data descriptors are rejected; the included builder never writes them, and
+  Deflate archives from 0.5.0 and earlier still verify.
+- Routing plan ownership checks treat canonically equivalent write resource
+  names as one name. A name spelled with a precomposed `U+00E9` and the same
+  name spelled with `e` and a combining `U+0301` render identically, but two
+  assignments could each own one spelling and `scripts/check.py plan` reported
+  no conflict.
+  `inspect_records.py compare-plans` no longer reports such a respelling as a
+  scope change.
+- `connect.md` no longer says the `result` payload mirrors the shape of
+  `evals/result.schema.json`. The two schemas share no field names.
 
 ## [0.6.0] - 2026-10-09
 

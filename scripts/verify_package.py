@@ -6,6 +6,7 @@ import hashlib
 import io
 import json
 import re
+import struct
 import zlib
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZIP_STORED, BadZipFile, ZipFile
@@ -19,6 +20,34 @@ except ImportError:
 
 MAX_ARCHIVE_BYTES = 32 * 1024 * 1024
 SUPPORTED_COMPRESSION = {ZIP_STORED, ZIP_DEFLATED}
+# Signature, version needed, flags, method, time, date, CRC-32, compressed
+# size, uncompressed size, name length, extra field length.
+LOCAL_HEADER = struct.Struct('<4s5H3L2H')
+DATA_DESCRIPTOR_FLAG = 0x08
+
+
+def check_layout(raw: bytes, entries: list, central_directory: int) -> None:
+    """Require the listed entries to be the only local entries in the archive.
+
+    zipfile reads members through the central directory, but a streaming
+    extractor walks the local headers from the first byte and never reads it.
+    Bytes before, between or after the listed members could then hold an entry
+    that such an extractor unpacks, even over a verified file. The listed
+    entries must therefore fill the archive from offset 0 to the central
+    directory, and each local header must agree with its directory entry.
+    """
+    offset = 0
+    for info in sorted(entries, key=lambda item: item.header_offset):
+        if info.header_offset != offset or offset + LOCAL_HEADER.size > len(raw):
+            raise ValueError('archive holds bytes outside its listed entries')
+        (signature, _needed, flags, method, _time, _date, crc, compressed, size,
+         name_length, extra_length) = LOCAL_HEADER.unpack_from(raw, offset)
+        if (signature != b'PK\x03\x04' or flags & DATA_DESCRIPTOR_FLAG or flags != info.flag_bits
+                or (method, crc, compressed, size) != (info.compress_type, info.CRC, info.compress_size, info.file_size)):
+            raise ValueError('archive local header differs from its central directory entry')
+        offset += LOCAL_HEADER.size + name_length + extra_length + info.compress_size
+    if offset != central_directory:
+        raise ValueError('archive holds bytes outside its listed entries')
 
 
 def verify(archive: Path, root: Path, expected_sha256: str | None = None) -> dict:
@@ -41,6 +70,7 @@ def verify(archive: Path, root: Path, expected_sha256: str | None = None) -> dic
         names = [info.filename for info in entries]
         if len(names) != len(set(names)) or set(names) != set(expected):
             raise ValueError('archive entries differ from the source manifest')
+        check_layout(raw, entries, handle.start_dir)
         for info in entries:
             # Keep the decoder surface explicit across Python versions. Current
             # packages store members, which need no decoder; packages from 0.5.0

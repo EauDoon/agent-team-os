@@ -21,6 +21,18 @@ def identity_key(value: str) -> str:
     return unicodedata.normalize('NFKC', value).strip().casefold()
 
 
+def resource_key(value: str) -> str:
+    """Normalize a write resource name for ownership comparison.
+
+    Separators are unified and names compare without case. A precomposed
+    accent and a base letter with a combining accent render identically, so
+    canonically equivalent spellings are one name: the NFC form of the case
+    fold of the NFD form, which is Unicode canonical caseless matching.
+    """
+    folded = unicodedata.normalize('NFD', value.replace('\\', '/').strip('/')).casefold()
+    return unicodedata.normalize('NFC', folded)
+
+
 def routing_violations(plan: dict) -> list[str]:
     assignments = plan['assignments']
     if any(len(item['write_resources']) > MAX_RESOURCES_PER_ASSIGNMENT for item in assignments):
@@ -53,7 +65,7 @@ def routing_violations(plan: dict) -> list[str]:
     resources = node()
     for item in assignments:
         for resource in item['write_resources']:
-            normalized = resource.replace('\\', '/').strip('/').casefold()
+            normalized = resource_key(resource)
             if not normalized or any(part in {'.', '..', ''} for part in normalized.split('/')):
                 errors.append(f"{item['id']}: use an unambiguous write resource name")
                 continue

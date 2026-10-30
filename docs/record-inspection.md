@@ -94,7 +94,7 @@ python3 scripts/inspect_records.py compare-plans accepted-plan.json revised-plan
 The comparison validates both plans, then reports added/removed assignments,
 write resources and dependencies, changed brief fields and output ownership,
 and changed objectives or budgets. Reordering assignments is not a change.
-Resource names use the validator's case and separator normalization. Natural
+Resource names use the validator's case, Unicode and separator normalization. Natural
 language scope is shown as before/after text; the tool cannot decide whether a
 rewrite grants permission or is semantically equivalent. Review changed scope
 and stop obsolete owners before resuming work under a revised plan.

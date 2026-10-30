@@ -140,6 +140,24 @@ class WorkflowTests(unittest.TestCase):
             plan['assignments'][1]['write_resources'] = second
             self.assertEqual(bool(check_document('plan', plan)), conflict)
 
+    def test_canonically_equivalent_resource_names_have_one_owner(self):
+        # A precomposed accent and a base letter with a combining accent render
+        # identically, so a reviewer reads one resource with two owners. macOS
+        # file names are decomposed, so a name copied from Finder differs in
+        # code points from the same name typed on most keyboards.
+        for first, second in [(['docs/caf\u00e9.md'], ['docs/cafe\u0301.md']),
+                              (['docs/CAF\u00c9'], ['docs/cafe\u0301/menu.md']),
+                              (['\u212bngstr\u00f6m'], ['\u00c5ngstro\u0308m'])]:
+            plan = self.plan()
+            plan['assignments'][0]['write_resources'] = first
+            plan['assignments'][1]['write_resources'] = second
+            errors = check_document('plan', plan)
+            self.assertTrue(any('multiple owners' in error for error in errors), (first, second, errors))
+        plan = self.plan()
+        plan['assignments'][0]['write_resources'] = ['docs/caf\u00e9.md']
+        plan['assignments'][1]['write_resources'] = ['docs/cafe.md']
+        self.assertEqual(check_document('plan', plan), [])
+
     def test_routing_conflict_diagnostics_are_bounded(self):
         plan = self.plan()
         plan['assignments'][0]['write_resources'] = ['src']

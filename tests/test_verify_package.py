@@ -263,6 +263,66 @@ class PackageVerificationTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'content differs'):
                 verify(archive, root)
 
+    def layout_fixture(self, root: Path) -> bytes:
+        (root / 'VERSION').write_text('1.0.0')
+        (root / 'package-manifest.json').write_text('["payload.txt"]')
+        (root / 'payload.txt').write_text('good')
+        buffer = io.BytesIO()
+        info = ZipInfo('agent-team-1.0.0/payload.txt')
+        info.external_attr = 0o100644 << 16
+        with ZipFile(buffer, 'w') as handle:
+            handle.writestr(info, 'good')
+        return buffer.getvalue()
+
+    def test_local_entries_outside_the_central_directory_are_rejected(self):
+        # A streaming extractor (bsdtar reading a pipe, for example) walks the
+        # local headers in file order and never reads the central directory.
+        # An entry the directory does not list would be unpacked, here over
+        # the verified file, although every listed member matched the source.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            original = self.layout_fixture(root)
+            archive = root / 'fixture.zip'
+            archive.write_bytes(original)
+            self.assertTrue(verify(archive, root)['ok'])
+            name = b'agent-team-1.0.0/payload.txt'
+            hidden = struct.pack('<4s5H3L2H', b'PK\x03\x04', 20, 0, ZIP_STORED, 0, 0,
+                                 zlib.crc32(b'evil'), 4, 4, len(name), 0) + name + b'evil'
+            end_record = original.rfind(b'PK\x05\x06')
+            central_start = struct.unpack_from('<I', original, end_record + 16)[0]
+            before_directory = bytearray(original[:central_start] + hidden + original[central_start:])
+            struct.pack_into('<I', before_directory, end_record + len(hidden) + 16, central_start + len(hidden))
+            for label, raw in [('before the central directory', bytes(before_directory)),
+                               ('before the first entry', hidden + original)]:
+                with self.subTest(hidden=label):
+                    archive.write_bytes(raw)
+                    with ZipFile(archive) as handle:
+                        # The listed member still reads back as the source bytes.
+                        self.assertEqual(handle.read('agent-team-1.0.0/payload.txt'), b'good')
+                    with self.assertRaisesRegex(ValueError, 'outside its listed entries'):
+                        verify(archive, root)
+
+    def test_local_header_that_disagrees_with_the_central_directory_is_rejected(self):
+        # zipfile reads a member by its central directory sizes; a streaming
+        # extractor trusts the local header. Disagreeing sizes or flags let the
+        # two readers split the same bytes into different files.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            original = self.layout_fixture(root)
+            archive = root / 'fixture.zip'
+            end_record = original.rfind(b'PK\x05\x06')
+            central_start = struct.unpack_from('<I', original, end_record + 16)[0]
+            longer = bytearray(original)
+            struct.pack_into('<LL', longer, 18, 64, 64)  # local compressed and uncompressed size
+            descriptor = bytearray(original)
+            struct.pack_into('<H', descriptor, 6, 0x08)  # local flags: data descriptor follows
+            struct.pack_into('<H', descriptor, central_start + 8, 0x08)
+            for label, raw in [('sizes', longer), ('data descriptor flag', descriptor)]:
+                with self.subTest(differs=label):
+                    archive.write_bytes(bytes(raw))
+                    with self.assertRaisesRegex(ValueError, 'local header'):
+                        verify(archive, root)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -9,8 +9,12 @@ python3 scripts/verify_package.py dist/agent-team-0.6.0.zip
 
 The verifier compares every archive entry with the current source manifest and
 file bytes. It rejects extra, missing or duplicate entries, non-regular files,
-encrypted entries, changed content and oversized archives. It reads the ZIP
-without extracting or executing any member. Archives are limited to 32 MiB;
+encrypted entries, changed content and oversized archives. The listed entries
+must fill the archive from its first byte up to the central directory, and each
+local header must agree with its central directory entry, so an extractor that
+streams local headers (such as `bsdtar` reading a pipe) unpacks exactly the
+members that were compared. Data descriptors are rejected; the included builder
+never writes them. It reads the ZIP without extracting or executing any member. Archives are limited to 32 MiB;
 decompression is bounded to each expected source file's size. The digest and
 member checks use the same bounded in-memory archive snapshot, even if the
 archive path is replaced during verification. The result describes that

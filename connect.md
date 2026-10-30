@@ -403,8 +403,9 @@ advertise `bounded-scope`, so the one required capability it lacks is missing.
 
 - The `handoff` payload reuses the six-field role brief, so internal and external
   delegation share one contract.
-- A `result` payload mirrors the shape of the bounded evaluation result in
-  [`evals/result.schema.json`](evals/result.schema.json).
+- A `result` payload is not the bounded evaluation result in
+  [`evals/result.schema.json`](evals/result.schema.json). That record summarizes
+  paired calibration runs, and the two share no fields.
 - The security boundaries here restate, not replace, [`SECURITY.md`](SECURITY.md).
 
 ## Limitations
