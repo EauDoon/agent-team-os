@@ -25,6 +25,13 @@ set `VERSION`; those versions were never tagged or published.
   field, the final `result` worked example carries it, and
   `scripts/validate.py` holds the connect.md field tables and rules to the
   shipped connect schemas.
+- Package verification rejects an archive whose bytes hold anything besides the
+  listed entries, or whose local headers disagree with the central directory.
+  An extra local entry, such as a second `SKILL.md` placed before the central
+  directory, used to pass verification while an extractor that streams local
+  headers, such as `bsdtar` reading a pipe, unpacked it over the verified file.
+  Data descriptors are rejected; the included builder never writes them, and
+  Deflate archives from 0.5.0 and earlier still verify.
 
 ## [0.6.0] - 2026-10-09
 
