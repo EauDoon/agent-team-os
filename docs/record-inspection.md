@@ -172,6 +172,44 @@ its transitive dependents. Repeat the flag for multiple blockers. Blocked work
 cannot appear ready; an accepted assignment cannot also be blocked. These are
 operator assertions for inspection and never change execution state.
 
+## Check dispatched handoffs against the plan
+
+```sh
+python3 scripts/inspect_records.py dispatch templates/routing-plan.json requirements-handoff.json build-handoff.json --accepted requirements
+```
+
+The approved routing plan is the scope a delegated role may receive: one brief
+and one owner per output, released in dependency order. This command checks
+the handoffs actually sent against it. The plan must conform, and `--accepted`
+and `--blocked` follow the same rules as [`plan`](#inspect-dependency-readiness).
+Every message must be a conforming connect handoff; at most 256 files and
+8 MiB in total. Identical redeliveries are skipped, and a reused `message_id`
+with different content fails.
+
+A handoff binds to the assignment whose `brief` equals its `role_brief`
+exactly. `role_brief_version` is ignored on both sides; every other field,
+including `prohibited_actions`, counts. The inspection fails when:
+
+- the brief matches no planned assignment, as when its access scope was
+  widened after approval. `candidates` lists each assignment with the same
+  role and its `differing_fields`: field names only, never values;
+- the brief matches more than one assignment, because the plan repeats a brief;
+- one assignment is handed to more than one recipient, which gives one output
+  two owners ([connect.md](../connect.md#design-principles),
+  [routing plans](routing-plans.md));
+- an assignment is dispatched before every dependency is in `--accepted`
+  ([handoffs](handoffs.md), step 3: release dependent work only after the
+  output it needs is accepted);
+- an assignment is dispatched while it is in `--blocked`.
+
+Observations never fail the check: `redispatched` marks a second handoff of an
+assignment to the same recipient under a new message ID, and `already_accepted`
+marks the dispatch of an assignment whose output is already accepted.
+`undispatched_ready` lists ready assignments with no handoff. Exit status is 0
+when every handoff matches the plan and 1 otherwise. A matching brief shows
+only that the dispatched scope equals the approved plan scope. The command does
+not authorize or start work, authenticate senders or enforce the scope.
+
 ## Review a revised plan
 
 ```sh

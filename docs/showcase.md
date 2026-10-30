@@ -70,6 +70,7 @@ made.
 | `scripts/inspect_records.py` | Inspect readiness, plan changes, evidence impact, and audit remediation. |
 | `scripts/inspect_records.py negotiate` | Compute the exact accept or refuse payload for a connect request. |
 | `scripts/inspect_records.py connection` | Check a recorded connect exchange against the lifecycle rules. |
+| `scripts/inspect_records.py dispatch` | Check dispatched handoffs against the approved routing plan. |
 | `scripts/evaluate.py` | Summarize paired runs and export Markdown reports. |
 | `scripts/packet.py` | Check related records and create or verify exact-byte receipts. |
 | `scripts/package.py` | Build a deterministic ZIP plus SHA-256 checksum. |

@@ -131,6 +131,7 @@ Use only the records that help the task.
 | `scripts/inspect_records.py` | Inspect readiness, plan changes, evidence impact, and audit remediation. |
 | `scripts/inspect_records.py negotiate` | Compute the exact accept or refuse payload the connect negotiation rules require. |
 | `scripts/inspect_records.py connection` | Check a recorded connect exchange, in delivery order, against the lifecycle rules. |
+| `scripts/inspect_records.py dispatch` | Check dispatched handoffs against the approved routing plan: exact briefs, one owner, dependency order. |
 | `scripts/check.py brief` or `connect` | Validate authored JSON before handing off work. |
 | `scripts/check.py plan` | Catch dependency cycles, duplicate output ownership, and inconsistent budgets. |
 | `scripts/check.py evidence` | Catch missing claim sources and unresolved evidence gaps. |
@@ -262,7 +263,7 @@ agent-team-os/
 |   |-- check.py                    # Brief, connect, plan, evidence, audit checks
 |   |-- contracts.py                # Bundled JSON Schema subset checker
 |   |-- author.py                   # Brief and connect message authoring
-|   |-- inspect_records.py          # Readiness, impact, negotiation and connection inspection
+|   |-- inspect_records.py          # Readiness, impact, negotiation, connection and dispatch inspection
 |   |-- evaluate.py                 # Paired-run evaluation
 |   |-- packet.py                   # Record packet receipts
 |   |-- version.py                  # The one reader of VERSION

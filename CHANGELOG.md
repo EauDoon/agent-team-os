@@ -28,6 +28,14 @@ set `VERSION`; those versions were never tagged or published.
   runs it and requires the `connect.md` acceptance and refusal examples to be
   conforming connections. Each message of the 0.6.0 examples passed on its
   own while its result broke the negotiated-set rule.
+- `scripts/inspect_records.py dispatch PLAN HANDOFF... [--accepted ID]...
+  [--blocked ID]...` checks the handoffs actually sent against the approved
+  routing plan. Each handoff binds to the assignment whose brief it carries
+  exactly, ignoring only `role_brief_version`. A brief that matches no
+  assignment fails and lists the differing field names, never their values;
+  so do a brief that matches two assignments, one assignment handed to two
+  recipients, and dispatch before the dependencies are accepted or while the
+  assignment is blocked. A widened access scope used to pass every check.
 - `scripts/author.py` composes every v0.2 connect message type. `request`
   writes offered and required capabilities; `response --request FILE
   --advertise TOKEN` writes the exact negotiation reply with reversed

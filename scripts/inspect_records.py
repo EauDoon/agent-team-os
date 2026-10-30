@@ -11,13 +11,17 @@ try:
                         read_json_bytes, shape_failures)
     from .contracts import violations
     from .version import add_version_flag
-    from .workflows import RecordError, connection_report, negotiate, negotiation_sets, resource_key
+    from .contracts import json_equal
+    from .workflows import (MAX_CONNECTION_FAILURES, MAX_CONNECTION_MESSAGES, RecordError, connection_report,
+                            distinct_messages, negotiate, negotiation_sets, resource_key)
 except ImportError:
     from check import (CONNECT_CONTRACTS, ROOT, check_document, load_json, masked_diagnostics, parse_json_bytes,
                        read_json_bytes, shape_failures)
     from contracts import violations
     from version import add_version_flag
-    from workflows import RecordError, connection_report, negotiate, negotiation_sets, resource_key
+    from contracts import json_equal
+    from workflows import (MAX_CONNECTION_FAILURES, MAX_CONNECTION_MESSAGES, RecordError, connection_report,
+                           distinct_messages, negotiate, negotiation_sets, resource_key)
 
 GENERIC_ERROR = 'records or inspection arguments are invalid or unreadable'
 MAX_TOTAL_BYTES = 8 * 1024 * 1024
@@ -298,6 +302,98 @@ def inspect_connection(messages: list, advertised: list[str] | None = None, *,
                              advertised=advertised, require_closed=require_closed)
 
 
+DISPATCH_NOTE = ('A matching brief shows that the dispatched scope equals the approved plan scope. Accepted and '
+                 'blocked IDs are operator assertions. The report does not authorize or start work, authenticate '
+                 'senders or enforce the scope.')
+
+
+def plan_scope(brief: dict) -> dict:
+    """Return the brief fields that define scope; the single-value version marker is ignored."""
+    return {key: value for key, value in brief.items() if key != 'role_brief_version'}
+
+
+def inspect_dispatch(plan: object, handoffs: list, accepted: list[str] | None = None, *,
+                     blocked: list[str] | None = None) -> dict:
+    """Check dispatched handoffs against the approved routing plan.
+
+    Each handoff binds to the assignment whose brief it carries exactly. A brief
+    that matches none was changed after approval; one assignment handed to two
+    recipients has two owners; and an assignment may not be dispatched before
+    its dependencies are accepted or while it is blocked.
+    """
+    readiness = inspect_plan(plan, accepted, blocked=blocked)
+    if not isinstance(handoffs, list) or not handoffs:
+        raise RecordError('supply at least one handoff')
+    if len(handoffs) > MAX_CONNECTION_MESSAGES:
+        raise RecordError('a dispatch inspection accepts at most 256 handoffs')
+    assignments = {item['id']: item for item in plan['assignments']}
+    accepted_ids, blocked_ids = set(readiness['accepted']), set(readiness['blocked'])
+    failures: list[dict] = []
+    observations: list[dict] = []
+
+    def fail(position, message, text, assignment=None, **detail):
+        message_id = message.get('message_id') if isinstance(message, dict) else None
+        failures.append({'position': position, 'message_id': message_id if isinstance(message_id, str) else None,
+                         'assignment': assignment, 'failure': text, **detail})
+
+    report = {'contract_valid': False, 'route': plan['route'], 'dispatched': [], 'recipients': {},
+              'undispatched_ready': [], 'redelivered': [], 'failure_count': 0, 'failures': [],
+              'observations': observations, 'note': DISPATCH_NOTE}
+    for position, message in enumerate(handoffs, 1):
+        if check_document('connect', message):
+            fail(position, message, 'message does not conform to its declared connect version')
+        elif message['type'] != 'handoff':
+            fail(position, message, 'message is not a handoff')
+    if not failures:
+        distinct, report['redelivered'], conflicts = distinct_messages(handoffs)
+        for conflict in conflicts:
+            fail(conflict['position'], handoffs[conflict['position'] - 1],
+                 'message_id was delivered again with different content')
+        recipients: dict[str, list[str]] = {}
+        for position, message in distinct:
+            scope = plan_scope(message['payload']['role_brief'])
+            matches = [key for key, item in assignments.items() if json_equal(plan_scope(item['brief']), scope)]
+            if not matches:
+                candidates = [{'assignment': key, 'differing_fields': sorted(
+                                  field for field in plan_scope(item['brief']).keys() | scope.keys()
+                                  if not json_equal(plan_scope(item['brief']).get(field), scope.get(field)))}
+                              for key, item in sorted(assignments.items())
+                              if item['brief'].get('role') == scope.get('role')]
+                fail(position, message, 'role brief matches no planned assignment', candidates=candidates)
+                continue
+            if len(matches) > 1:
+                fail(position, message, 'role brief matches more than one planned assignment',
+                     candidates=[{'assignment': key, 'differing_fields': []} for key in sorted(matches)])
+                continue
+            key = matches[0]
+            target = message['to']
+            report['dispatched'].append({'position': position, 'message_id': message['message_id'],
+                                         'to': target, 'assignment': key})
+            earlier = recipients.setdefault(key, [])
+            if earlier and target not in earlier:
+                fail(position, message, 'assignment is handed to more than one recipient', key)
+            elif target in earlier:
+                observations.append({'observation': 'redispatched', 'position': position,
+                                     'message_id': message['message_id'], 'assignment': key})
+            if target not in earlier:
+                earlier.append(target)
+            if key in blocked_ids:
+                fail(position, message, 'assignment is dispatched while blocked', key)
+            unaccepted = sorted(set(assignments[key]['depends_on']) - accepted_ids)
+            if unaccepted:
+                fail(position, message, 'assignment is dispatched before its dependencies are accepted', key,
+                     unaccepted_dependencies=unaccepted)
+            if key in accepted_ids:
+                observations.append({'observation': 'already_accepted', 'position': position,
+                                     'message_id': message['message_id'], 'assignment': key})
+        report['recipients'] = dict(sorted(recipients.items()))
+        report['undispatched_ready'] = [key for key in readiness['ready'] if key not in recipients]
+    report['failure_count'] = len(failures)
+    report['failures'] = failures[:MAX_CONNECTION_FAILURES]
+    report['contract_valid'] = not failures
+    return report
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     add_version_flag(parser)
@@ -338,6 +434,15 @@ def main() -> int:
                                  'the response against the negotiation rules')
     connection.add_argument('--require-closed', action='store_true',
                             help='also require the exchange to end in a refusal or a result')
+    dispatch = commands.add_parser(
+        'dispatch', help='check dispatched handoffs against the approved routing plan')
+    dispatch.add_argument('plan', type=Path, help='the approved routing plan')
+    dispatch.add_argument('handoffs', type=Path, nargs='+', metavar='HANDOFF',
+                          help='connect handoff files (at most 256, 8 MiB in total)')
+    dispatch.add_argument('--accepted', action='append', default=[],
+                          help='an assignment whose output the operator accepted; repeat for each')
+    dispatch.add_argument('--blocked', action='append', default=[],
+                          help='an assignment the operator holds as blocked; repeat for each')
     args = parser.parse_args()
     try:
         if args.command == 'compare-plans':
@@ -353,6 +458,9 @@ def main() -> int:
             result = inspect_handoff(load_json(args.handoff), load_json(args.response))
         elif args.command == 'negotiate':
             result = inspect_negotiation(load_json(args.request), args.advertise)
+        elif args.command == 'dispatch':
+            result = inspect_dispatch(load_json(args.plan), load_records(args.handoffs), args.accepted,
+                                      blocked=args.blocked)
         elif args.command == 'connection':
             result = inspect_connection(load_records(args.messages), args.advertise,
                                         require_closed=args.require_closed)

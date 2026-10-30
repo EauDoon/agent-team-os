@@ -25,7 +25,10 @@ other roles can return proposed changes for that owner. A sequential ownership
 transfer needs a revised plan after the first owner stops.
 
 The checker cannot establish that the delegation benefit is real or that the
-execution environment enforces the brief. Review both before dispatch.
+execution environment enforces the brief. Review both before dispatch. After
+dispatch, [check the handoffs against the plan](record-inspection.md#check-dispatched-handoffs-against-the-plan)
+to confirm each carries its approved brief unchanged, to one owner, in
+dependency order.
 
 Plans are bounded to 64 assignments, 63 dependencies per assignment, 256 write
 resources per assignment and 1024 write resources in total. Oversized arrays
