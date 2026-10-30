@@ -22,8 +22,9 @@ set `VERSION`; those versions were never tagged or published.
   the final `result` message. The `result` payload rejects that field, so a
   sender following the rule built a message `scripts/check.py connect` refuses.
   The negotiated capability set now travels in the envelope `capabilities`
-  field, and `scripts/validate.py` holds the connect.md field tables and rules
-  to the shipped connect schemas.
+  field, the final `result` worked example carries it, and
+  `scripts/validate.py` holds the connect.md field tables and rules to the
+  shipped connect schemas.
 
 ## [0.6.0] - 2026-10-09
 

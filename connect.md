@@ -388,6 +388,7 @@ advertise `bounded-scope`, so the one required capability it lacks is missing.
   "correlation_id": "conn-42",
   "from": "orchestrator",
   "to": "vendor-intake-agent",
+  "capabilities": ["bounded-scope", "evidence-trace"],
   "payload": {
     "summary": "Vendor A best fits the criteria; vendor C is missing exit-effort evidence.",
     "request_satisfied": true,
