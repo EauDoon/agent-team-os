@@ -18,6 +18,13 @@ set `VERSION`; those versions were never tagged or published.
   an archive during verification can no longer combine one file's digest with
   another file's contents, and a file that grows after opening still respects
   the 32 MiB archive limit.
+- `connect.md` no longer tells a sender to record `negotiated_capabilities` in
+  the final `result` message. The `result` payload rejects that field, so a
+  sender following the rule built a message `scripts/check.py connect` refuses.
+  The negotiated capability set now travels in the envelope `capabilities`
+  field, the final `result` worked example carries it, and
+  `scripts/validate.py` holds the connect.md field tables and rules to the
+  shipped connect schemas.
 
 ## [0.6.0] - 2026-10-09
 

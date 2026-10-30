@@ -148,8 +148,10 @@ Rules and edge cases:
 - On refusal, `refusal_reason` names exactly the missing capabilities and
   `next_step` states the bounded action (authorize them or remove them from
   `required_capabilities`). Never refuse without a reason.
-- Record `negotiated_capabilities` in the final `result` context so a connection
-  is reproducible.
+- Record the negotiated capability set in the final `result` message so a
+  connection is reproducible. The `result` payload has no field for that set,
+  so it travels in the envelope `capabilities` field. A sender that adds a
+  field the payload does not define produces a message the checker rejects.
 
 ## Message types and payloads
 
@@ -248,8 +250,9 @@ See [`SECURITY.md`](SECURITY.md) for safe-use and reporting guidance.
 - Additive changes (new optional fields, new capability tokens) should not bump the
   minor-incompatible surface; changes that alter the meaning of an existing field
   must bump the version.
-- Record the `connect_version` and the negotiated capability set in the result so a
-  connection is reproducible.
+- Record the `connect_version` and the negotiated capability set in the `result`
+  envelope so a connection is reproducible. The negotiated set travels in the
+  envelope `capabilities` field.
 
 ## Rejections and errors (consumer UX)
 
@@ -385,6 +388,7 @@ advertise `bounded-scope`, so the one required capability it lacks is missing.
   "correlation_id": "conn-42",
   "from": "orchestrator",
   "to": "vendor-intake-agent",
+  "capabilities": ["bounded-scope", "evidence-trace"],
   "payload": {
     "summary": "Vendor A best fits the criteria; vendor C is missing exit-effort evidence.",
     "request_satisfied": true,

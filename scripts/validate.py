@@ -80,6 +80,77 @@ def _json_object(items):
     return result
 
 
+def document_sections(text: str) -> dict[str, str]:
+    """Return the body of each Markdown heading, keyed by the heading line.
+
+    A heading that names a section is the key, so a caller can ask for one
+    named section without walking the document itself.
+    """
+    sections: dict[str, str] = {}
+    heading = ""
+    body: list[str] = []
+    fenced = False
+    for line in text.splitlines():
+        if line.strip().startswith("```"):
+            fenced = not fenced
+        elif not fenced and line.startswith("#"):
+            if heading:
+                sections[heading] = "\n".join(body)
+            heading = line.strip()
+            body = []
+            continue
+        body.append(line)
+    if heading:
+        sections[heading] = "\n".join(body)
+    return sections
+
+
+def document_rules(text: str) -> list[str]:
+    """Return the bullet rules of a Markdown document.
+
+    A bullet states an instruction, so a field named in one is a claim about
+    the message that uses it. Fenced code, tables and headings are not rules:
+    they carry examples and field lists instead, and a field listed there is
+    not a claim about a message.
+    """
+    rules: list[str] = []
+    current: list[str] | None = None
+    fenced = False
+
+    def flush() -> None:
+        nonlocal current
+        if current is not None:
+            rules.append(" ".join(current))
+            current = None
+
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            fenced = not fenced
+            flush()
+            continue
+        if fenced:
+            continue
+        if stripped.startswith("- "):
+            flush()
+            current = [stripped]
+        elif current is not None and line.startswith("  ") and stripped:
+            current.append(stripped)
+        else:
+            flush()
+    flush()
+    return rules
+
+
+def table_fields(section: str) -> set[str]:
+    """Return the backticked keys in the first column of a Markdown table."""
+    return {
+        match.group(1)
+        for line in section.splitlines()
+        if (match := re.match(r"^\|\s*`([^`]+)`\s*\|", line))
+    }
+
+
 CHANGELOG_HEADING = re.compile(
     r"(?m)^## (?:\[(\d+\.\d+\.\d+)\]|(\d+\.\d+\.\d+))(?: - (\d{4}-\d{2}-\d{2}))?[ \t]*$"
 )
@@ -672,6 +743,51 @@ class Checker:
                     f"connect conformance case {name} fails for its declared violation",
                 )
 
+    def check_connect_field_names(self) -> None:
+        """Hold the connect.md field names to the shipped connect schemas.
+
+        The specification names message fields in its tables and in its rules,
+        and the shipped schemas are what a sender is checked against. Nothing
+        compared the two, so the negotiation rules could tell a sender to record
+        a field that the `result` message rejects, and a conforming sender
+        would produce a message the checker refuses.
+        """
+        schema = self.json_file("schemas/connect.schema.json")
+        if not isinstance(schema, dict):
+            return
+        properties = schema.get("properties")
+        definitions = schema.get("$defs")
+        if not isinstance(properties, dict) or not isinstance(definitions, dict):
+            return
+        envelope = set(properties)
+        payloads = {
+            name: set(spec["properties"])
+            for name, spec in definitions.items()
+            if isinstance(spec, dict) and isinstance(spec.get("properties"), dict)
+        }
+        known = envelope | set().union(*payloads.values()) if payloads else envelope
+        spec = self.text("connect.md")
+        sections = document_sections(spec)
+        self.ok(
+            table_fields(sections.get("## Message envelope", "")) == envelope,
+            "connect.md envelope table matches the connect schema",
+        )
+        for name, fields in payloads.items():
+            self.ok(
+                table_fields(sections.get(f"### `{name}`", "")) == fields,
+                f"connect.md {name} table matches the connect schema",
+            )
+        for rule in document_rules(spec):
+            tokens = re.findall(r"`([^`]+)`", rule)
+            named = [token for token in tokens if token in known]
+            for name in [token for token in tokens if token in payloads]:
+                accepted = envelope | payloads[name]
+                for field in named:
+                    self.ok(
+                        field in accepted,
+                        f"connect.md field is accepted by the {name} message: {field}",
+                    )
+
     def check_negotiation_conformance(self, relative: str = "conformance/negotiation/cases.json") -> None:
         """Run the negotiation suite and hold connect.md to its own rules.
 
@@ -919,6 +1035,7 @@ class Checker:
         self.check_connect_conformance()
         self.check_connect_examples("docs/connect-v0.2.md", "schemas/connect-v0.2.schema.json")
         self.check_connect_conformance("conformance/connect-v0.2/cases.json", "schemas/connect-v0.2.schema.json")
+        self.check_connect_field_names()
         self.check_negotiation_conformance()
         self.check_operator_fixtures()
         self.check_packet_fixture()

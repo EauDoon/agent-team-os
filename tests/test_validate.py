@@ -986,6 +986,46 @@ class ValidateTests(unittest.TestCase):
             checker.check_negotiation_conformance()
             self.assertIn("connect.md capability vocabulary matches the reference negotiator", checker.failures)
 
+    def test_connect_field_names_must_match_the_shipped_schemas(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.negotiation_root(root)
+            checker = Checker(root)
+            checker.check_connect_field_names()
+            self.assertEqual(checker.failures, [])
+            self.assertIn("connect.md envelope table matches the connect schema", checker.checks)
+            self.assertIn("connect.md result table matches the connect schema", checker.checks)
+
+            # A rule that names a field the message rejects sends a conforming
+            # sender to a message the checker refuses.
+            spec = root / "connect.md"
+            text = spec.read_text(encoding="utf-8")
+            broken = text.replace(
+                "- Record the negotiated capability set in the final `result` message so a",
+                "- Record `negotiated_capabilities` in the final `result` message so a",
+                1,
+            )
+            self.assertNotEqual(broken, text)
+            spec.write_text(broken, encoding="utf-8")
+            checker = Checker(root)
+            checker.check_connect_field_names()
+            self.assertIn(
+                "connect.md field is accepted by the result message: negotiated_capabilities",
+                checker.failures,
+            )
+
+            # A schema field the specification does not document leaves the two
+            # surfaces describing different messages.
+            spec.write_text(text, encoding="utf-8")
+            schema_path = root / "schemas/connect.schema.json"
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+            schema["$defs"]["result"]["properties"]["negotiated_capabilities"] = {
+                "type": "array", "items": {"type": "string"}}
+            schema_path.write_text(json.dumps(schema), encoding="utf-8")
+            checker = Checker(root)
+            checker.check_connect_field_names()
+            self.assertIn("connect.md result table matches the connect schema", checker.failures)
+
     def test_changelog_top_entry_must_match_version(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
