@@ -127,7 +127,7 @@ Use only the records that help the task.
 
 | Tool | Local outcome |
 | --- | --- |
-| `scripts/author.py` | Compose complete briefs, explicit v0.2 handoffs, and actionable refusals. |
+| `scripts/author.py` | Compose complete briefs and every v0.2 connect message: requests, negotiated responses, handoffs, refusals, statuses, and results that record the negotiated set. |
 | `scripts/inspect_records.py` | Inspect readiness, plan changes, evidence impact, and audit remediation. |
 | `scripts/inspect_records.py negotiate` | Compute the exact accept or refuse payload the connect negotiation rules require. |
 | `scripts/inspect_records.py connection` | Check a recorded connect exchange, in delivery order, against the lifecycle rules. |
@@ -261,7 +261,7 @@ agent-team-os/
 |   |-- verify_package.py           # Archive verification against source bytes
 |   |-- check.py                    # Brief, connect, plan, evidence, audit checks
 |   |-- contracts.py                # Bundled JSON Schema subset checker
-|   |-- author.py                   # Brief and handoff authoring
+|   |-- author.py                   # Brief and connect message authoring
 |   |-- inspect_records.py          # Readiness, impact, negotiation and connection inspection
 |   |-- evaluate.py                 # Paired-run evaluation
 |   |-- packet.py                   # Record packet receipts

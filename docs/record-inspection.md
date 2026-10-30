@@ -126,7 +126,10 @@ message or a malformed token exits 1 with the generic input error and the
 `reason` that names it (see [failure reasons](#read-a-failure-reason)).
 
 The result is a decision only. The command sends no response, grants no
-permission and does not record the negotiated set anywhere. The
+permission and does not record the negotiated set anywhere. To write the
+response message itself, use
+[`author.py response`](authoring.md#response), which applies the same rules to
+a v0.2 request. The
 [negotiation conformance suite](../conformance/negotiation/README.md) pins the
 same rules for other implementations.
 

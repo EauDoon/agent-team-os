@@ -28,6 +28,15 @@ set `VERSION`; those versions were never tagged or published.
   runs it and requires the `connect.md` acceptance and refusal examples to be
   conforming connections. Each message of the 0.6.0 examples passed on its
   own while its result broke the negotiated-set rule.
+- `scripts/author.py` composes every v0.2 connect message type. `request`
+  writes offered and required capabilities; `response --request FILE
+  --advertise TOKEN` writes the exact negotiation reply with reversed
+  endpoints and the copied correlation; `status` requires a decision for a
+  `gap`; and `result` records the negotiated set in the envelope
+  `capabilities`, from an accepted response of the same connection and
+  endpoints or from explicit `--capability` tokens. `handoff --evidence ID`
+  writes `payload.evidence` and `brief --prohibit TEXT` writes
+  `prohibited_actions`. Existing invocations write the same bytes as before.
 - Failure output from `scripts/inspect_records.py`, `scripts/author.py` and
   `scripts/evaluate.py` names the rule that failed. Each tool keeps its exact
   generic `error` string and exit status, and adds `reason`, fixed tool text
