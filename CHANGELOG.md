@@ -39,6 +39,8 @@ set `VERSION`; those versions were never tagged or published.
   no conflict.
   `inspect_records.py compare-plans` no longer reports such a respelling as a
   scope change.
+- `connect.md` no longer says the `result` payload mirrors the shape of
+  `evals/result.schema.json`. The two schemas share no field names.
 
 ## [0.6.0] - 2026-10-09
 
