@@ -7,17 +7,21 @@ from datetime import datetime
 from pathlib import Path
 
 try:
-    from .check import CONNECT_CONTRACTS, ROOT, check_document, load_json, masked_diagnostics, shape_failures
+    from .check import (CONNECT_CONTRACTS, ROOT, check_document, load_json, masked_diagnostics, parse_json_bytes,
+                        read_json_bytes, shape_failures)
     from .contracts import violations
     from .version import add_version_flag
-    from .workflows import RecordError, negotiate, negotiation_sets, resource_key
+    from .workflows import RecordError, connection_report, negotiate, negotiation_sets, resource_key
 except ImportError:
-    from check import CONNECT_CONTRACTS, ROOT, check_document, load_json, masked_diagnostics, shape_failures
+    from check import (CONNECT_CONTRACTS, ROOT, check_document, load_json, masked_diagnostics, parse_json_bytes,
+                       read_json_bytes, shape_failures)
     from contracts import violations
     from version import add_version_flag
-    from workflows import RecordError, negotiate, negotiation_sets, resource_key
+    from workflows import RecordError, connection_report, negotiate, negotiation_sets, resource_key
 
 GENERIC_ERROR = 'records or inspection arguments are invalid or unreadable'
+MAX_TOTAL_BYTES = 8 * 1024 * 1024
+MAX_MESSAGE_FILES = 256
 
 
 def require_record(kind: str, document: object) -> None:
@@ -273,6 +277,27 @@ def inspect_negotiation(request: object, advertised: list[str]) -> dict:
             'note': 'Computes the negotiation decision only; it sends nothing and grants no permission.'}
 
 
+def load_records(paths: list[Path]) -> list[object]:
+    """Read several bounded JSON files, at most 256 and 8 MiB in total."""
+    if len(paths) > MAX_MESSAGE_FILES:
+        raise RecordError('an inspection accepts at most 256 record files')
+    records, total = [], 0
+    for path in paths:
+        raw = read_json_bytes(path)
+        total += len(raw)
+        if total > MAX_TOTAL_BYTES:
+            raise RecordError('record files exceed 8 MiB in total')
+        records.append(parse_json_bytes(raw))
+    return records
+
+
+def inspect_connection(messages: list, advertised: list[str] | None = None, *,
+                       require_closed: bool = False) -> dict:
+    """Check a recorded exchange, in delivery order, against the connect.md lifecycle."""
+    return connection_report(messages, check=lambda message: check_document('connect', message),
+                             advertised=advertised, require_closed=require_closed)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     add_version_flag(parser)
@@ -304,6 +329,15 @@ def main() -> int:
     negotiation.add_argument('request', type=Path)
     negotiation.add_argument('--advertise', action='append', default=[],
                              help='a capability the Orchestrator advertises; repeat for each')
+    connection = commands.add_parser(
+        'connection', help='check a recorded connect exchange, in delivery order, against the lifecycle rules')
+    connection.add_argument('messages', type=Path, nargs='+', metavar='MESSAGE',
+                            help='connect message files in delivery order (at most 256, 8 MiB in total)')
+    connection.add_argument('--advertise', action='append', default=None, metavar='TOKEN',
+                            help='a capability the Orchestrator advertised; repeat for each to also check '
+                                 'the response against the negotiation rules')
+    connection.add_argument('--require-closed', action='store_true',
+                            help='also require the exchange to end in a refusal or a result')
     args = parser.parse_args()
     try:
         if args.command == 'compare-plans':
@@ -319,6 +353,9 @@ def main() -> int:
             result = inspect_handoff(load_json(args.handoff), load_json(args.response))
         elif args.command == 'negotiate':
             result = inspect_negotiation(load_json(args.request), args.advertise)
+        elif args.command == 'connection':
+            result = inspect_connection(load_records(args.messages), args.advertise,
+                                        require_closed=args.require_closed)
         else:
             result = inspect_plan(load_json(args.file), args.accepted, blocked=args.blocked, invalidate=args.invalidate)
         rendered = json.dumps({'ok': result.get('contract_valid', True), 'inspection': result}, indent=2, allow_nan=False)

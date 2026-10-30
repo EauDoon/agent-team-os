@@ -18,6 +18,71 @@ generic `error` alone. Match on `reason`, not on `error`, to tell the rules
 apart; the [troubleshooting table](operator-quickstart.md#troubleshooting)
 maps the common ones to a correction.
 
+## Check a whole connection
+
+```sh
+python3 scripts/inspect_records.py connection request.json response.json handoff.json status.json result.json --advertise bounded-scope --advertise evidence-trace --require-closed
+```
+
+Give the connect message files in delivery order: at most 256 files and 8 MiB
+in total, each at most 1 MiB. Every message must conform to its declared
+version first; the lifecycle rules run only when all of them do. A delivery
+whose `message_id` and JSON content repeat an earlier one is listed under
+`redelivered` and skipped. The rules, each with its source:
+
+- R1. Every message conforms to its declared version
+  ([connect.md](../connect.md#agent-team-connect), "A message must validate
+  against its declared version").
+- R2. One `connect_version` per connection. This interprets the versioning
+  rules; [`handoff`](#compare-a-handoff-and-a-response-envelope) applies the
+  same check to a pair.
+- R3. One `correlation_id` per connection
+  ([lifecycle](../connect.md#connection-lifecycle)).
+- R4. A repeated `message_id` with different content is a conflict
+  ([handoffs](handoffs.md), step 4).
+- R5. Exactly one request, and it is the first message. Its `from` is the
+  initiator and its `to` is the Orchestrator
+  ([participants](../connect.md#participants)).
+- R6. The single response directly follows the request and goes from the
+  Orchestrator to the initiator (lifecycle step 2).
+- R7. An accepted response carries `negotiated_capabilities`, sorted, holding
+  every required capability and only offered or required ones
+  ([negotiation](../connect.md#capability-negotiation)). With `--advertise`,
+  a response must equal the rules' reply exactly, except that a refusal for
+  another reason, such as a scope conflict or an authorization gap, is allowed
+  when every required capability is advertised. It is recorded as the
+  `non_capability_refusal` observation; a refusal that names missing
+  capabilities the advertised set supplies fails.
+- R8. Only redeliveries may follow a refusal (lifecycle diagram).
+- R9. Every handoff comes from the Orchestrator (lifecycle step 3).
+- R10. Every status goes to the Orchestrator from the recipient of an earlier
+  handoff (participants table and lifecycle step 4). This attributes a status
+  to a recipient, not to a specific handoff.
+- R11. At most one result, from the Orchestrator to the initiator, and it is
+  the last message (lifecycle step 5).
+- R12. The result envelope `capabilities`, compared as a set, equals the
+  negotiated set; it may be omitted only when that set is empty
+  ([versioning](../connect.md#versioning-and-compatibility)). The 0.6.0
+  result example broke this rule.
+- R13. With `--require-closed`, the exchange ends in a refusal or a result.
+
+Observations never fail the check. `open_handoffs` names recipients whose last
+status is neither `done` nor `blocked` when the result arrives;
+`satisfied_with_open_gaps` flags `request_satisfied: true` while a recipient's
+last status is `gap` or `blocked`; `gap_without_decision` flags a `gap` status
+without a `decision_needed` ([rejections and errors](../connect.md#rejections-and-errors-consumer-ux)).
+`sent_at` is not judged.
+
+The output reports the participants, the negotiated set, each handoff with its
+recipient and role, whether the connection is `closed`, `request_satisfied`,
+`failure_count` and the first 32 failures, each with its rule, position and
+`message_id`. Exit status is 0 when the exchange conforms and 1 otherwise; an
+unreadable file or a broken limit exits 1 with the generic input error and a
+`reason`. The report establishes order and envelope consistency only. It does
+not bind a status to a handoff, authenticate senders, prevent replay or grant
+access. The [connection conformance suite](../conformance/connection/README.md)
+pins the rules for other implementations.
+
 ## Compare a handoff and a response envelope
 
 Run `python3 scripts/inspect_records.py handoff handoff.json response.json`.

@@ -69,9 +69,11 @@ the security boundaries that keep a connection bounded.
 The connect spec is a contract, not a runtime. The transport (queue, RPC,
 files, channel) and the real permission enforcement remain the deployment's
 job. The conformance suites at `conformance/connect/`,
-`conformance/connect-v0.2/` and `conformance/negotiation/` exercise the spec
-against named expected outcomes, and `scripts/validate.py` runs all three in
-CI. `scripts/check.py connect` checks one authored message.
+`conformance/connect-v0.2/`, `conformance/negotiation/` and
+`conformance/connection/` exercise the spec against named expected outcomes,
+and `scripts/validate.py` runs all four in CI. `scripts/check.py connect` checks
+one authored message; `scripts/inspect_records.py connection` checks a whole
+recorded exchange.
 
 ## Verify before installing
 

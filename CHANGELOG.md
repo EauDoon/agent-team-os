@@ -14,6 +14,20 @@ set `VERSION`; those versions were never tagged or published.
 
 ### Added
 
+- `scripts/inspect_records.py connection MESSAGE... [--advertise TOKEN]...
+  [--require-closed]` checks a recorded connect exchange, in delivery order,
+  against the `connect.md` lifecycle: one version and correlation per
+  connection, conflicting message ID reuse, one leading request, one response
+  from the Orchestrator, the negotiated set on acceptance (and, with
+  `--advertise`, the exact negotiation reply), nothing after a refusal,
+  handoffs from the Orchestrator, statuses from handoff recipients, one final
+  result, and the negotiated set in the result envelope. Identical
+  redeliveries are skipped, and open handoffs, satisfied results with open
+  gaps and gaps without a decision are reported as observations. The new
+  `conformance/connection/` suite pins the rules, and `scripts/validate.py`
+  runs it and requires the `connect.md` acceptance and refusal examples to be
+  conforming connections. Each message of the 0.6.0 examples passed on its
+  own while its result broke the negotiated-set rule.
 - Failure output from `scripts/inspect_records.py`, `scripts/author.py` and
   `scripts/evaluate.py` names the rule that failed. Each tool keeps its exact
   generic `error` string and exit status, and adds `reason`, fixed tool text

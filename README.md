@@ -14,7 +14,7 @@ The coordination protocol itself is part of the host runtime that consumes this 
 
 - **Role brief schema:** `schemas/role-brief.schema.json` defines the six-field contract that every delegated role must receive. The `role` field is a free-form string, so any host taxonomy is acceptable; the schema enforces presence, length, and structure, not vocabulary.
 - **Connect specification:** `connect.md` plus `schemas/connect.schema.json` define a versioned envelope for capability discovery, handoffs (which reuse the role-brief contract), status, result, and structured refusal. The optional v0.2 authoring contract adds stronger handoff validation under its own envelope.
-- **Dependency-light validators:** `scripts/check.py` and `scripts/validate.py` enforce the shipped schemas, the connect and negotiation conformance suites, link integrity, manifest completeness, and version pinning; `evals/runner.py` runs the rubric case suite. They use only the Python standard library.
+- **Dependency-light validators:** `scripts/check.py` and `scripts/validate.py` enforce the shipped schemas, the connect, negotiation and connection conformance suites, link integrity, manifest completeness, and version pinning; `evals/runner.py` runs the rubric case suite. They use only the Python standard library.
 - **Calibrated evaluation harness:** `evals/tasks.json`, `evals/result.schema.json`, `evals/results.v0.1.json`, and `evals/runner.py` provide a bounded synthetic rubric and a calibration fixture that records no performance claims.
 - **Deterministic packaging:** `scripts/package.py` and `scripts/verify_package.py` build a ZIP plus SHA-256 and compare archive members against reviewed source bytes before extraction.
 - **Templates and examples:** `templates/role-brief.md` and `templates/audit-report.md` are reusable authoring templates; `examples/routing-scenarios.md` walks three fully synthetic end-to-end scenarios.
@@ -130,6 +130,7 @@ Use only the records that help the task.
 | `scripts/author.py` | Compose complete briefs, explicit v0.2 handoffs, and actionable refusals. |
 | `scripts/inspect_records.py` | Inspect readiness, plan changes, evidence impact, and audit remediation. |
 | `scripts/inspect_records.py negotiate` | Compute the exact accept or refuse payload the connect negotiation rules require. |
+| `scripts/inspect_records.py connection` | Check a recorded connect exchange, in delivery order, against the lifecycle rules. |
 | `scripts/check.py brief` or `connect` | Validate authored JSON before handing off work. |
 | `scripts/check.py plan` | Catch dependency cycles, duplicate output ownership, and inconsistent budgets. |
 | `scripts/check.py evidence` | Catch missing claim sources and unresolved evidence gaps. |
@@ -252,6 +253,7 @@ agent-team-os/
 |-- conformance/
 |   |-- connect/                    # Connect message conformance suite
 |   |-- connect-v0.2/               # Optional v0.2 authoring contract suite
+|   |-- connection/                 # Whole-exchange lifecycle cases
 |   `-- negotiation/                # Capability negotiation decisions
 |-- scripts/
 |   |-- validate.py                 # Dependency-light contract and link checker
@@ -260,7 +262,7 @@ agent-team-os/
 |   |-- check.py                    # Brief, connect, plan, evidence, audit checks
 |   |-- contracts.py                # Bundled JSON Schema subset checker
 |   |-- author.py                   # Brief and handoff authoring
-|   |-- inspect_records.py          # Readiness, impact and negotiation inspection
+|   |-- inspect_records.py          # Readiness, impact, negotiation and connection inspection
 |   |-- evaluate.py                 # Paired-run evaluation
 |   |-- packet.py                   # Record packet receipts
 |   |-- version.py                  # The one reader of VERSION
