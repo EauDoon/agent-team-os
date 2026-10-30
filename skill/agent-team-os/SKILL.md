@@ -88,7 +88,9 @@ python3 scripts/verify_package.py dist/agent-team-0.6.0.zip
 The builder emits `<archive>.zip.sha256`. `verify_package.py` compares archive
 members against the reviewed source bytes, not only against the checksum
 written by the same build. Verify the SHA-256 before copying the skill into a
-target project.
+target project. `scripts/install_skill.py --project <project>` installs the
+skill into the named project without replacing an existing skill, and
+`--compare` reports how an installed copy differs from the package.
 
 ## Safety boundaries
 

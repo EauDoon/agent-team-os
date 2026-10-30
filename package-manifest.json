@@ -75,6 +75,7 @@
   "scripts/contracts.py",
   "scripts/evaluate.py",
   "scripts/inspect_records.py",
+  "scripts/install_skill.py",
   "scripts/package.py",
   "scripts/packet.py",
   "scripts/validate.py",

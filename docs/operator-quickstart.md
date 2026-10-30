@@ -76,7 +76,9 @@ Keep synthetic tool checks distinct from empirical results. Preserve failed and
 interrupted runs, shared inputs and independent scoring evidence.
 
 Before installation, [compare package bytes with reviewed source](package-verification.md).
-The CLI never installs the skill or grants permissions. Keep production access,
+The check, inspection and authoring tools never install the skill.
+`scripts/install_skill.py` installs it only into a project you name, never
+replaces an existing skill, and grants no permissions. Keep production access,
 transport authentication and enforcement in the deployment environment.
 
 ## Troubleshooting

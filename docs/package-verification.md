@@ -36,7 +36,11 @@ Python upgrade.
 If you obtained an expected digest through a trusted channel, pass it with
 `--sha256` followed by the 64-character digest. The result includes the computed
 SHA-256, source version and file count. Exit status 0 means verification passed;
-1 means it failed. Installation remains a separate explicit action.
+1 means it failed. Installation remains a separate explicit action: extract the
+verified archive into a fresh directory and run its
+`scripts/install_skill.py --project path/to/project`, which copies only the
+skill files into a new `.agents/skills/agent-team-os` directory. See
+[package and install](../README.md#package-and-install).
 
 A checksum downloaded beside an archive detects accidental corruption but does
 not independently authenticate its publisher; see

@@ -28,6 +28,16 @@ set `VERSION`; those versions were never tagged or published.
   runs it and requires the `connect.md` acceptance and refusal examples to be
   conforming connections. Each message of the 0.6.0 examples passed on its
   own while its result broke the negotiated-set rule.
+- `scripts/install_skill.py --project DIR` installs the skill into
+  `DIR/.agents/skills/agent-team-os` from the tool's own package root, never
+  from an archive. It creates `.agents` and `.agents/skills` only when absent,
+  refuses a parent that redirects outside the project, refuses an existing
+  skill directory without touching it, creates each file exclusively, and on
+  any failure removes only what that run created. `--compare` reads an
+  installed skill and reports identical, changed, missing, extra and
+  non-regular entries, exiting 0 only when they match. The manual recipes
+  still work and are kept as the alternative; a failed manual copy could leave
+  a partially populated directory.
 - `scripts/inspect_records.py dispatch PLAN HANDOFF... [--accepted ID]...
   [--blocked ID]...` checks the handoffs actually sent against the approved
   routing plan. Each handoff binds to the assignment whose brief it carries

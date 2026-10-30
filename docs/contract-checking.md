@@ -27,7 +27,8 @@ strings. A `$` in a `pattern` anchors only at the end of the string, as in
 ECMA-262, so a trailing newline does not match.
 
 Every command-line tool (`check`, `author`, `inspect_records`, `evaluate`,
-`packet`, `validate`, `package` and `verify_package`) accepts `--version`, which
+`packet`, `validate`, `package`, `verify_package` and `install_skill`) accepts
+`--version`, which
 prints `agent-team X.Y.Z` from the `VERSION` file and exits 0. Cite it in bug
 reports. `python3 scripts/version.py` prints the bare version. The flag reads
 the file only when given, so a damaged `VERSION` does not break checking,

@@ -27,8 +27,10 @@ verification tools use Python 3.11 or later with the standard library. CI
 targets Python 3.11 and 3.14 on Linux and Windows. Record and report exports
 require a local filesystem with hard-link support; read-only checks do not.
 
-1. Copy the included `skill/agent-team-os` directory into the target workspace
-   at `.agents/skills/agent-team-os/`.
+1. From a reviewed source checkout, install the skill into an existing target
+   workspace with `python3 scripts/install_skill.py --project <workspace>`, or
+   copy the included `skill/agent-team-os` directory to
+   `.agents/skills/agent-team-os/` in it by hand.
 2. Confirm the installed structure:
 
    ```text
@@ -57,8 +59,34 @@ evaluation remain unverified; see the
 
 ### Package and install
 
+From a reviewed source checkout, install the skill into an existing project:
+
+```sh
+python3 scripts/install_skill.py --project path/to/project
+python3 scripts/install_skill.py --project path/to/project --compare
+```
+
+The installer copies the skill files the package manifest lists under
+`skill/agent-team-os/` into `<project>/.agents/skills/agent-team-os/` and
+prints each file's SHA-256. It reads them from its own package root, never from
+an archive. The project must already exist. It creates `.agents` and
+`.agents/skills` only when they are absent, refuses a parent that is a symlink
+or junction leading elsewhere, and refuses an existing skill directory of any
+kind without touching it. Each file is created exclusively and synced. On any
+failure it removes only the files and directories that run created, newest
+first, so no partial skill is left behind. `--compare` reads only: it lists
+identical, changed, missing, extra and non-regular entries between an installed
+skill and this package, and exits 0 only when they are identical.
+
+For a downloaded release, first
+[verify publisher provenance](docs/package-verification.md#verify-publisher-provenance),
+then run `verify_package.py` from your reviewed source checkout, extract the
+archive into a fresh directory, and run the extracted
+`scripts/install_skill.py --project path/to/project`.
+
 The package builder is deterministic and writes a ZIP plus SHA-256 checksum.
-It uses only the Python standard library:
+It uses only the Python standard library. To build, verify and copy by hand
+instead of using the installer:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -113,11 +141,14 @@ and inspect both output files before recovery; a failed rollback does not mean
 the old pair was restored.
 
 Run the commands from the reviewed source checkout. Select an existing target
-project explicitly; these recipes do not use `CODEX_HOME` or modify a global
-installation. An existing skill directory is never merged or overwritten. For
-an upgrade, compare the reviewed new files with the installed files, preserve
-a backup, and authorize the replacement separately. A failed copy can leave
-only the newly created directory partially populated; inspect it before retrying.
+project explicitly; neither the installer nor these recipes use `CODEX_HOME` or
+modify a global installation. The installer creates only the new skill
+directory it names and never merges or replaces one; the manual recipes refuse
+an existing skill directory too. For an upgrade, run
+`install_skill.py --project path/to/project --compare` to see what changed,
+preserve a backup, and authorize the replacement separately. A failed manual
+copy can leave only the newly created directory partially populated; inspect it
+before retrying. The installer removes what it created instead.
 
 ## Operator tools
 
@@ -139,10 +170,12 @@ Use only the records that help the task.
 | `scripts/evaluate.py` | Check complete paired runs, inspect each task, and export escaped reports. |
 | `scripts/packet.py` | Check related records and create or verify exact-byte receipts. |
 | `scripts/verify_package.py` | Compare a ZIP with reviewed source bytes before extraction. |
+| `scripts/install_skill.py` | Install the skill into a named project without replacing anything, or compare an installed copy. |
 
 Checks and inspections are read-only. Authoring, report exports, and packet
 receipts write only explicitly requested new files; the package builder
-writes its archive and checksum. They do not send messages, execute role
+writes its archive and checksum, and the installer writes only a new skill
+directory in the project you name. They do not send messages, execute role
 instructions, authenticate agents, or enforce permissions. Each tool accepts
 `--version` and prints `agent-team X.Y.Z`. See
 [contract checking](docs/contract-checking.md) for input limits and exit codes.
@@ -260,6 +293,7 @@ agent-team-os/
 |   |-- validate.py                 # Dependency-light contract and link checker
 |   |-- package.py                  # Deterministic ZIP and checksum builder
 |   |-- verify_package.py           # Archive verification against source bytes
+|   |-- install_skill.py            # Exclusive skill install and upgrade comparison
 |   |-- check.py                    # Brief, connect, plan, evidence, audit checks
 |   |-- contracts.py                # Bundled JSON Schema subset checker
 |   |-- author.py                   # Brief and connect message authoring

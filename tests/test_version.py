@@ -9,7 +9,8 @@ from pathlib import Path
 from scripts.version import package_version
 
 ROOT = Path(__file__).resolve().parents[1]
-CLIS = ('check', 'author', 'inspect_records', 'evaluate', 'packet', 'validate', 'package', 'verify_package')
+CLIS = ('check', 'author', 'inspect_records', 'evaluate', 'packet', 'validate', 'package', 'verify_package',
+        'install_skill')
 
 
 class VersionTests(unittest.TestCase):
