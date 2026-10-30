@@ -145,16 +145,16 @@ class WorkflowTests(unittest.TestCase):
         # identically, so a reviewer reads one resource with two owners. macOS
         # file names are decomposed, so a name copied from Finder differs in
         # code points from the same name typed on most keyboards.
-        for first, second in [(['docs/café.md'], ['docs/café.md']),
-                              (['docs/CAFÉ'], ['docs/café/menu.md']),
-                              (['Ångström'], ['Ångström'])]:
+        for first, second in [(['docs/caf\u00e9.md'], ['docs/cafe\u0301.md']),
+                              (['docs/CAF\u00c9'], ['docs/cafe\u0301/menu.md']),
+                              (['\u212bngstr\u00f6m'], ['\u00c5ngstro\u0308m'])]:
             plan = self.plan()
             plan['assignments'][0]['write_resources'] = first
             plan['assignments'][1]['write_resources'] = second
             errors = check_document('plan', plan)
             self.assertTrue(any('multiple owners' in error for error in errors), (first, second, errors))
         plan = self.plan()
-        plan['assignments'][0]['write_resources'] = ['docs/café.md']
+        plan['assignments'][0]['write_resources'] = ['docs/caf\u00e9.md']
         plan['assignments'][1]['write_resources'] = ['docs/cafe.md']
         self.assertEqual(check_document('plan', plan), [])
 
