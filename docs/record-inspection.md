@@ -1,5 +1,88 @@
 # Inspect records before the next decision
 
+## Read a failure reason
+
+Every inspection that cannot run prints `ok: false`, the unchanged generic
+`error` and exit status 1. When a documented rule failed, the output also
+carries `reason`, fixed tool text naming the rule, such as
+`unknown accepted assignment`, `accepted assignments must include their
+accepted dependencies`, `date must use DD-MM-YYYY` or
+`record does not conform`. A non-conforming record adds `failures`: up to 20
+schema diagnostics in the JSON-path form `scripts/check.py` prints, with every
+field name the schema does not declare shown as `*`. Semantic rule diagnostics,
+which can quote record IDs, are left to `scripts/check.py KIND FILE`.
+
+Neither key ever contains input values, argument text or file paths. An
+unreadable or oversized file, invalid JSON and other I/O failures keep the
+generic `error` alone. Match on `reason`, not on `error`, to tell the rules
+apart; the [troubleshooting table](operator-quickstart.md#troubleshooting)
+maps the common ones to a correction.
+
+## Check a whole connection
+
+```sh
+python3 scripts/inspect_records.py connection request.json response.json handoff.json status.json result.json --advertise bounded-scope --advertise evidence-trace --require-closed
+```
+
+Give the connect message files in delivery order: at most 256 files and 8 MiB
+in total, each at most 1 MiB. Every message must conform to its declared
+version first; the lifecycle rules run only when all of them do. A delivery
+whose `message_id` and JSON content repeat an earlier one is listed under
+`redelivered` and skipped. The rules, each with its source:
+
+- R1. Every message conforms to its declared version
+  ([connect.md](../connect.md#agent-team-connect), "A message must validate
+  against its declared version").
+- R2. One `connect_version` per connection. This interprets the versioning
+  rules; [`handoff`](#compare-a-handoff-and-a-response-envelope) applies the
+  same check to a pair.
+- R3. One `correlation_id` per connection
+  ([lifecycle](../connect.md#connection-lifecycle)).
+- R4. A repeated `message_id` with different content is a conflict
+  ([handoffs](handoffs.md), step 4).
+- R5. Exactly one request, and it is the first message. Its `from` is the
+  initiator and its `to` is the Orchestrator
+  ([participants](../connect.md#participants)).
+- R6. The single response directly follows the request and goes from the
+  Orchestrator to the initiator (lifecycle step 2).
+- R7. An accepted response carries `negotiated_capabilities`, sorted, holding
+  every required capability and only offered or required ones
+  ([negotiation](../connect.md#capability-negotiation)). With `--advertise`,
+  a response must equal the rules' reply exactly, except that a refusal for
+  another reason, such as a scope conflict or an authorization gap, is allowed
+  when every required capability is advertised. It is recorded as the
+  `non_capability_refusal` observation; a refusal that names missing
+  capabilities the advertised set supplies fails.
+- R8. Only redeliveries may follow a refusal (lifecycle diagram).
+- R9. Every handoff comes from the Orchestrator (lifecycle step 3).
+- R10. Every status goes to the Orchestrator from the recipient of an earlier
+  handoff (participants table and lifecycle step 4). This attributes a status
+  to a recipient, not to a specific handoff.
+- R11. At most one result, from the Orchestrator to the initiator, and it is
+  the last message (lifecycle step 5).
+- R12. The result envelope `capabilities`, compared as a set, equals the
+  negotiated set; it may be omitted only when that set is empty
+  ([versioning](../connect.md#versioning-and-compatibility)). The 0.6.0
+  result example broke this rule.
+- R13. With `--require-closed`, the exchange ends in a refusal or a result.
+
+Observations never fail the check. `open_handoffs` names recipients whose last
+status is neither `done` nor `blocked` when the result arrives;
+`satisfied_with_open_gaps` flags `request_satisfied: true` while a recipient's
+last status is `gap` or `blocked`; `gap_without_decision` flags a `gap` status
+without a `decision_needed` ([rejections and errors](../connect.md#rejections-and-errors-consumer-ux)).
+`sent_at` is not judged.
+
+The output reports the participants, the negotiated set, each handoff with its
+recipient and role, whether the connection is `closed`, `request_satisfied`,
+`failure_count` and the first 32 failures, each with its rule, position and
+`message_id`. Exit status is 0 when the exchange conforms and 1 otherwise; an
+unreadable file or a broken limit exits 1 with the generic input error and a
+`reason`. The report establishes order and envelope consistency only. It does
+not bind a status to a handoff, authenticate senders, prevent replay or grant
+access. The [connection conformance suite](../conformance/connection/README.md)
+pins the rules for other implementations.
+
 ## Compare a handoff and a response envelope
 
 Run `python3 scripts/inspect_records.py handoff handoff.json response.json`.
@@ -39,10 +122,14 @@ must be unique, lowercase and hyphen-separated. The command applies the
 is checked against the declared version's response schema. Missing
 capabilities are sorted and joined with a comma and a space in both refusal
 fields. An accept and a refusal both exit 0; an invalid request, a non-request
-message or a malformed token exits 1 with the generic input error.
+message or a malformed token exits 1 with the generic input error and the
+`reason` that names it (see [failure reasons](#read-a-failure-reason)).
 
 The result is a decision only. The command sends no response, grants no
-permission and does not record the negotiated set anywhere. The
+permission and does not record the negotiated set anywhere. To write the
+response message itself, use
+[`author.py response`](authoring.md#response), which applies the same rules to
+a v0.2 request. The
 [negotiation conformance suite](../conformance/negotiation/README.md) pins the
 same rules for other implementations.
 
@@ -84,6 +171,44 @@ Use `plan FILE --blocked requirements` to identify a blocked assignment and all
 its transitive dependents. Repeat the flag for multiple blockers. Blocked work
 cannot appear ready; an accepted assignment cannot also be blocked. These are
 operator assertions for inspection and never change execution state.
+
+## Check dispatched handoffs against the plan
+
+```sh
+python3 scripts/inspect_records.py dispatch templates/routing-plan.json requirements-handoff.json build-handoff.json --accepted requirements
+```
+
+The approved routing plan is the scope a delegated role may receive: one brief
+and one owner per output, released in dependency order. This command checks
+the handoffs actually sent against it. The plan must conform, and `--accepted`
+and `--blocked` follow the same rules as [`plan`](#inspect-dependency-readiness).
+Every message must be a conforming connect handoff; at most 256 files and
+8 MiB in total. Identical redeliveries are skipped, and a reused `message_id`
+with different content fails.
+
+A handoff binds to the assignment whose `brief` equals its `role_brief`
+exactly. `role_brief_version` is ignored on both sides; every other field,
+including `prohibited_actions`, counts. The inspection fails when:
+
+- the brief matches no planned assignment, as when its access scope was
+  widened after approval. `candidates` lists each assignment with the same
+  role and its `differing_fields`: field names only, never values;
+- the brief matches more than one assignment, because the plan repeats a brief;
+- one assignment is handed to more than one recipient, which gives one output
+  two owners ([connect.md](../connect.md#design-principles),
+  [routing plans](routing-plans.md));
+- an assignment is dispatched before every dependency is in `--accepted`
+  ([handoffs](handoffs.md), step 3: release dependent work only after the
+  output it needs is accepted);
+- an assignment is dispatched while it is in `--blocked`.
+
+Observations never fail the check: `redispatched` marks a second handoff of an
+assignment to the same recipient under a new message ID, and `already_accepted`
+marks the dispatch of an assignment whose output is already accepted.
+`undispatched_ready` lists ready assignments with no handoff. Exit status is 0
+when every handoff matches the plan and 1 otherwise. A matching brief shows
+only that the dispatched scope equals the approved plan scope. The command does
+not authorize or start work, authenticate senders or enforce the scope.
 
 ## Review a revised plan
 
@@ -144,7 +269,8 @@ and next action. Resolved findings become recheck work when the requested target
 revision differs. Accepted risks stay visible separately. A pass recommendation
 with an unresolved significant finding returns `ok: false` and exit status 1
 while retaining the actionable queue. Structurally malformed reports receive
-the generic input error. `closure_ready` refers only to supplied bookkeeping;
+the generic input error with `reason: "audit report shape is invalid"` and the
+masked schema `failures`. `closure_ready` refers only to supplied bookkeeping;
 the command does not independently verify the artifact or authorize release.
 
 Use `audit FILE --owner maker` to give one recorded owner their remediation

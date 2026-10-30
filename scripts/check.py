@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 
 try:
@@ -31,6 +32,8 @@ CONNECT_CONTRACTS = {
     'agent-team-connect/v0.2': 'schemas/connect-v0.2.schema.json',
 }
 MAX_BYTES = 1024 * 1024
+_PATH_SEGMENT = re.compile(r'\.([^.\[]*)|\[([0-9]+)\]')
+_FIXED_MESSAGE = re.compile(r'[a-z][a-z ]*')
 
 
 def parse_json_bytes(raw: bytes) -> object:
@@ -78,13 +81,79 @@ def load_json(path: Path) -> object:
     return load_json_snapshot(path)[0]
 
 
-def check_document(kind: str, document: object, *, schema_root: Path = ROOT) -> list[str]:
+def contract_schema(kind: str, document: object, *, schema_root: Path = ROOT) -> dict:
+    """Load the schema a document is checked against, by kind and declared version."""
     relative = CONTRACTS[kind]
     if kind == 'connect' and isinstance(document, dict):
         version = document.get('connect_version')
         if isinstance(version, str):
             relative = CONNECT_CONTRACTS.get(version, relative)
-    schema = load_json(schema_root / relative)
+    return load_json(schema_root / relative)
+
+
+def declared_names(schema: object) -> set[str]:
+    """Collect every property name a schema declares, at any depth."""
+    names: set[str] = set()
+    stack = [schema]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            properties = node.get('properties')
+            if isinstance(properties, dict):
+                names.update(key for key in properties if isinstance(key, str))
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
+    return names
+
+
+def masked_diagnostics(errors: list[str], schema: object) -> list[str]:
+    """Return schema diagnostics that are safe to print beside a fixed reason.
+
+    Only ``$``-path diagnostics are kept. Their messages are fixed checker text,
+    and a path key the schema does not declare, such as the name of an unknown
+    field, is replaced with ``*`` so no input text is echoed. Semantic
+    diagnostics can quote record IDs, so they are left to ``check.py``.
+    """
+    names = declared_names(schema)
+    masked = []
+    for error in errors:
+        path, separator, message = error.rpartition(': ')
+        if not separator or not path.startswith('$') or _FIXED_MESSAGE.fullmatch(message) is None:
+            continue
+        parts = ['$']
+        position = 1
+        while position < len(path):
+            match = _PATH_SEGMENT.match(path, position)
+            if match is None:
+                parts.append('.*')
+                break
+            if match.group(2) is not None:
+                parts.append(f'[{match.group(2)}]')
+            else:
+                parts.append('.' + (match.group(1) if match.group(1) in names else '*'))
+            position = match.end()
+        text = ''.join(parts) + ': ' + message
+        if text not in masked:
+            masked.append(text)
+    return masked
+
+
+def shape_failures(kind: str, document: object, *, schema_root: Path = ROOT) -> list[str]:
+    """Return the masked schema diagnostics for a document, safe to print with a reason.
+
+    Semantic diagnostics (routing, evidence and audit rules) are excluded
+    because they can quote record IDs; ``check.py`` reports them in full.
+    """
+    schema = contract_schema(kind, document, schema_root=schema_root)
+    errors = violations(document, schema)
+    if kind == 'connect':
+        errors.extend(refusal_text_violations(document))
+    return masked_diagnostics(errors, schema)
+
+
+def check_document(kind: str, document: object, *, schema_root: Path = ROOT) -> list[str]:
+    schema = contract_schema(kind, document, schema_root=schema_root)
     errors = violations(document, schema)
     if kind == 'connect':
         errors.extend(refusal_text_violations(document))

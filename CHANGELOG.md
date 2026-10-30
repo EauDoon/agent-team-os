@@ -12,6 +12,59 @@ set `VERSION`; those versions were never tagged or published.
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/inspect_records.py connection MESSAGE... [--advertise TOKEN]...
+  [--require-closed]` checks a recorded connect exchange, in delivery order,
+  against the `connect.md` lifecycle: one version and correlation per
+  connection, conflicting message ID reuse, one leading request, one response
+  from the Orchestrator, the negotiated set on acceptance (and, with
+  `--advertise`, the exact negotiation reply), nothing after a refusal,
+  handoffs from the Orchestrator, statuses from handoff recipients, one final
+  result, and the negotiated set in the result envelope. Identical
+  redeliveries are skipped, and open handoffs, satisfied results with open
+  gaps and gaps without a decision are reported as observations. The new
+  `conformance/connection/` suite pins the rules, and `scripts/validate.py`
+  runs it and requires the `connect.md` acceptance and refusal examples to be
+  conforming connections. Each message of the 0.6.0 examples passed on its
+  own while its result broke the negotiated-set rule.
+- `scripts/install_skill.py --project DIR` installs the skill into
+  `DIR/.agents/skills/agent-team-os` from the tool's own package root, never
+  from an archive. It creates `.agents` and `.agents/skills` only when absent,
+  refuses a parent that redirects outside the project, refuses an existing
+  skill directory without touching it, creates each file exclusively, and on
+  any failure removes only what that run created. `--compare` reads an
+  installed skill and reports identical, changed, missing, extra and
+  non-regular entries, exiting 0 only when they match. The manual recipes
+  still work and are kept as the alternative; a failed manual copy could leave
+  a partially populated directory.
+- `scripts/inspect_records.py dispatch PLAN HANDOFF... [--accepted ID]...
+  [--blocked ID]...` checks the handoffs actually sent against the approved
+  routing plan. Each handoff binds to the assignment whose brief it carries
+  exactly, ignoring only `role_brief_version`. A brief that matches no
+  assignment fails and lists the differing field names, never their values;
+  so do a brief that matches two assignments, one assignment handed to two
+  recipients, and dispatch before the dependencies are accepted or while the
+  assignment is blocked. A widened access scope used to pass every check.
+- `scripts/author.py` composes every v0.2 connect message type. `request`
+  writes offered and required capabilities; `response --request FILE
+  --advertise TOKEN` writes the exact negotiation reply with reversed
+  endpoints and the copied correlation; `status` requires a decision for a
+  `gap`; and `result` records the negotiated set in the envelope
+  `capabilities`, from an accepted response of the same connection and
+  endpoints or from explicit `--capability` tokens. `handoff --evidence ID`
+  writes `payload.evidence` and `brief --prohibit TEXT` writes
+  `prohibited_actions`. Existing invocations write the same bytes as before.
+- Failure output from `scripts/inspect_records.py`, `scripts/author.py` and
+  `scripts/evaluate.py` names the rule that failed. Each tool keeps its exact
+  generic `error` string and exit status, and adds `reason`, fixed tool text
+  such as `unknown accepted assignment` or `date must use DD-MM-YYYY`. A record
+  that does not conform also adds `failures`: up to 20 schema diagnostics in
+  JSON-path form, with any field name the schema does not declare shown as
+  `*`. Neither key ever echoes input values, argument text or file paths, and
+  unreadable input keeps the generic error alone. The rules raise the new
+  `RecordError` in `scripts/workflows.py`, a `ValueError` subclass.
+
 ### Fixed
 
 - Package verification now hashes and checks one bounded ZIP snapshot. Replacing

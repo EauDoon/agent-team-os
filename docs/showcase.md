@@ -66,13 +66,16 @@ made.
 | --- | --- |
 | `scripts/validate.py` | Contract, conformance, manifest and link checks for the public package. |
 | `scripts/check.py brief`, `connect`, `plan`, `evidence`, `audit` | Validate authored JSON and routing plans before handoff. |
-| `scripts/author.py` | Compose complete briefs, explicit handoffs, and actionable refusals. |
+| `scripts/author.py` | Compose complete briefs and every v0.2 connect message, including negotiated responses and results. |
 | `scripts/inspect_records.py` | Inspect readiness, plan changes, evidence impact, and audit remediation. |
 | `scripts/inspect_records.py negotiate` | Compute the exact accept or refuse payload for a connect request. |
+| `scripts/inspect_records.py connection` | Check a recorded connect exchange against the lifecycle rules. |
+| `scripts/inspect_records.py dispatch` | Check dispatched handoffs against the approved routing plan. |
 | `scripts/evaluate.py` | Summarize paired runs and export Markdown reports. |
 | `scripts/packet.py` | Check related records and create or verify exact-byte receipts. |
 | `scripts/package.py` | Build a deterministic ZIP plus SHA-256 checksum. |
 | `scripts/verify_package.py` | Compare a built ZIP against reviewed source bytes before extraction. |
+| `scripts/install_skill.py` | Install the skill into a named project without replacing anything, or compare an installed copy. |
 
 Every tool accepts `--version` and prints `agent-team X.Y.Z`. All checks and
 inspections are read-only. Authoring, report exports, and packet receipts write

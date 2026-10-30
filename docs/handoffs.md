@@ -11,6 +11,9 @@ interrupted work. Small read-only handoffs can include the same facts inline.
    Record inspected evidence, not only the sender's confidence or claimed tests.
 3. Accept the output, request a bounded correction, or preserve a blocking gap.
    Release dependent work only after the output it needs is accepted.
+   `scripts/inspect_records.py dispatch` checks the handoffs you sent against
+   the routing plan and your accepted IDs; see
+   [dispatch checks](record-inspection.md#check-dispatched-handoffs-against-the-plan).
 4. Track duplicate delivery by message ID within the task. A repeated ID with
    different content is a conflict. Do not repeat side effects on retry. The
    transport must implement durable idempotency if the deployment needs it.

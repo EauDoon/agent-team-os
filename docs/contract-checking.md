@@ -11,7 +11,9 @@ python3 -m scripts.check connect my-message.json --json
 
 Exit status is 0 for a conforming document and 1 for an invalid or unreadable
 document. Argument errors return 2. JSON output contains `ok`, `kind`, and
-`failures`. Inputs must be UTF-8, at most 1 MiB, and have unique object keys and
+`failures`. `scripts/inspect_records.py`, `scripts/author.py` and
+`scripts/evaluate.py` keep one generic `error` per tool and add a fixed `reason`
+naming the failed rule; see [failure reasons](record-inspection.md#read-a-failure-reason). Inputs must be UTF-8, at most 1 MiB, and have unique object keys and
 finite numbers. The CLI reads the named file and local bundled schemas only.
 It sends no messages and executes no content from the document.
 
@@ -25,7 +27,8 @@ strings. A `$` in a `pattern` anchors only at the end of the string, as in
 ECMA-262, so a trailing newline does not match.
 
 Every command-line tool (`check`, `author`, `inspect_records`, `evaluate`,
-`packet`, `validate`, `package` and `verify_package`) accepts `--version`, which
+`packet`, `validate`, `package`, `verify_package` and `install_skill`) accepts
+`--version`, which
 prints `agent-team X.Y.Z` from the `VERSION` file and exits 0. Cite it in bug
 reports. `python3 scripts/version.py` prints the bare version. The flag reads
 the file only when given, so a damaged `VERSION` does not break checking,

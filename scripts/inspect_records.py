@@ -7,20 +7,30 @@ from datetime import datetime
 from pathlib import Path
 
 try:
-    from .check import CONNECT_CONTRACTS, ROOT, check_document, load_json
+    from .check import (CONNECT_CONTRACTS, ROOT, check_document, load_json, masked_diagnostics, parse_json_bytes,
+                        read_json_bytes, shape_failures)
     from .contracts import violations
     from .version import add_version_flag
-    from .workflows import negotiate, negotiation_sets, resource_key
+    from .contracts import json_equal
+    from .workflows import (MAX_CONNECTION_FAILURES, MAX_CONNECTION_MESSAGES, RecordError, connection_report,
+                            distinct_messages, negotiate, negotiation_sets, resource_key)
 except ImportError:
-    from check import CONNECT_CONTRACTS, ROOT, check_document, load_json
+    from check import (CONNECT_CONTRACTS, ROOT, check_document, load_json, masked_diagnostics, parse_json_bytes,
+                       read_json_bytes, shape_failures)
     from contracts import violations
     from version import add_version_flag
-    from workflows import negotiate, negotiation_sets, resource_key
+    from contracts import json_equal
+    from workflows import (MAX_CONNECTION_FAILURES, MAX_CONNECTION_MESSAGES, RecordError, connection_report,
+                           distinct_messages, negotiate, negotiation_sets, resource_key)
+
+GENERIC_ERROR = 'records or inspection arguments are invalid or unreadable'
+MAX_TOTAL_BYTES = 8 * 1024 * 1024
+MAX_MESSAGE_FILES = 256
 
 
 def require_record(kind: str, document: object) -> None:
     if check_document(kind, document):
-        raise ValueError('record does not conform')
+        raise RecordError('record does not conform', shape_failures(kind, document))
 
 
 def downstream(assignments: dict, seeds: set[str]) -> set[str]:
@@ -38,22 +48,22 @@ def inspect_plan(plan: object, accepted: list[str] | None = None, *, blocked: li
     by_id = {item['id']: item for item in plan['assignments']}
     accepted = [] if accepted is None else accepted
     if any(not isinstance(item, str) for item in accepted) or len(set(accepted)) != len(accepted):
-        raise ValueError('accepted assignment IDs must be unique strings')
+        raise RecordError('accepted assignment IDs must be unique strings')
     accepted_ids = set(accepted)
     if not accepted_ids <= by_id.keys():
-        raise ValueError('unknown accepted assignment')
+        raise RecordError('unknown accepted assignment')
     if any(not set(by_id[item]['depends_on']) <= accepted_ids for item in accepted_ids):
-        raise ValueError('accepted assignments must include their accepted dependencies')
+        raise RecordError('accepted assignments must include their accepted dependencies')
     invalidate = [] if invalidate is None else invalidate
     if (any(not isinstance(item, str) for item in invalidate) or len(set(invalidate)) != len(invalidate)
             or not set(invalidate) <= accepted_ids):
-        raise ValueError('invalidated IDs must be unique accepted assignments')
+        raise RecordError('invalidated IDs must be unique accepted assignments')
     invalidated = downstream(by_id, set(invalidate)) & accepted_ids
     accepted_ids -= invalidated
     blocked = [] if blocked is None else blocked
     if (any(not isinstance(item, str) for item in blocked) or len(set(blocked)) != len(blocked)
             or not set(blocked) <= by_id.keys() or set(blocked) & accepted_ids):
-        raise ValueError('blocked IDs must be unique known unaccepted assignments')
+        raise RecordError('blocked IDs must be unique known unaccepted assignments')
     blocked_ids = set(blocked)
     held = downstream(by_id, blocked_ids)
     remaining = {key: set(item['depends_on']) for key, item in by_id.items()}
@@ -61,7 +71,7 @@ def inspect_plan(plan: object, accepted: list[str] | None = None, *, blocked: li
     while remaining:
         ready = sorted(key for key, dependencies in remaining.items() if not dependencies)
         if not ready:
-            raise ValueError('routing dependency cycle')
+            raise RecordError('routing dependency cycle')
         stages.append(ready)
         remaining = {key: dependencies - set(ready) for key, dependencies in remaining.items() if key not in ready}
     waiting = [{'id': key, 'unaccepted_dependencies': sorted(set(item['depends_on']) - accepted_ids)}
@@ -117,10 +127,14 @@ def compare_plans(before: object, after: object) -> dict:
 
 def inspection_date(value: str):
     if not isinstance(value, str):
-        raise ValueError('date must use DD-MM-YYYY')
-    parsed = datetime.strptime(value, '%d-%m-%Y').date()
+        raise RecordError('date must use DD-MM-YYYY')
+    try:
+        parsed = datetime.strptime(value, '%d-%m-%Y').date()
+    except ValueError:
+        # strptime quotes its input in the message; replace it with fixed text.
+        raise RecordError('date must use DD-MM-YYYY') from None
     if parsed.strftime('%d-%m-%Y') != value:
-        raise ValueError('date must use DD-MM-YYYY')
+        raise RecordError('date must use DD-MM-YYYY')
     return parsed
 
 
@@ -130,14 +144,14 @@ def inspect_evidence(ledger: object, changed_sources: list[str] | None = None, *
     changed_sources = [] if changed_sources is None else changed_sources
     sources = {source['id']: source for source in ledger['sources']}
     if any(not isinstance(item, str) for item in changed_sources) or len(set(changed_sources)) != len(changed_sources):
-        raise ValueError('changed source IDs must be unique strings')
+        raise RecordError('changed source IDs must be unique strings')
     if not set(changed_sources) <= sources.keys():
-        raise ValueError('unknown changed source')
+        raise RecordError('unknown changed source')
     freshness = None
     review_sources = set(changed_sources)
     if as_of is not None or max_age_days is not None:
         if as_of is None or type(max_age_days) is not int or max_age_days < 0:
-            raise ValueError('freshness requires a date and nonnegative maximum age')
+            raise RecordError('freshness requires a date and nonnegative maximum age')
         reference_date = inspection_date(as_of)
         freshness = {'as_of': as_of, 'max_age_days': max_age_days, 'stale_sources': [],
                      'future_sources': [], 'unknown_date_sources': []}
@@ -198,14 +212,16 @@ def compare_evidence(before: object, after: object) -> dict:
 
 
 def inspect_audit(report: object, target_revision: str | None = None, *, owner: str | None = None) -> dict:
-    if violations(report, load_json(ROOT / 'schemas/audit-closure.schema.json')):
-        raise ValueError('audit report shape is invalid')
+    schema = load_json(ROOT / 'schemas/audit-closure.schema.json')
+    shape = violations(report, schema)
+    if shape:
+        raise RecordError('audit report shape is invalid', masked_diagnostics(shape, schema))
     if owner is not None and (not isinstance(owner, str) or not owner.strip()
                               or owner not in {finding['owner'] for finding in report['findings']}):
-        raise ValueError('owner must match a recorded finding owner')
+        raise RecordError('owner must match a recorded finding owner')
     target = report['target_revision'] if target_revision is None else target_revision
     if not isinstance(target, str) or not target.strip():
-        raise ValueError('target revision must not be blank')
+        raise RecordError('target revision must not be blank')
     failures = check_document('audit', report)
     revision_changed = target != report['target_revision']
     queue = []
@@ -235,7 +251,7 @@ def inspect_handoff(handoff: object, response: object) -> dict:
     require_record('connect', response)
     failures = []
     if handoff['type'] != 'handoff' or response['type'] != 'response':
-        raise ValueError('supply a handoff and a response')
+        raise RecordError('supply a handoff and a response')
     for field in ('connect_version', 'correlation_id'):
         if handoff[field] != response[field]:
             failures.append(field + ' does not match')
@@ -254,15 +270,128 @@ def inspect_negotiation(request: object, advertised: list[str]) -> dict:
     """Apply the connect.md negotiation rules to one conforming request."""
     require_record('connect', request)
     if request['type'] != 'request':
-        raise ValueError('supply a request message')
+        raise RecordError('supply a request message')
     missing, negotiated = negotiation_sets(request, advertised)
     payload = negotiate(request, advertised)
     schema = load_json(ROOT / CONNECT_CONTRACTS[request['connect_version']])
     if violations(payload, schema['$defs']['response'], root=schema):
-        raise ValueError('computed response does not conform')
+        raise RecordError('computed response does not conform')
     return {'connect_version': request['connect_version'], 'missing': missing,
             'negotiated': negotiated, 'response_payload': payload,
             'note': 'Computes the negotiation decision only; it sends nothing and grants no permission.'}
+
+
+def load_records(paths: list[Path]) -> list[object]:
+    """Read several bounded JSON files, at most 256 and 8 MiB in total."""
+    if len(paths) > MAX_MESSAGE_FILES:
+        raise RecordError('an inspection accepts at most 256 record files')
+    records, total = [], 0
+    for path in paths:
+        raw = read_json_bytes(path)
+        total += len(raw)
+        if total > MAX_TOTAL_BYTES:
+            raise RecordError('record files exceed 8 MiB in total')
+        records.append(parse_json_bytes(raw))
+    return records
+
+
+def inspect_connection(messages: list, advertised: list[str] | None = None, *,
+                       require_closed: bool = False) -> dict:
+    """Check a recorded exchange, in delivery order, against the connect.md lifecycle."""
+    return connection_report(messages, check=lambda message: check_document('connect', message),
+                             advertised=advertised, require_closed=require_closed)
+
+
+DISPATCH_NOTE = ('A matching brief shows that the dispatched scope equals the approved plan scope. Accepted and '
+                 'blocked IDs are operator assertions. The report does not authorize or start work, authenticate '
+                 'senders or enforce the scope.')
+
+
+def plan_scope(brief: dict) -> dict:
+    """Return the brief fields that define scope; the single-value version marker is ignored."""
+    return {key: value for key, value in brief.items() if key != 'role_brief_version'}
+
+
+def inspect_dispatch(plan: object, handoffs: list, accepted: list[str] | None = None, *,
+                     blocked: list[str] | None = None) -> dict:
+    """Check dispatched handoffs against the approved routing plan.
+
+    Each handoff binds to the assignment whose brief it carries exactly. A brief
+    that matches none was changed after approval; one assignment handed to two
+    recipients has two owners; and an assignment may not be dispatched before
+    its dependencies are accepted or while it is blocked.
+    """
+    readiness = inspect_plan(plan, accepted, blocked=blocked)
+    if not isinstance(handoffs, list) or not handoffs:
+        raise RecordError('supply at least one handoff')
+    if len(handoffs) > MAX_CONNECTION_MESSAGES:
+        raise RecordError('a dispatch inspection accepts at most 256 handoffs')
+    assignments = {item['id']: item for item in plan['assignments']}
+    accepted_ids, blocked_ids = set(readiness['accepted']), set(readiness['blocked'])
+    failures: list[dict] = []
+    observations: list[dict] = []
+
+    def fail(position, message, text, assignment=None, **detail):
+        message_id = message.get('message_id') if isinstance(message, dict) else None
+        failures.append({'position': position, 'message_id': message_id if isinstance(message_id, str) else None,
+                         'assignment': assignment, 'failure': text, **detail})
+
+    report = {'contract_valid': False, 'route': plan['route'], 'dispatched': [], 'recipients': {},
+              'undispatched_ready': [], 'redelivered': [], 'failure_count': 0, 'failures': [],
+              'observations': observations, 'note': DISPATCH_NOTE}
+    for position, message in enumerate(handoffs, 1):
+        if check_document('connect', message):
+            fail(position, message, 'message does not conform to its declared connect version')
+        elif message['type'] != 'handoff':
+            fail(position, message, 'message is not a handoff')
+    if not failures:
+        distinct, report['redelivered'], conflicts = distinct_messages(handoffs)
+        for conflict in conflicts:
+            fail(conflict['position'], handoffs[conflict['position'] - 1],
+                 'message_id was delivered again with different content')
+        recipients: dict[str, list[str]] = {}
+        for position, message in distinct:
+            scope = plan_scope(message['payload']['role_brief'])
+            matches = [key for key, item in assignments.items() if json_equal(plan_scope(item['brief']), scope)]
+            if not matches:
+                candidates = [{'assignment': key, 'differing_fields': sorted(
+                                  field for field in plan_scope(item['brief']).keys() | scope.keys()
+                                  if not json_equal(plan_scope(item['brief']).get(field), scope.get(field)))}
+                              for key, item in sorted(assignments.items())
+                              if item['brief'].get('role') == scope.get('role')]
+                fail(position, message, 'role brief matches no planned assignment', candidates=candidates)
+                continue
+            if len(matches) > 1:
+                fail(position, message, 'role brief matches more than one planned assignment',
+                     candidates=[{'assignment': key, 'differing_fields': []} for key in sorted(matches)])
+                continue
+            key = matches[0]
+            target = message['to']
+            report['dispatched'].append({'position': position, 'message_id': message['message_id'],
+                                         'to': target, 'assignment': key})
+            earlier = recipients.setdefault(key, [])
+            if earlier and target not in earlier:
+                fail(position, message, 'assignment is handed to more than one recipient', key)
+            elif target in earlier:
+                observations.append({'observation': 'redispatched', 'position': position,
+                                     'message_id': message['message_id'], 'assignment': key})
+            if target not in earlier:
+                earlier.append(target)
+            if key in blocked_ids:
+                fail(position, message, 'assignment is dispatched while blocked', key)
+            unaccepted = sorted(set(assignments[key]['depends_on']) - accepted_ids)
+            if unaccepted:
+                fail(position, message, 'assignment is dispatched before its dependencies are accepted', key,
+                     unaccepted_dependencies=unaccepted)
+            if key in accepted_ids:
+                observations.append({'observation': 'already_accepted', 'position': position,
+                                     'message_id': message['message_id'], 'assignment': key})
+        report['recipients'] = dict(sorted(recipients.items()))
+        report['undispatched_ready'] = [key for key in readiness['ready'] if key not in recipients]
+    report['failure_count'] = len(failures)
+    report['failures'] = failures[:MAX_CONNECTION_FAILURES]
+    report['contract_valid'] = not failures
+    return report
 
 
 def main() -> int:
@@ -296,6 +425,24 @@ def main() -> int:
     negotiation.add_argument('request', type=Path)
     negotiation.add_argument('--advertise', action='append', default=[],
                              help='a capability the Orchestrator advertises; repeat for each')
+    connection = commands.add_parser(
+        'connection', help='check a recorded connect exchange, in delivery order, against the lifecycle rules')
+    connection.add_argument('messages', type=Path, nargs='+', metavar='MESSAGE',
+                            help='connect message files in delivery order (at most 256, 8 MiB in total)')
+    connection.add_argument('--advertise', action='append', default=None, metavar='TOKEN',
+                            help='a capability the Orchestrator advertised; repeat for each to also check '
+                                 'the response against the negotiation rules')
+    connection.add_argument('--require-closed', action='store_true',
+                            help='also require the exchange to end in a refusal or a result')
+    dispatch = commands.add_parser(
+        'dispatch', help='check dispatched handoffs against the approved routing plan')
+    dispatch.add_argument('plan', type=Path, help='the approved routing plan')
+    dispatch.add_argument('handoffs', type=Path, nargs='+', metavar='HANDOFF',
+                          help='connect handoff files (at most 256, 8 MiB in total)')
+    dispatch.add_argument('--accepted', action='append', default=[],
+                          help='an assignment whose output the operator accepted; repeat for each')
+    dispatch.add_argument('--blocked', action='append', default=[],
+                          help='an assignment the operator holds as blocked; repeat for each')
     args = parser.parse_args()
     try:
         if args.command == 'compare-plans':
@@ -311,11 +458,21 @@ def main() -> int:
             result = inspect_handoff(load_json(args.handoff), load_json(args.response))
         elif args.command == 'negotiate':
             result = inspect_negotiation(load_json(args.request), args.advertise)
+        elif args.command == 'dispatch':
+            result = inspect_dispatch(load_json(args.plan), load_records(args.handoffs), args.accepted,
+                                      blocked=args.blocked)
+        elif args.command == 'connection':
+            result = inspect_connection(load_records(args.messages), args.advertise,
+                                        require_closed=args.require_closed)
         else:
             result = inspect_plan(load_json(args.file), args.accepted, blocked=args.blocked, invalidate=args.invalidate)
         rendered = json.dumps({'ok': result.get('contract_valid', True), 'inspection': result}, indent=2, allow_nan=False)
+    except RecordError as exc:
+        # A named rule failed. The reason and masked diagnostics are fixed text.
+        print(json.dumps({'ok': False, 'error': GENERIC_ERROR, **exc.details()}))
+        return 1
     except (OSError, ValueError, RecursionError, OverflowError):
-        print(json.dumps({'ok': False, 'error': 'records or inspection arguments are invalid or unreadable'}))
+        print(json.dumps({'ok': False, 'error': GENERIC_ERROR}))
         return 1
     print(rendered)
     return 0 if result.get('contract_valid', True) else 1

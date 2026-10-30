@@ -14,7 +14,7 @@ The coordination protocol itself is part of the host runtime that consumes this 
 
 - **Role brief schema:** `schemas/role-brief.schema.json` defines the six-field contract that every delegated role must receive. The `role` field is a free-form string, so any host taxonomy is acceptable; the schema enforces presence, length, and structure, not vocabulary.
 - **Connect specification:** `connect.md` plus `schemas/connect.schema.json` define a versioned envelope for capability discovery, handoffs (which reuse the role-brief contract), status, result, and structured refusal. The optional v0.2 authoring contract adds stronger handoff validation under its own envelope.
-- **Dependency-light validators:** `scripts/check.py` and `scripts/validate.py` enforce the shipped schemas, the connect and negotiation conformance suites, link integrity, manifest completeness, and version pinning; `evals/runner.py` runs the rubric case suite. They use only the Python standard library.
+- **Dependency-light validators:** `scripts/check.py` and `scripts/validate.py` enforce the shipped schemas, the connect, negotiation and connection conformance suites, link integrity, manifest completeness, and version pinning; `evals/runner.py` runs the rubric case suite. They use only the Python standard library.
 - **Calibrated evaluation harness:** `evals/tasks.json`, `evals/result.schema.json`, `evals/results.v0.1.json`, and `evals/runner.py` provide a bounded synthetic rubric and a calibration fixture that records no performance claims.
 - **Deterministic packaging:** `scripts/package.py` and `scripts/verify_package.py` build a ZIP plus SHA-256 and compare archive members against reviewed source bytes before extraction.
 - **Templates and examples:** `templates/role-brief.md` and `templates/audit-report.md` are reusable authoring templates; `examples/routing-scenarios.md` walks three fully synthetic end-to-end scenarios.
@@ -27,8 +27,10 @@ verification tools use Python 3.11 or later with the standard library. CI
 targets Python 3.11 and 3.14 on Linux and Windows. Record and report exports
 require a local filesystem with hard-link support; read-only checks do not.
 
-1. Copy the included `skill/agent-team-os` directory into the target workspace
-   at `.agents/skills/agent-team-os/`.
+1. From a reviewed source checkout, install the skill into an existing target
+   workspace with `python3 scripts/install_skill.py --project <workspace>`, or
+   copy the included `skill/agent-team-os` directory to
+   `.agents/skills/agent-team-os/` in it by hand.
 2. Confirm the installed structure:
 
    ```text
@@ -57,8 +59,34 @@ evaluation remain unverified; see the
 
 ### Package and install
 
+From a reviewed source checkout, install the skill into an existing project:
+
+```sh
+python3 scripts/install_skill.py --project path/to/project
+python3 scripts/install_skill.py --project path/to/project --compare
+```
+
+The installer copies the skill files the package manifest lists under
+`skill/agent-team-os/` into `<project>/.agents/skills/agent-team-os/` and
+prints each file's SHA-256. It reads them from its own package root, never from
+an archive. The project must already exist. It creates `.agents` and
+`.agents/skills` only when they are absent, refuses a parent that is a symlink
+or junction leading elsewhere, and refuses an existing skill directory of any
+kind without touching it. Each file is created exclusively and synced. On any
+failure it removes only the files and directories that run created, newest
+first, so no partial skill is left behind. `--compare` reads only: it lists
+identical, changed, missing, extra and non-regular entries between an installed
+skill and this package, and exits 0 only when they are identical.
+
+For a downloaded release, first
+[verify publisher provenance](docs/package-verification.md#verify-publisher-provenance),
+then run `verify_package.py` from your reviewed source checkout, extract the
+archive into a fresh directory, and run the extracted
+`scripts/install_skill.py --project path/to/project`.
+
 The package builder is deterministic and writes a ZIP plus SHA-256 checksum.
-It uses only the Python standard library:
+It uses only the Python standard library. To build, verify and copy by hand
+instead of using the installer:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -113,11 +141,14 @@ and inspect both output files before recovery; a failed rollback does not mean
 the old pair was restored.
 
 Run the commands from the reviewed source checkout. Select an existing target
-project explicitly; these recipes do not use `CODEX_HOME` or modify a global
-installation. An existing skill directory is never merged or overwritten. For
-an upgrade, compare the reviewed new files with the installed files, preserve
-a backup, and authorize the replacement separately. A failed copy can leave
-only the newly created directory partially populated; inspect it before retrying.
+project explicitly; neither the installer nor these recipes use `CODEX_HOME` or
+modify a global installation. The installer creates only the new skill
+directory it names and never merges or replaces one; the manual recipes refuse
+an existing skill directory too. For an upgrade, run
+`install_skill.py --project path/to/project --compare` to see what changed,
+preserve a backup, and authorize the replacement separately. A failed manual
+copy can leave only the newly created directory partially populated; inspect it
+before retrying. The installer removes what it created instead.
 
 ## Operator tools
 
@@ -127,9 +158,11 @@ Use only the records that help the task.
 
 | Tool | Local outcome |
 | --- | --- |
-| `scripts/author.py` | Compose complete briefs, explicit v0.2 handoffs, and actionable refusals. |
+| `scripts/author.py` | Compose complete briefs and every v0.2 connect message: requests, negotiated responses, handoffs, refusals, statuses, and results that record the negotiated set. |
 | `scripts/inspect_records.py` | Inspect readiness, plan changes, evidence impact, and audit remediation. |
 | `scripts/inspect_records.py negotiate` | Compute the exact accept or refuse payload the connect negotiation rules require. |
+| `scripts/inspect_records.py connection` | Check a recorded connect exchange, in delivery order, against the lifecycle rules. |
+| `scripts/inspect_records.py dispatch` | Check dispatched handoffs against the approved routing plan: exact briefs, one owner, dependency order. |
 | `scripts/check.py brief` or `connect` | Validate authored JSON before handing off work. |
 | `scripts/check.py plan` | Catch dependency cycles, duplicate output ownership, and inconsistent budgets. |
 | `scripts/check.py evidence` | Catch missing claim sources and unresolved evidence gaps. |
@@ -137,10 +170,12 @@ Use only the records that help the task.
 | `scripts/evaluate.py` | Check complete paired runs, inspect each task, and export escaped reports. |
 | `scripts/packet.py` | Check related records and create or verify exact-byte receipts. |
 | `scripts/verify_package.py` | Compare a ZIP with reviewed source bytes before extraction. |
+| `scripts/install_skill.py` | Install the skill into a named project without replacing anything, or compare an installed copy. |
 
 Checks and inspections are read-only. Authoring, report exports, and packet
 receipts write only explicitly requested new files; the package builder
-writes its archive and checksum. They do not send messages, execute role
+writes its archive and checksum, and the installer writes only a new skill
+directory in the project you name. They do not send messages, execute role
 instructions, authenticate agents, or enforce permissions. Each tool accepts
 `--version` and prints `agent-team X.Y.Z`. See
 [contract checking](docs/contract-checking.md) for input limits and exit codes.
@@ -252,15 +287,17 @@ agent-team-os/
 |-- conformance/
 |   |-- connect/                    # Connect message conformance suite
 |   |-- connect-v0.2/               # Optional v0.2 authoring contract suite
+|   |-- connection/                 # Whole-exchange lifecycle cases
 |   `-- negotiation/                # Capability negotiation decisions
 |-- scripts/
 |   |-- validate.py                 # Dependency-light contract and link checker
 |   |-- package.py                  # Deterministic ZIP and checksum builder
 |   |-- verify_package.py           # Archive verification against source bytes
+|   |-- install_skill.py            # Exclusive skill install and upgrade comparison
 |   |-- check.py                    # Brief, connect, plan, evidence, audit checks
 |   |-- contracts.py                # Bundled JSON Schema subset checker
-|   |-- author.py                   # Brief and handoff authoring
-|   |-- inspect_records.py          # Readiness, impact and negotiation inspection
+|   |-- author.py                   # Brief and connect message authoring
+|   |-- inspect_records.py          # Readiness, impact, negotiation, connection and dispatch inspection
 |   |-- evaluate.py                 # Paired-run evaluation
 |   |-- packet.py                   # Record packet receipts
 |   |-- version.py                  # The one reader of VERSION

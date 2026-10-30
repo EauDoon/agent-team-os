@@ -15,11 +15,11 @@ from urllib.parse import unquote, urlsplit
 try:
     from .contracts import KEYWORDS as SCHEMA_KEYWORDS, keyword_value_problems, violations as schema_violations
     from .version import add_version_flag
-    from .workflows import BASELINE_CAPABILITIES, negotiate, refusal_text_violations
+    from .workflows import BASELINE_CAPABILITIES, RecordError, connection_report, negotiate, refusal_text_violations
 except ImportError:
     from contracts import KEYWORDS as SCHEMA_KEYWORDS, keyword_value_problems, violations as schema_violations
     from version import add_version_flag
-    from workflows import BASELINE_CAPABILITIES, negotiate, refusal_text_violations
+    from workflows import BASELINE_CAPABILITIES, RecordError, connection_report, negotiate, refusal_text_violations
 
 
 FIELDS = [
@@ -857,6 +857,88 @@ class Checker:
                 f"connect example {message_id} follows the negotiation rules",
             )
 
+    def connection(self, messages: object, advertised: object = None, require_closed: object = False) -> dict | None:
+        """Run the reference connection inspector with this root's schemas, or return None."""
+        try:
+            from .check import check_document
+        except ImportError:
+            from check import check_document
+
+        def check(message: object) -> list[str]:
+            try:
+                return check_document("connect", message, schema_root=self.root)
+            except (OSError, ValueError, RecursionError):
+                return ["connect schema is unreadable or unsupported"]
+
+        if not isinstance(require_closed, bool):
+            return None
+        try:
+            return connection_report(messages, check=check, advertised=advertised, require_closed=require_closed)
+        except RecordError:
+            return None
+
+    def check_connection_conformance(self, relative: str = "conformance/connection/cases.json") -> None:
+        """Run the connection lifecycle suite and require connect.md's examples to form connections.
+
+        Each message of a connect exchange could pass on its own while the
+        exchange broke the lifecycle: the 0.6.0 result example omitted the
+        negotiated set and nothing noticed until it was fixed by hand. Every
+        case must produce its declared outcome, and an invalid case must fail
+        for its declared violation.
+        """
+        suite = self.json_file(relative)
+        cases = suite.get("cases") if isinstance(suite, dict) else None
+        self.ok(isinstance(cases, list) and len(cases) >= 13, "connection conformance suite has at least thirteen cases")
+        if isinstance(cases, list):
+            names = [case.get("name") if isinstance(case, dict) else None for case in cases]
+            self.ok(
+                bool(names) and all(isinstance(name, str) and name for name in names)
+                and len(names) == len(set(names)),
+                "connection conformance case names are unique",
+            )
+            for case in cases:
+                if not isinstance(case, dict):
+                    self.ok(False, "connection conformance case is an object")
+                    continue
+                name = case.get("name", "<unnamed>")
+                declared = case.get("expect")
+                if declared not in ("valid", "invalid"):
+                    self.ok(False, f"connection conformance case {name} declares valid or invalid")
+                    continue
+                report = self.connection(case.get("messages"), case.get("advertised"), case.get("require_closed", False))
+                self.ok(
+                    report is not None and report["contract_valid"] == (declared == "valid"),
+                    f"connection conformance case {name} matches its expectation",
+                )
+                if declared == "invalid" and report is not None:
+                    stated = case.get("violation")
+                    self.ok(
+                        isinstance(stated, str) and bool(stated)
+                        and any(stated in failure["failure"] for failure in report["failures"]),
+                        f"connection conformance case {name} fails for its declared violation",
+                    )
+
+        examples = {}
+        for block in re.findall(r"```json\s*(.*?)```", self.text("connect.md"), flags=re.DOTALL):
+            try:
+                message = json.loads(block, object_pairs_hook=_json_object)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if isinstance(message, dict) and isinstance(message.get("message_id"), str):
+                examples[message["message_id"]] = message
+        without_scope = [token for token in BASELINE_CAPABILITIES if token != "bounded-scope"]
+        for label, ids, advertised, open_handoffs in (
+            ("acceptance", ("msg-0001", "msg-0002", "msg-0003", "msg-0004", "msg-0005"),
+             list(BASELINE_CAPABILITIES), ["scout-1"]),
+            ("refusal", ("msg-0001", "msg-0006"), without_scope, []),
+        ):
+            messages = [examples.get(message_id) for message_id in ids]
+            report = self.connection(messages, advertised, True) if all(messages) else None
+            self.ok(
+                report is not None and report["contract_valid"] and report["open_handoffs"] == open_handoffs,
+                f"connect.md {label} examples form a conforming connection",
+            )
+
     def check_skill_references(self) -> None:
         """Hold SKILL.md path references and the skill metadata to the package.
 
@@ -1037,6 +1119,7 @@ class Checker:
         self.check_connect_conformance("conformance/connect-v0.2/cases.json", "schemas/connect-v0.2.schema.json")
         self.check_connect_field_names()
         self.check_negotiation_conformance()
+        self.check_connection_conformance()
         self.check_operator_fixtures()
         self.check_packet_fixture()
         self.check_text_files()

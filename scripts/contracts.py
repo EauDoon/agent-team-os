@@ -35,6 +35,11 @@ def _canonical(item: object) -> str:
     return json.dumps(_json_model(item), sort_keys=True, ensure_ascii=True, allow_nan=False)
 
 
+def json_equal(left: object, right: object) -> bool:
+    """Compare two JSON values as JSON: 1 equals 1.0, true never equals 1."""
+    return _canonical(left) == _canonical(right)
+
+
 def is_json_integer(value: object) -> bool:
     """A JSON integer is a finite number with no fractional part.
 

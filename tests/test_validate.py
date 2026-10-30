@@ -986,6 +986,60 @@ class ValidateTests(unittest.TestCase):
             checker.check_negotiation_conformance()
             self.assertIn("connect.md capability vocabulary matches the reference negotiator", checker.failures)
 
+    def connection_root(self, root: Path) -> None:
+        self.negotiation_root(root)
+        source = Path(__file__).resolve().parents[1]
+        relative = "conformance/connection/cases.json"
+        (root / relative).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source / relative, root / relative)
+
+    def test_connection_suite_and_connect_examples_pass_as_shipped(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.connection_root(root)
+            checker = Checker(root)
+            checker.check_connection_conformance()
+            self.assertEqual(checker.failures, [])
+            self.assertIn("connect.md acceptance examples form a conforming connection", checker.checks)
+            self.assertIn("connect.md refusal examples form a conforming connection", checker.checks)
+            suite = json.loads((root / "conformance/connection/cases.json").read_text(encoding="utf-8"))
+            for case in suite["cases"]:
+                self.assertIn(f"connection conformance case {case['name']} matches its expectation", checker.checks)
+
+    def test_connection_case_that_flips_its_outcome_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.connection_root(root)
+            path = root / "conformance/connection/cases.json"
+            suite = json.loads(path.read_text(encoding="utf-8"))
+            valid = next(case for case in suite["cases"] if case["name"] == "accepted-exchange-closed")
+            valid["messages"].reverse()
+            invalid = next(case for case in suite["cases"] if case["name"] == "second-correlation")
+            invalid["violation"] = "only redeliveries may follow a refusal"
+            unknown = next(case for case in suite["cases"] if case["name"] == "open-exchange")
+            unknown["expect"] = "conforms"
+            path.write_text(json.dumps(suite), encoding="utf-8")
+            checker = Checker(root)
+            checker.check_connection_conformance()
+            self.assertEqual(sorted(checker.failures), sorted([
+                "connection conformance case accepted-exchange-closed matches its expectation",
+                "connection conformance case second-correlation fails for its declared violation",
+                "connection conformance case open-exchange declares valid or invalid",
+            ]))
+
+    def test_connect_result_example_without_the_negotiated_set_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self.connection_root(root)
+            spec = root / "connect.md"
+            text = spec.read_text(encoding="utf-8")
+            legacy = text.replace('  "capabilities": ["bounded-scope", "evidence-trace"],\n', "", 1)
+            self.assertNotEqual(legacy, text)
+            spec.write_text(legacy, encoding="utf-8")
+            checker = Checker(root)
+            checker.check_connection_conformance()
+            self.assertEqual(checker.failures, ["connect.md acceptance examples form a conforming connection"])
+
     def test_connect_field_names_must_match_the_shipped_schemas(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

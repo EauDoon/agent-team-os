@@ -21,6 +21,10 @@ fields or assume that a shape-valid v0.1 brief is safe to execute.
 python3 scripts/check.py connect my-message.json --json
 ```
 
+`scripts/author.py` composes every v0.2 message type, including the
+negotiation reply and a result that records the negotiated set; see
+[compose connect messages](authoring.md#compose-connect-messages).
+
 This fictional handoff uses the stronger version explicitly:
 
 ```json

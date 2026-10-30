@@ -73,6 +73,14 @@ It reports per-arm counts and usage and the difference in passed checks. It
 never treats unverified checks as passes. The status is preserved in the output.
 No result is written to the repository.
 
+A rejected run exits 1 with `ok: false` and the unchanged generic `error`. When
+a documented rule failed, the output also names it in `reason`, for example
+`unknown task or wrong acceptance check count` or `paired arms must use
+identical prompt and evidence revisions`. A run that does not match
+`evals/run.schema.json` adds `failures`: up to 20 JSON-path diagnostics with any
+undeclared field name shown as `*`. No source value or path is printed, and an
+unreadable file keeps the generic error alone.
+
 Preregister task order, scoring and resource limits before running. Preserve
 blinded first-pass scoring where practical. Separate role IDs are bookkeeping,
 not proof of independent review. The summary is descriptive for the supplied

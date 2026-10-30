@@ -76,10 +76,16 @@ Keep synthetic tool checks distinct from empirical results. Preserve failed and
 interrupted runs, shared inputs and independent scoring evidence.
 
 Before installation, [compare package bytes with reviewed source](package-verification.md).
-The CLI never installs the skill or grants permissions. Keep production access,
+The check, inspection and authoring tools never install the skill.
+`scripts/install_skill.py` installs it only into a project you name, never
+replaces an existing skill, and grants no permissions. Keep production access,
 transport authentication and enforcement in the deployment environment.
 
 ## Troubleshooting
+
+Inspection, authoring and evaluation failures print a fixed `reason` beside the
+generic `error`; find the row for that reason. Run `scripts/check.py KIND FILE`
+for the full diagnostics of a record that does not conform.
 
 | Failure | Bounded correction |
 | --- | --- |
@@ -91,3 +97,7 @@ transport authentication and enforcement in the deployment environment.
 | Audit revision mismatch | Recheck the revision actually being delivered. |
 | Incomplete evaluation pair | Retain the failed or interrupted row and mark unverified checks. |
 | Archive mismatch | Stop installation and reconcile the reviewed source revision and archive. |
+| `record does not conform` | Fix the listed `failures`, then rerun `scripts/check.py` for semantic rules. |
+| `unknown accepted assignment` or `accepted assignments must include their accepted dependencies` | Assert only plan IDs, and accept each dependency before its dependents. |
+| `date must use DD-MM-YYYY` | Write the date as day, month and four-digit year, for example `12-09-2026`. |
+| `unknown task or wrong acceptance check count` | Record one check per acceptance criterion for every suite task. |

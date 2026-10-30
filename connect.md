@@ -72,7 +72,9 @@ discover -> negotiate -> accept|refuse
    basis, assumptions, and unresolved risks.
 
 Messages are correlated by `correlation_id` so a whole exchange is traceable as one
-connection.
+connection. The [connection inspector](docs/record-inspection.md#check-a-whole-connection)
+checks a recorded exchange against this lifecycle, and the
+[connection conformance suite](conformance/connection/README.md) pins its rules.
 
 ## Message envelope
 

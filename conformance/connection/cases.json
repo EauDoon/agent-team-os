@@ -1,0 +1,1640 @@
+{
+  "suite_version": "agent-team-connection-conformance/v0.1",
+  "purpose": "Versioned cases for the connect.md connection lifecycle. Each case lists connect messages in delivery order and states whether the exchange conforms, optionally given the capabilities the Orchestrator advertised and whether the exchange must be closed.",
+  "cases": [
+    {
+      "name": "accepted-exchange-closed",
+      "expect": "valid",
+      "advertised": [
+        "audit",
+        "bounded-scope",
+        "evidence-trace",
+        "route",
+        "structured-gaps"
+      ],
+      "require_closed": true,
+      "description": "The connect.md request, acceptance, handoff, gap status and result, in order.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "status",
+          "message_id": "msg-0004",
+          "correlation_id": "conn-42",
+          "from": "scout-1",
+          "to": "orchestrator",
+          "payload": {
+            "state": "gap",
+            "evidence_inspected": [
+              "brief-a.txt",
+              "brief-b.txt"
+            ],
+            "gaps": [
+              "brief-c.txt has no statement about exit effort"
+            ],
+            "decision_needed": "Proceed with exit effort marked missing for vendor C, or supply the missing brief."
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "result",
+          "message_id": "msg-0005",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "capabilities": [
+            "bounded-scope",
+            "evidence-trace"
+          ],
+          "payload": {
+            "summary": "Vendor A best fits the criteria; vendor C is missing exit-effort evidence.",
+            "request_satisfied": true,
+            "evidence_basis": [
+              "scout-source-table",
+              "analyst-comparison",
+              "auditor-pass"
+            ],
+            "assumptions": [
+              "Criteria weights are equal unless stated otherwise."
+            ],
+            "unresolved_risks": [
+              "Vendor C exit effort is unverified."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "refused-exchange",
+      "expect": "valid",
+      "advertised": [
+        "audit",
+        "evidence-trace",
+        "route",
+        "structured-gaps"
+      ],
+      "require_closed": true,
+      "description": "The connect.md request and its refusal from an Orchestrator without bounded-scope.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0006",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": false,
+            "refusal_reason": "missing required capabilities: bounded-scope",
+            "next_step": "authorize or remove: bounded-scope"
+          }
+        }
+      ]
+    },
+    {
+      "name": "identical-redelivery",
+      "expect": "valid",
+      "description": "A message delivered twice with identical content is a redelivery, not a conflict.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "status",
+          "message_id": "msg-0004",
+          "correlation_id": "conn-42",
+          "from": "scout-1",
+          "to": "orchestrator",
+          "payload": {
+            "state": "gap",
+            "evidence_inspected": [
+              "brief-a.txt",
+              "brief-b.txt"
+            ],
+            "gaps": [
+              "brief-c.txt has no statement about exit effort"
+            ],
+            "decision_needed": "Proceed with exit effort marked missing for vendor C, or supply the missing brief."
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "result",
+          "message_id": "msg-0005",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "capabilities": [
+            "bounded-scope",
+            "evidence-trace"
+          ],
+          "payload": {
+            "summary": "Vendor A best fits the criteria; vendor C is missing exit-effort evidence.",
+            "request_satisfied": true,
+            "evidence_basis": [
+              "scout-source-table",
+              "analyst-comparison",
+              "auditor-pass"
+            ],
+            "assumptions": [
+              "Criteria weights are equal unless stated otherwise."
+            ],
+            "unresolved_risks": [
+              "Vendor C exit effort is unverified."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "scope-refusal-allowed",
+      "expect": "valid",
+      "advertised": [
+        "audit",
+        "bounded-scope",
+        "evidence-trace",
+        "route",
+        "structured-gaps"
+      ],
+      "description": "A refusal for a scope conflict is valid even when every required capability is advertised.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0006",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": false,
+            "refusal_reason": "The objective needs review of vendor contracts, which no brief supplies.",
+            "next_step": "Supply the vendor contracts or narrow the objective to the supplied briefs."
+          }
+        }
+      ]
+    },
+    {
+      "name": "open-exchange",
+      "expect": "valid",
+      "description": "An exchange still in progress conforms when closure is not required.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "status",
+          "message_id": "msg-0004",
+          "correlation_id": "conn-42",
+          "from": "scout-1",
+          "to": "orchestrator",
+          "payload": {
+            "state": "gap",
+            "evidence_inspected": [
+              "brief-a.txt",
+              "brief-b.txt"
+            ],
+            "gaps": [
+              "brief-c.txt has no statement about exit effort"
+            ],
+            "decision_needed": "Proceed with exit effort marked missing for vendor C, or supply the missing brief."
+          }
+        }
+      ]
+    },
+    {
+      "name": "nonconforming-message",
+      "expect": "invalid",
+      "violation": "does not conform",
+      "description": "R1: every message must conform to its declared connect version.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "mixed-connect-versions",
+      "expect": "invalid",
+      "violation": "connect_version differs",
+      "description": "R2: one connection uses one wire version.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.2",
+          "type": "status",
+          "message_id": "msg-0004",
+          "correlation_id": "conn-42",
+          "from": "scout-1",
+          "to": "orchestrator",
+          "payload": {
+            "state": "gap",
+            "evidence_inspected": [
+              "brief-a.txt",
+              "brief-b.txt"
+            ],
+            "gaps": [
+              "brief-c.txt has no statement about exit effort"
+            ],
+            "decision_needed": "Proceed with exit effort marked missing for vendor C, or supply the missing brief."
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "result",
+          "message_id": "msg-0005",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "capabilities": [
+            "bounded-scope",
+            "evidence-trace"
+          ],
+          "payload": {
+            "summary": "Vendor A best fits the criteria; vendor C is missing exit-effort evidence.",
+            "request_satisfied": true,
+            "evidence_basis": [
+              "scout-source-table",
+              "analyst-comparison",
+              "auditor-pass"
+            ],
+            "assumptions": [
+              "Criteria weights are equal unless stated otherwise."
+            ],
+            "unresolved_risks": [
+              "Vendor C exit effort is unverified."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "second-correlation",
+      "expect": "invalid",
+      "violation": "correlation_id differs",
+      "description": "R3: every message of a connection shares its correlation_id.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "status",
+          "message_id": "msg-0004",
+          "correlation_id": "conn-43",
+          "from": "scout-1",
+          "to": "orchestrator",
+          "payload": {
+            "state": "gap",
+            "evidence_inspected": [
+              "brief-a.txt",
+              "brief-b.txt"
+            ],
+            "gaps": [
+              "brief-c.txt has no statement about exit effort"
+            ],
+            "decision_needed": "Proceed with exit effort marked missing for vendor C, or supply the missing brief."
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "result",
+          "message_id": "msg-0005",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "capabilities": [
+            "bounded-scope",
+            "evidence-trace"
+          ],
+          "payload": {
+            "summary": "Vendor A best fits the criteria; vendor C is missing exit-effort evidence.",
+            "request_satisfied": true,
+            "evidence_basis": [
+              "scout-source-table",
+              "analyst-comparison",
+              "auditor-pass"
+            ],
+            "assumptions": [
+              "Criteria weights are equal unless stated otherwise."
+            ],
+            "unresolved_risks": [
+              "Vendor C exit effort is unverified."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "conflicting-message-id",
+      "expect": "invalid",
+      "violation": "different content",
+      "description": "R4: a repeated message_id with different content is a conflict.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "status",
+          "message_id": "msg-0004",
+          "correlation_id": "conn-42",
+          "from": "scout-1",
+          "to": "orchestrator",
+          "payload": {
+            "state": "gap",
+            "evidence_inspected": [
+              "brief-a.txt",
+              "brief-b.txt"
+            ],
+            "gaps": [
+              "brief-c.txt has no statement about exit effort"
+            ],
+            "decision_needed": "Proceed with exit effort marked missing for vendor C, or supply the missing brief."
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "result",
+          "message_id": "msg-0005",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "capabilities": [
+            "bounded-scope",
+            "evidence-trace"
+          ],
+          "payload": {
+            "summary": "Vendor A best fits the criteria; vendor C is missing exit-effort evidence.",
+            "request_satisfied": true,
+            "evidence_basis": [
+              "scout-source-table",
+              "analyst-comparison",
+              "auditor-pass"
+            ],
+            "assumptions": [
+              "Criteria weights are equal unless stated otherwise."
+            ],
+            "unresolved_risks": [
+              "Vendor C exit effort is unverified."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "response-first",
+      "expect": "invalid",
+      "violation": "first message must be the request",
+      "description": "R5: the exchange opens with its single request.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "handoff-before-response",
+      "expect": "invalid",
+      "violation": "second message must be the response",
+      "description": "R6: the Orchestrator answers the request before delegating work.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "acceptance-without-negotiated-set",
+      "expect": "invalid",
+      "violation": "must carry negotiated_capabilities",
+      "description": "R7: an accepted response records the negotiated capability set.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "refusal-differs-from-rules",
+      "expect": "invalid",
+      "advertised": [
+        "audit",
+        "evidence-trace",
+        "route",
+        "structured-gaps"
+      ],
+      "violation": "differs from the negotiation rules",
+      "description": "R7: with the advertised set given, a capability refusal must equal the rules exactly.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0006",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": false,
+            "refusal_reason": "missing required capabilities: audit",
+            "next_step": "authorize or remove: audit"
+          }
+        }
+      ]
+    },
+    {
+      "name": "handoff-after-refusal",
+      "expect": "invalid",
+      "violation": "only redeliveries may follow a refusal",
+      "description": "R8: nothing new follows a refusal.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0006",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": false,
+            "refusal_reason": "missing required capabilities: bounded-scope",
+            "next_step": "authorize or remove: bounded-scope"
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "handoff-from-a-role",
+      "expect": "invalid",
+      "violation": "handoff must come from the Orchestrator",
+      "description": "R9: only the Orchestrator delegates work.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "analyst-1",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "status-from-a-stranger",
+      "expect": "invalid",
+      "violation": "recipient of an earlier handoff",
+      "description": "R10: a status comes from a handoff recipient and goes to the Orchestrator.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "status",
+          "message_id": "msg-0004",
+          "correlation_id": "conn-42",
+          "from": "scout-2",
+          "to": "orchestrator",
+          "payload": {
+            "state": "gap",
+            "evidence_inspected": [
+              "brief-a.txt",
+              "brief-b.txt"
+            ],
+            "gaps": [
+              "brief-c.txt has no statement about exit effort"
+            ],
+            "decision_needed": "Proceed with exit effort marked missing for vendor C, or supply the missing brief."
+          }
+        }
+      ]
+    },
+    {
+      "name": "message-after-result",
+      "expect": "invalid",
+      "violation": "result must be the last message",
+      "description": "R11: the single result closes the connection.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "status",
+          "message_id": "msg-0004",
+          "correlation_id": "conn-42",
+          "from": "scout-1",
+          "to": "orchestrator",
+          "payload": {
+            "state": "gap",
+            "evidence_inspected": [
+              "brief-a.txt",
+              "brief-b.txt"
+            ],
+            "gaps": [
+              "brief-c.txt has no statement about exit effort"
+            ],
+            "decision_needed": "Proceed with exit effort marked missing for vendor C, or supply the missing brief."
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "result",
+          "message_id": "msg-0005",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "capabilities": [
+            "bounded-scope",
+            "evidence-trace"
+          ],
+          "payload": {
+            "summary": "Vendor A best fits the criteria; vendor C is missing exit-effort evidence.",
+            "request_satisfied": true,
+            "evidence_basis": [
+              "scout-source-table",
+              "analyst-comparison",
+              "auditor-pass"
+            ],
+            "assumptions": [
+              "Criteria weights are equal unless stated otherwise."
+            ],
+            "unresolved_risks": [
+              "Vendor C exit effort is unverified."
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "status",
+          "message_id": "msg-0007",
+          "correlation_id": "conn-42",
+          "from": "scout-1",
+          "to": "orchestrator",
+          "payload": {
+            "state": "done",
+            "evidence_inspected": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "result-without-negotiated-set",
+      "expect": "invalid",
+      "violation": "result capabilities differ",
+      "description": "R12: the result envelope records the negotiated set, as the 0.6.0 example failed to.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "status",
+          "message_id": "msg-0004",
+          "correlation_id": "conn-42",
+          "from": "scout-1",
+          "to": "orchestrator",
+          "payload": {
+            "state": "gap",
+            "evidence_inspected": [
+              "brief-a.txt",
+              "brief-b.txt"
+            ],
+            "gaps": [
+              "brief-c.txt has no statement about exit effort"
+            ],
+            "decision_needed": "Proceed with exit effort marked missing for vendor C, or supply the missing brief."
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "result",
+          "message_id": "msg-0005",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "summary": "Vendor A best fits the criteria; vendor C is missing exit-effort evidence.",
+            "request_satisfied": true,
+            "evidence_basis": [
+              "scout-source-table",
+              "analyst-comparison",
+              "auditor-pass"
+            ],
+            "assumptions": [
+              "Criteria weights are equal unless stated otherwise."
+            ],
+            "unresolved_risks": [
+              "Vendor C exit effort is unverified."
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "open-exchange-closure-required",
+      "expect": "invalid",
+      "require_closed": true,
+      "violation": "must end in a refusal or a result",
+      "description": "R13: with closure required, the exchange ends in a refusal or a result.",
+      "messages": [
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "request",
+          "message_id": "msg-0001",
+          "correlation_id": "conn-42",
+          "from": "vendor-intake-agent",
+          "to": "orchestrator",
+          "capabilities": [
+            "evidence-trace"
+          ],
+          "payload": {
+            "objective": "Compare three supplied vendor briefs against fixed criteria.",
+            "completion_test": "Every conclusion traces to a supplied statement or is labeled unsupported.",
+            "constraints": [
+              "Use only the supplied briefs",
+              "No external sources"
+            ],
+            "required_capabilities": [
+              "evidence-trace",
+              "bounded-scope"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "response",
+          "message_id": "msg-0002",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "vendor-intake-agent",
+          "payload": {
+            "accepted": true,
+            "negotiated_capabilities": [
+              "bounded-scope",
+              "evidence-trace"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "handoff",
+          "message_id": "msg-0003",
+          "correlation_id": "conn-42",
+          "from": "orchestrator",
+          "to": "scout-1",
+          "payload": {
+            "role_brief": {
+              "role": "Scout",
+              "access_scope": "Supplied briefs only, read-only.",
+              "task": "Extract claims and mark missing information without ranking vendors.",
+              "evidence": "Exact statements from the supplied briefs.",
+              "output_contract": "Source table with claim, source location, and uncertainty.",
+              "stop_condition": "Stop after every criterion is covered or explicitly marked missing."
+            },
+            "evidence": [
+              "brief-a.txt",
+              "brief-b.txt",
+              "brief-c.txt"
+            ]
+          }
+        },
+        {
+          "connect_version": "agent-team-connect/v0.1",
+          "type": "status",
+          "message_id": "msg-0004",
+          "correlation_id": "conn-42",
+          "from": "scout-1",
+          "to": "orchestrator",
+          "payload": {
+            "state": "gap",
+            "evidence_inspected": [
+              "brief-a.txt",
+              "brief-b.txt"
+            ],
+            "gaps": [
+              "brief-c.txt has no statement about exit effort"
+            ],
+            "decision_needed": "Proceed with exit effort marked missing for vendor C, or supply the missing brief."
+          }
+        }
+      ]
+    }
+  ]
+}
