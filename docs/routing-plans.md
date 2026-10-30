@@ -18,7 +18,9 @@ assignment starts. Independent ready assignments may run concurrently.
 The checker rejects unknown dependencies, cycles, duplicate outputs and write
 ownership overlaps, including a parent resource and its child. Resource names
 are logical identifiers compared without case and with normalized separators,
-not file permissions or filesystem discovery. Use one owner for a shared file;
+not file permissions or filesystem discovery. Canonically equivalent Unicode
+spellings, such as a precomposed accent and a letter with a combining accent,
+are one name. Use one owner for a shared file;
 other roles can return proposed changes for that owner. A sequential ownership
 transfer needs a revised plan after the first owner stops.
 

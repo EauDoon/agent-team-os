@@ -10,12 +10,12 @@ try:
     from .check import CONNECT_CONTRACTS, ROOT, check_document, load_json
     from .contracts import violations
     from .version import add_version_flag
-    from .workflows import negotiate, negotiation_sets
+    from .workflows import negotiate, negotiation_sets, resource_key
 except ImportError:
     from check import CONNECT_CONTRACTS, ROOT, check_document, load_json
     from contracts import violations
     from version import add_version_flag
-    from workflows import negotiate, negotiation_sets
+    from workflows import negotiate, negotiation_sets, resource_key
 
 
 def require_record(kind: str, document: object) -> None:
@@ -85,7 +85,7 @@ def compare_plans(before: object, after: object) -> dict:
     require_record('plan', after)
     old = {item['id']: item for item in before['assignments']}
     new = {item['id']: item for item in after['assignments']}
-    normalize = lambda values: {value.replace('\\', '/').strip('/').casefold() for value in values}
+    normalize = lambda values: {resource_key(value) for value in values}
     changes = []
     for key in sorted(old.keys() & new.keys()):
         left, right = old[key], new[key]

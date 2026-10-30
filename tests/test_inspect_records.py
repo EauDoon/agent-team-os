@@ -310,6 +310,14 @@ class InspectionTests(unittest.TestCase):
         self.assertIn('access_scope', change['brief_changes'])
         self.assertEqual(before['assignments'][1]['write_resources'], ['src'])
 
+    def test_plan_comparison_ignores_a_change_of_unicode_normalization_form(self):
+        before = self.plan()
+        maker = next(item for item in before['assignments'] if item['id'] == 'build')
+        maker['write_resources'] = ['src/café.py']
+        after = copy.deepcopy(before)
+        next(item for item in after['assignments'] if item['id'] == 'build')['write_resources'] = ['SRC/café.py']
+        self.assertFalse(compare_plans(before, after)['changed'])
+
     def test_comparison_cli_shows_removed_assignment_and_rejects_invalid_plan(self):
         with tempfile.TemporaryDirectory() as directory:
             before, after = Path(directory) / 'before.json', Path(directory) / 'after.json'

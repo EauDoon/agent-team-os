@@ -32,6 +32,13 @@ set `VERSION`; those versions were never tagged or published.
   headers, such as `bsdtar` reading a pipe, unpacked it over the verified file.
   Data descriptors are rejected; the included builder never writes them, and
   Deflate archives from 0.5.0 and earlier still verify.
+- Routing plan ownership checks treat canonically equivalent write resource
+  names as one name. A name spelled with a precomposed `U+00E9` and the same
+  name spelled with `e` and a combining `U+0301` render identically, but two
+  assignments could each own one spelling and `scripts/check.py plan` reported
+  no conflict.
+  `inspect_records.py compare-plans` no longer reports such a respelling as a
+  scope change.
 
 ## [0.6.0] - 2026-10-09
 
