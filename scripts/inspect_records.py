@@ -133,7 +133,7 @@ def inspection_date(value: str):
     except ValueError:
         # strptime quotes its input in the message; replace it with fixed text.
         raise RecordError('date must use DD-MM-YYYY') from None
-    if parsed.strftime('%d-%m-%Y') != value:
+    if f'{parsed.day:02d}-{parsed.month:02d}-{parsed.year:04d}' != value:
         raise RecordError('date must use DD-MM-YYYY')
     return parsed
 

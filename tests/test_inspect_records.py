@@ -200,6 +200,17 @@ class InspectionTests(unittest.TestCase):
         after['claims'][0].update(status='unsupported', source_ids=[])
         self.assertEqual(compare_evidence(before, after)['sources_removed'], ['brief-b'])
 
+    def test_evidence_freshness_accepts_zero_padded_four_digit_years(self):
+        ledger = json.loads((ROOT / 'templates/evidence-ledger.json').read_text())
+        for source in ledger['sources']:
+            source['inspected_on'] = '31-12-0999'
+        result = inspect_evidence(ledger, as_of='01-01-1000', max_age_days=1)
+        self.assertEqual(result['freshness']['unknown_date_sources'], [])
+        self.assertEqual(result['freshness']['stale_sources'], [])
+        result = inspect_evidence(ledger, as_of='31-12-0999', max_age_days=0)
+        self.assertEqual(result['freshness']['unknown_date_sources'], [])
+        self.assertEqual(result['affected_claims'], [])
+
     def test_plan_changes_trace_rework_through_old_and_new_dependencies(self):
         before = self.plan()
         after = copy.deepcopy(before)
