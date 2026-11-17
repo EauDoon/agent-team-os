@@ -67,6 +67,8 @@ set `VERSION`; those versions were never tagged or published.
 
 ### Fixed
 
+- Fix JSON numeric equality for exactly equal integer and floating-point values beyond 2^53, and accept arbitrary-precision integer schema bounds without float-conversion overflow.
+
 - Package verification now hashes and checks one bounded ZIP snapshot. Replacing
   an archive during verification can no longer combine one file's digest with
   another file's contents, and a file that grows after opening still respects

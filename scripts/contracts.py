@@ -11,8 +11,6 @@ import math
 import re
 from functools import lru_cache
 
-_MAX_EXACT_INTEGER = 2 ** 53
-
 
 def _json_model(item: object) -> object:
     """Collapse numerically equal JSON numbers without collapsing booleans."""
@@ -21,7 +19,7 @@ def _json_model(item: object) -> object:
     if isinstance(item, int):
         return item
     if isinstance(item, float):
-        if math.isfinite(item) and item.is_integer() and abs(item) <= _MAX_EXACT_INTEGER:
+        if math.isfinite(item) and item.is_integer():
             return int(item)
         return item
     if isinstance(item, list):
@@ -129,7 +127,7 @@ def keyword_value_problems(schema: object) -> list[str]:
     for keyword in _BOUNDS:
         if keyword in schema:
             value = schema[keyword]
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or (isinstance(value, float) and not math.isfinite(value)):
                 problems.append(f"{keyword} must be a finite number")
     if "required" in schema:
         value = schema["required"]
