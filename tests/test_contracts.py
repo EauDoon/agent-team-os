@@ -15,6 +15,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ContractTests(unittest.TestCase):
+    def test_large_exact_integer_equality(self):
+        for number in (2 ** 54, -(2 ** 54), 10 ** 100):
+            floating = float(number)
+            exact = int(floating)
+            self.assertEqual(violations(floating, {'const': exact}), [])
+            self.assertEqual(violations(floating, {'enum': [exact]}), [])
+            self.assertTrue(violations([exact, floating], {'uniqueItems': True}))
+            self.assertTrue(violations(floating, {'const': exact + 1}))
+
+    def test_arbitrary_precision_integer_bounds(self):
+        huge = 10 ** 1000
+        self.assertEqual(violations(huge, {'minimum': huge, 'maximum': huge}), [])
+        self.assertTrue(violations(huge - 1, {'minimum': huge}))
+
     def test_every_shipped_connection_case(self):
         for schema_file, suite_file in [('schemas/connect.schema.json', 'conformance/connect/cases.json'),
                                         ('schemas/connect-v0.2.schema.json', 'conformance/connect-v0.2/cases.json')]:
