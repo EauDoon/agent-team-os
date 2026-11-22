@@ -7,7 +7,9 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
+import stat
 from pathlib import Path
 
 try:
@@ -70,7 +72,18 @@ def load_json_snapshot(path: Path) -> tuple[object, str]:
 
 
 def read_json_bytes(path: Path) -> bytes:
-    with path.open('rb') as handle:
+    """Read a bounded snapshot from a regular file, following links to regular files."""
+    if not stat.S_ISREG(path.stat().st_mode):
+        raise ValueError('JSON input must be a regular file')
+
+    # The path can change after stat. Where available, O_NONBLOCK prevents
+    # waiting for a pipe writer before we can check the opened descriptor.
+    def open_record(name: str, flags: int) -> int:
+        return os.open(name, flags | getattr(os, 'O_NONBLOCK', 0))
+
+    with open(path, 'rb', opener=open_record) as handle:
+        if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+            raise ValueError('JSON input must be a regular file')
         raw = handle.read(MAX_BYTES + 1)
     if len(raw) > MAX_BYTES:
         raise ValueError('JSON input exceeds 1 MiB')
