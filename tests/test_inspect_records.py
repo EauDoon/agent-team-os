@@ -52,6 +52,31 @@ class InspectionTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertFalse(json.loads(result.stdout)['inspection']['contract_valid'])
 
+    def test_evidence_date_gate_is_explicit_and_nonvacuous(self):
+        source = json.loads((ROOT / 'templates/evidence-ledger.json').read_text(encoding='utf-8'))
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'ledger.json'
+            def run(*args):
+                path.write_text(json.dumps(source), encoding='utf-8')
+                completed = subprocess.run([sys.executable, '-m', 'scripts.inspect_records', 'evidence',
+                                            str(path), *args], cwd=ROOT, capture_output=True, text=True, timeout=10)
+                return completed.returncode, json.loads(completed.stdout)
+            age = ('--as-of', '10-09-2026', '--max-age-days', '1')
+            self.assertEqual(run('--require-current')[0], 1)
+            self.assertEqual(run(*age, '--require-current')[0], 0)
+            for date, category in [('08-09-2026', 'stale_sources'), ('11-09-2026', 'future_sources'),
+                                   ('unspecified', 'unknown_date_sources')]:
+                source['sources'][0]['inspected_on'] = date
+                code, report = run(*age, '--require-current')
+                self.assertEqual((code, report['ok'], report['inspection']['all_source_dates_current']), (1, False, False))
+                self.assertEqual(report['inspection']['freshness'][category], ['brief-a'])
+                self.assertEqual(run(*age)[0], 0)
+            source['sources'] = []
+            for claim in source['claims']:
+                claim.update(status='assumption', source_ids=[])
+            code, report = run(*age, '--require-current')
+            self.assertEqual((code, report['inspection']['all_source_dates_current']), (1, False))
+
     def connect_request(self):
         suite = json.loads((ROOT / 'conformance/connect/cases.json').read_text(encoding='utf-8'))
         return next(case['message'] for case in suite['cases'] if case['name'] == 'request-valid')

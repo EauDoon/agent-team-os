@@ -412,6 +412,8 @@ def main() -> int:
     evidence = commands.add_parser('evidence')
     evidence.add_argument('file', type=Path)
     evidence.add_argument('--changed-source', action='append', default=[])
+    evidence.add_argument('--require-current', action='store_true',
+                          help='exit 1 unless there is at least one source and every recorded date is current')
     evidence.add_argument('--as-of')
     evidence.add_argument('--max-age-days', type=int)
     audit = commands.add_parser('audit')
@@ -450,6 +452,8 @@ def main() -> int:
         elif args.command == 'compare-evidence':
             result = compare_evidence(load_json(args.before), load_json(args.after))
         elif args.command == 'evidence':
+            if args.require_current and (args.as_of is None or args.max_age_days is None):
+                raise RecordError('requiring current evidence needs an explicit date and maximum age')
             result = inspect_evidence(load_json(args.file), args.changed_source,
                                       as_of=args.as_of, max_age_days=args.max_age_days)
         elif args.command == 'audit':
@@ -466,7 +470,13 @@ def main() -> int:
                                         require_closed=args.require_closed)
         else:
             result = inspect_plan(load_json(args.file), args.accepted, blocked=args.blocked, invalidate=args.invalidate)
-        rendered = json.dumps({'ok': result.get('contract_valid', True), 'inspection': result}, indent=2, allow_nan=False)
+        ok = result.get('contract_valid', True)
+        if args.command == 'evidence' and args.require_current:
+            freshness = result['freshness']
+            ok = bool(result['source_claims']) and not any(freshness[k] for k in
+                        ('stale_sources', 'future_sources', 'unknown_date_sources'))
+            result['all_source_dates_current'] = ok
+        rendered = json.dumps({'ok': ok, 'inspection': result}, indent=2, allow_nan=False)
     except RecordError as exc:
         # A named rule failed. The reason and masked diagnostics are fixed text.
         print(json.dumps({'ok': False, 'error': GENERIC_ERROR, **exc.details()}))
@@ -475,7 +485,7 @@ def main() -> int:
         print(json.dumps({'ok': False, 'error': GENERIC_ERROR}))
         return 1
     print(rendered)
-    return 0 if result.get('contract_valid', True) else 1
+    return 0 if ok else 1
 
 
 if __name__ == '__main__':

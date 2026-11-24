@@ -12,6 +12,10 @@ set `VERSION`; those versions were never tagged or published.
 
 ## [Unreleased]
 
+### Operator review
+
+- The next release adds an optional evidence-date gate: `evidence --as-of DD-MM-YYYY --max-age-days N --require-current` rejects empty, stale, future or undated source sets while retaining the full inspection.
+
 ### Added
 
 - `scripts/inspect_records.py connection MESSAGE... [--advertise TOKEN]...
