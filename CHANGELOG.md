@@ -14,6 +14,8 @@ set `VERSION`; those versions were never tagged or published.
 
 ### Added
 
+- The next release adds an optional evidence-date gate: `evidence --as-of DD-MM-YYYY --max-age-days N --require-current` rejects empty, stale, future or undated source sets while retaining the full inspection.
+
 - `scripts/inspect_records.py connection MESSAGE... [--advertise TOKEN]...
   [--require-closed]` checks a recorded connect exchange, in delivery order,
   against the `connect.md` lifecycle: one version and correlation per

@@ -249,7 +249,12 @@ limit remains current. Older, future and unparseable inspection dates are
 separate lists and their claims enter `affected_claims` via `review_sources`.
 `changed_sources` still means only explicitly named changes. With no date
 options, `freshness` is `null`. No system clock, source retrieval or implicit
-freshness policy is used; success means the inspection ran, not fresh evidence.
+freshness policy is used; by default, success means the inspection ran, not fresh evidence.
+
+Add `--require-current` to those two date options to get exit 1 if there are no
+sources or any inspection date is stale, unknown, or future. The JSON report
+retains the per-category findings and adds `all_source_dates_current`. A pass
+covers recorded dates only, not claim support or source truth.
 
 Compare two saved ledgers with `compare-evidence old.json new.json`. The report
 lists added, removed and changed sources and claims, ignoring record and source
