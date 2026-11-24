@@ -19,6 +19,12 @@ The coordination protocol itself is part of the host runtime that consumes this 
 - **Deterministic packaging:** `scripts/package.py` and `scripts/verify_package.py` build a ZIP plus SHA-256 and compare archive members against reviewed source bytes before extraction.
 - **Templates and examples:** `templates/role-brief.md` and `templates/audit-report.md` are reusable authoring templates; `examples/routing-scenarios.md` walks three fully synthetic end-to-end scenarios.
 
+## Next release candidate: 0.7.0
+
+Offer an opt-in freshness gate for file-based evidence inspection. Exercise the inclusive age boundary, unknown and future dates, and an empty ledger; keep default inspection read-only and permissive. Verify the same command from the packaged ZIP before publishing.
+
+Before tagging, review the complete diff since the last release, including earlier unreleased work, and verify the normal release checks against the exact candidate. This plan does not mark a published version.
+
 ## Quick start
 
 The installed Agent Team skill is instruction-only and requires no runtime
