@@ -15,6 +15,7 @@
   "conformance/negotiation/README.md",
   "conformance/negotiation/cases.json",
   "connect.md",
+  "docs/architecture.html",
   "docs/audit-closure.md",
   "docs/authoring.md",
   "docs/closure-walkthrough.md",

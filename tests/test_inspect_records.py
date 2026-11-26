@@ -295,6 +295,48 @@ class InspectionTests(unittest.TestCase):
         self.assertFalse(result['closure_ready'])
         self.assertEqual(result['remediation_queue'][0]['owner'], 'maker')
 
+    def test_significant_risk_is_queued_for_pass_and_minor_risk_stays_visible(self):
+        report = json.loads((ROOT / 'templates/audit-closure.json').read_text())
+        risk = report['findings'][0]
+        risk['disposition'] = 'accepted_risk'
+        report['findings'].append(dict(risk, id='minor-risk', severity='minor', owner='reader'))
+        result = inspect_audit(report, owner='reader')
+        self.assertEqual(result['remediation_queue'], [])
+        self.assertEqual(result['outstanding_by_owner'], {'maker': {'blocking': 0, 'material': 1, 'minor': 0}})
+        all_owners = inspect_audit(report)
+        self.assertEqual([item['id'] for item in all_owners['accepted_risks']], [risk['id'], 'minor-risk'])
+        self.assertEqual(all_owners['remediation_queue'][0]['action'], 'review-significant-risk')
+
+    def test_audit_gate_and_snapshot_comparison_cli(self):
+        original = ROOT / 'templates/audit-closure.json'
+        report = json.loads(original.read_text())
+        def inspect(*args):
+            process = subprocess.run([sys.executable, 'scripts/inspect_records.py', *args], cwd=ROOT,
+                                     capture_output=True, text=True, timeout=10)
+            return process.returncode, json.loads(process.stdout)
+        with tempfile.TemporaryDirectory() as directory:
+            after = Path(directory) / 'after.json'
+            report['recommendation'] = 'revise'
+            report['findings'][0].update(disposition='open', owner='analyst')
+            report['findings'].append(dict(report['findings'][0], id='new-risk'))
+            after.write_text(json.dumps(report))
+            self.assertEqual(inspect('audit', str(original), '--require-ready')[0], 0)
+            self.assertEqual(inspect('audit', str(after))[0], 0)
+            code, outcome = inspect('audit', str(after), '--require-ready', '--owner', 'analyst')
+            self.assertEqual((code, outcome['ok'], outcome['inspection']['contract_valid']), (1, False, True))
+            self.assertEqual(inspect('audit', str(original), '--target-revision', 'r3', '--require-ready')[0], 1)
+            code, outcome = inspect('compare-audits', str(original), str(after))
+            delta = outcome['inspection']
+            self.assertEqual(code, 0)
+            self.assertEqual(delta['findings_added'], ['new-risk'])
+            self.assertEqual(delta['report_fields_changed'], ['recommendation'])
+            self.assertEqual(delta['findings_changed'][0]['fields'], ['disposition', 'owner'])
+            self.assertEqual(inspect('compare-audits', str(after), str(original))[1]['inspection']['findings_removed'],
+                             ['new-risk'])
+            report['findings'].append(report['findings'][0])
+            after.write_text(json.dumps(report))
+            self.assertEqual(inspect('compare-audits', str(original), str(after))[0], 1)
+
     def test_invalid_audit_cli_keeps_actionable_queue_with_failure_exit(self):
         with tempfile.TemporaryDirectory() as directory:
             report = json.loads((ROOT / 'templates/audit-closure.json').read_text())

@@ -283,3 +283,18 @@ queue and accepted risks. Unknown or blank owners fail rather than silently
 returning no work. `total_remediation_count`, contract failures, exit status and
 `closure_ready` still reflect the complete report, so filtering cannot hide a
 blocking finding owned by someone else.
+
+Use `audit FILE --require-ready` for a sign-off check. The command exits 1
+when the full report fails closure readiness, including a valid `revise` or
+`blocked` recommendation or a different requested revision. It retains the
+inspection and the owner filter applies only to the two lists. The global
+`outstanding_by_owner` count groups remediation by owner and severity. An
+accepted material or blocking risk under `pass` appears in the queue with
+`review-significant-risk` and remains in the accepted-risk list.
+
+Run `python3 scripts/inspect_records.py compare-audits previous.json current.json`
+to trace removed findings, newly added findings, and edits to the owner,
+severity, disposition or evidence under a stable ID. The comparison lists
+changed report-level fields, reports closure readiness for each snapshot and
+rejects ambiguous duplicate finding IDs. A removed finding still needs review.
+Successful comparison means both snapshots could be compared.

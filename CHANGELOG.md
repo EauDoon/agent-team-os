@@ -14,6 +14,11 @@ set `VERSION`; those versions were never tagged or published.
 
 ### Added
 
+- Inspect audit snapshots with `compare-audits`, group outstanding findings by
+  owner and severity, and optionally require closure readiness with `audit --require-ready`.
+  The remediation queue now includes accepted significant risks that prevent a pass.
+- Explore the contract, inspection and packaging paths in the offline architecture map.
+
 - The next release adds an optional evidence-date gate: `evidence --as-of DD-MM-YYYY --max-age-days N --require-current` rejects empty, stale, future or undated source sets while retaining the full inspection.
 
 - `scripts/inspect_records.py connection MESSAGE... [--advertise TOKEN]...

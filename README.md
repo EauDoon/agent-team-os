@@ -10,6 +10,12 @@ Agent Team is an installable skill that ships a versioned contract for delegatin
 
 The coordination protocol itself is part of the host runtime that consumes this skill, not part of the skill. This package standardizes the contract layer without prescribing the orchestration rules. Hosts can document their protocol choices elsewhere and use this skill as the wire format and the validator.
 
+## Explore the contract map
+
+Open [the architecture map](docs/architecture.html) from a checkout or extracted package in a browser. Follow a record into its checker, inspect the source documents, and switch between contract review and package verification. The page works offline. On GitHub, download and extract the source ZIP to keep the linked schemas, scripts and guides alongside it.
+
+For an audit handoff, run `python3 scripts/inspect_records.py audit templates/audit-closure.json --require-ready`. The [inspection guide](docs/record-inspection.md#inspect-audit-remediation-and-stale-closure) explains the owner workload, significant-risk queue and two-snapshot comparison.
+
 ## What the skill ships
 
 - **Role brief schema:** `schemas/role-brief.schema.json` defines the six-field contract that every delegated role must receive. The `role` field is a free-form string, so any host taxonomy is acceptable; the schema enforces presence, length, and structure, not vocabulary.

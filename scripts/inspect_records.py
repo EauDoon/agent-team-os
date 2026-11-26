@@ -226,17 +226,26 @@ def inspect_audit(report: object, target_revision: str | None = None, *, owner: 
     revision_changed = target != report['target_revision']
     queue = []
     accepted_risks = []
+    outstanding_by_owner = {}
     severity_order = {'blocking': 0, 'material': 1, 'minor': 2}
     for finding in sorted(report['findings'], key=lambda item: (severity_order[item['severity']], item['id'])):
         stale = finding['disposition'] == 'resolved' and (finding['checked_revision'] != target or not finding['recheck_evidence'].strip())
-        if finding['disposition'] == 'open' or stale:
+        risk = finding['disposition'] == 'accepted_risk'
+        prevents_pass = risk and report['recommendation'] == 'pass' and finding['severity'] in {'material', 'blocking'}
+        if finding['disposition'] == 'open' or stale or prevents_pass:
+            action = 'recheck-current-revision' if stale else 'address-finding'
+            if prevents_pass:
+                action = 'review-significant-risk'
+            counts = outstanding_by_owner.setdefault(finding['owner'], {'blocking': 0, 'material': 0, 'minor': 0})
+            counts[finding['severity']] += 1
             queue.append({'id': finding['id'], 'severity': finding['severity'], 'owner': finding['owner'],
                           'finding': finding['finding'], 'evidence': finding['evidence'],
-                          'action': 'recheck-current-revision' if stale else 'address-finding'})
-        elif finding['disposition'] == 'accepted_risk':
+                          'action': action})
+        if risk:
             accepted_risks.append({'id': finding['id'], 'severity': finding['severity'], 'owner': finding['owner']})
     return {'contract_valid': not failures, 'contract_failures': failures,
             'owner_filter': owner, 'total_remediation_count': len(queue),
+            'outstanding_by_owner': dict(sorted(outstanding_by_owner.items())),
             'recorded_revision': report['target_revision'], 'requested_revision': target,
             'revision_changed': revision_changed,
             'closure_ready': not failures and not revision_changed and report['recommendation'] == 'pass',
@@ -244,6 +253,30 @@ def inspect_audit(report: object, target_revision: str | None = None, *, owner: 
             'remediation_queue': [item for item in queue if owner is None or item['owner'] == owner],
             'accepted_risks': [item for item in accepted_risks if owner is None or item['owner'] == owner],
             'note': 'Readiness reflects supplied audit bookkeeping, not independent verification or release authority.'}
+
+
+def compare_audits(before: object, after: object) -> dict:
+    """Match findings by stable ID and surface the evidence that needs review."""
+    # A structurally valid revise/blocked report can be compared. Duplicate
+    # finding IDs make correspondence ambiguous even when each row has the right shape.
+    inspections = [inspect_audit(record) for record in (before, after)]
+    previous, current = ({item['id']: item for item in record['findings']} for record in (before, after))
+    if len(previous) != len(before['findings']) or len(current) != len(after['findings']):
+        raise RecordError('audit comparison requires unique finding IDs in each report')
+    changed = []
+    for key in sorted(previous.keys() & current.keys()):
+        fields = sorted(field for field in previous[key] if previous[key][field] != current[key][field])
+        if fields:
+            changed.append({'id': key, 'fields': fields, 'previous_disposition': previous[key]['disposition'],
+                            'current_disposition': current[key]['disposition']})
+    return {'findings_added': sorted(current.keys() - previous.keys()),
+            'findings_removed': sorted(previous.keys() - current.keys()),
+            'findings_changed': changed,
+            'report_fields_changed': sorted(field for field in before if field != 'findings'
+                                            and before[field] != after[field]),
+            'previous_closure_ready': inspections[0]['closure_ready'],
+            'current_closure_ready': inspections[1]['closure_ready'],
+            'note': 'Removed findings have no recorded disposition in the new report. Review their evidence.'}
 
 
 def inspect_handoff(handoff: object, response: object) -> dict:
@@ -420,6 +453,10 @@ def main() -> int:
     audit.add_argument('file', type=Path)
     audit.add_argument('--target-revision')
     audit.add_argument('--owner')
+    audit.add_argument('--require-ready', action='store_true', help='exit 1 unless the full report is closure-ready')
+    audit_comparison = commands.add_parser('compare-audits', help='compare findings in two local audit reports')
+    audit_comparison.add_argument('before', type=Path)
+    audit_comparison.add_argument('after', type=Path)
     handoff = commands.add_parser('handoff')
     handoff.add_argument('handoff', type=Path)
     handoff.add_argument('response', type=Path)
@@ -456,6 +493,8 @@ def main() -> int:
                 raise RecordError('requiring current evidence needs an explicit date and maximum age')
             result = inspect_evidence(load_json(args.file), args.changed_source,
                                       as_of=args.as_of, max_age_days=args.max_age_days)
+        elif args.command == 'compare-audits':
+            result = compare_audits(load_json(args.before), load_json(args.after))
         elif args.command == 'audit':
             result = inspect_audit(load_json(args.file), args.target_revision, owner=args.owner)
         elif args.command == 'handoff':
@@ -471,6 +510,8 @@ def main() -> int:
         else:
             result = inspect_plan(load_json(args.file), args.accepted, blocked=args.blocked, invalidate=args.invalidate)
         ok = result.get('contract_valid', True)
+        if args.command == 'audit' and args.require_ready:
+            ok = result['closure_ready']
         if args.command == 'evidence' and args.require_current:
             freshness = result['freshness']
             ok = bool(result['source_claims']) and not any(freshness[k] for k in
