@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Contract map · Agent Team OS</title>
+<style>
+:root{--bg:#0b0d10;--paper:#12161b;--line:#363c43;--ink:#f0ede5;--muted:#aeb6ba;--mint:#85d7ba;--amber:#ffbe72;--blue:#98bafb;color-scheme:dark;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+*{box-sizing:border-box} body{max-width:1440px;margin:0 auto;padding:0 clamp(16px,5vw,72px) 64px}a{color:var(--mint);text-underline-offset:4px}button,select{font:inherit;color:var(--ink);background:#191e23;border:1px solid #444c52;border-radius:6px;padding:.6rem .85rem;min-height:42px;cursor:pointer}button:hover,select:hover{border-color:var(--mint)}:focus-visible{outline:3px solid #ffce89;outline-offset:4px}button[aria-pressed=true]{background:#273e35;border-color:var(--mint);color:#c6ffdf}
+nav,.stagefoot,.tools,.filters{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}nav{padding:19px 0;border-bottom:1px solid var(--line);justify-content:space-between;font: 600 .83rem ui-monospace,monospace;letter-spacing:.05em}nav a{color:var(--ink);text-decoration:none}.brand:before{content:"";display:inline-block;width:10px;height:10px;margin-right:10px;border:2px solid var(--mint);transform:rotate(45deg)}
+header{padding:clamp(28px,5vw,64px) 0 25px}h1{margin:0;font-family:Georgia,serif;font-weight:400;font-size:clamp(2.7rem,7vw,6rem);letter-spacing:-.065em;line-height:.98}header p{max-width:680px;color:var(--muted);line-height:1.6}
+.workbench{display:grid;grid-template-columns:minmax(0,2.45fr) minmax(220px,1fr);border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--paper)}.left{min-width:0}.filters{padding:12px;border-bottom:1px solid var(--line)}.filters button{font-size:.8rem}.scene{position:relative;touch-action:pan-y;background:radial-gradient(ellipse at 43% 45%,#192c29 0,transparent 60%),linear-gradient(#151b1f,#101418)}canvas{display:block;width:100%;height:clamp(280px,34vw,470px);touch-action:pan-y;cursor:grab}.stagefoot{border-top:1px solid var(--line);justify-content:space-between;padding:10px 14px;color:var(--muted);font: .78rem ui-monospace,monospace}.tools button{padding:4px 10px;font:inherit}.tools{gap:4px}
+aside{padding:clamp(16px,2.5vw,35px);border-left:1px solid var(--line);display:flex;flex-direction:column;align-items:flex-start;gap:14px}h2,h3,p{margin:0}aside h2{font:400 clamp(1.8rem,3vw,3.1rem)/1.05 Georgia,serif;letter-spacing:-.045em}aside p{color:#c4cac8;line-height:1.55;font-size:.95rem}.selectbox{display:grid;gap:6px;width:100%;color:var(--muted);font: .78rem ui-monospace,monospace}select{max-width:100%;width:100%;font-family:system-ui,sans-serif} .category{color:var(--mint);font: .8rem ui-monospace,monospace}#links{margin:0;padding:0 0 0 1.3rem;color:var(--muted);line-height:1.7}.doclink{margin-top:auto}
+.guide{margin-top:28px}.guide summary{cursor:pointer;padding:1rem 0;color:var(--ink);font-size:1.02rem}.guide details{border-bottom:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:.88rem;text-align:left;}td,th{padding:13px 10px;border-top:1px solid var(--line);vertical-align:top;line-height:1.5}thead th{color:var(--muted);font: .78rem ui-monospace,monospace}tbody th{min-width:8rem}tbody td{color:#c5ccca}pre{padding:14px;background:#0d1013;overflow:auto;border:1px solid var(--line);border-radius:5px;max-height:19rem;color:#c5dbcd}#payload{margin-bottom:14px}.muted{color:var(--muted)}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}[hidden]{display:none!important}noscript p{margin:1rem 0}header p{margin-top:14px} @media(max-width:760px){.workbench{grid-template-columns:1fr}aside{border-left:0;border-top:1px solid var(--line)}canvas{height:295px}.stagefoot{gap:.5rem}.guide td,.guide th{padding:10px 4px}table{font-size:.8rem}}@media(max-width:410px){table{table-layout:fixed}tbody th{min-width:0}.guide td,.guide th{overflow-wrap:anywhere}.guide thead th:first-child{width:28%}.guide thead th:last-child{width:24%}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}@media print{body{color:#111;background:white}.workbench,.tools,nav,#query-guide{display:none}td,th,tbody td,a,header p{color:#111}}
+</style>
+<body>
+<nav aria-label="Repository"><a class="brand" href="../README.md">Agent Team OS</a><a href="https://github.com/EauDoon/agent-team-os">GitHub ↗</a></nav>
+<header><h1>Contract map</h1><p>Follow a role brief into a handoff, trace a finding to its recheck, or inspect what goes into the release ZIP.</p></header>
+<main>
+<div class="workbench" id="explorer" hidden>
+<div class="left"><div class="filters" aria-label="Map views"><button type="button" data-view="All" aria-pressed="true">Full map</button><button type="button" data-view="Records" aria-pressed="false">Record review</button><button type="button" data-view="Package" aria-pressed="false">Release package</button></div>
+<div class="scene"><canvas tabindex="0" aria-label="3D component map" aria-describedby="controls">Choose a component in the inspector or use the dependency table below.</canvas></div>
+<div class="stagefoot"><span id="counts"></span><span>Drag to rotate · Tap a point</span><div class="tools"><button id="left" aria-label="Rotate left">↶</button><button id="right" aria-label="Rotate right">↷</button><button id="reset">Reset view</button></div></div></div>
+<aside><label class="selectbox">Select component<select id="component"></select></label><span id="category" class="category"></span><h2 id="name"></h2><p id="description"></p><ul id="links"></ul><a class="doclink" id="source">Read source ↗</a></aside></div>
+<p class="sr" id="controls">Use arrow keys to rotate or Home to reset. Drag horizontally to orbit or tap a point to inspect. Every component is available in the select menu.</p>
+<noscript><p>Read the component sources and their connections in the table below.</p></noscript>
+<div class="guide"><details id="reference" open><summary>Component sources and dependencies</summary>
+<table><thead><tr><th scope="col">Component</th><th scope="col">Purpose</th><th scope="col">Used by</th></tr></thead><tbody>
+<tr id="ref-brief" data-kind="Contract" data-position="-235,-135,15"><th scope="row"><a href="../schemas/role-brief.schema.json">Role brief</a></th><td>Names a role, its access scope, its task, the evidence it may use, the expected output and when to stop.</td><td><a href="#ref-plan">Routing plan</a>, <a href="#ref-connect">Connect envelope</a></td></tr>
+<tr id="ref-plan" data-kind="Contract" data-position="-102,-62,38"><th scope="row"><a href="../schemas/routing-plan.schema.json">Routing plan</a></th><td>Embeds each role brief alongside dependencies, a single output and the resources that assignment may write.</td><td><a href="#ref-inspect">Record inspector</a>, <a href="#ref-packet">Operator packet</a></td></tr>
+<tr id="ref-connect" data-kind="Contract" data-position="-238,17,-15"><th scope="row"><a href="../connect.md">Connect envelope</a></th><td>Carries the role brief in a handoff and records the request, response, status and result of a bounded exchange.</td><td><a href="#ref-inspect">Record inspector</a></td></tr>
+<tr id="ref-ledger" data-kind="Contract" data-position="-103,91,15"><th scope="row"><a href="../schemas/evidence-ledger.schema.json">Evidence ledger</a></th><td>Connects claims to named sources, revisions and inspection dates and preserves unresolved claims.</td><td><a href="#ref-inspect">Record inspector</a>, <a href="#ref-packet">Operator packet</a></td></tr>
+<tr id="ref-audit" data-kind="Contract" data-position="45,-143,-30"><th scope="row"><a href="../schemas/audit-closure.schema.json">Audit closure</a></th><td>Records findings, owners and the exact revision checked before an operator accepts the closure recommendation.</td><td><a href="#ref-inspect">Record inspector</a>, <a href="#ref-packet">Operator packet</a></td></tr>
+<tr id="ref-inspect" data-kind="Review" data-position="65,-24,73"><th scope="row"><a href="../scripts/inspect_records.py">Record inspector</a></th><td>Reads local records to inspect dependencies, source freshness and audit readiness or compare two saved audit reports.</td><td>End of path</td></tr>
+<tr id="ref-packet" data-kind="Review" data-position="66,81,-25"><th scope="row"><a href="../docs/packets.md">Operator packet</a></th><td>References typed records in one directory so the packet checker can verify the files together and issue a local receipt.</td><td>End of path</td></tr>
+<tr id="ref-manifest" data-kind="Package" data-position="232,-122,-30"><th scope="row"><a href="../package-manifest.json">Package manifest</a></th><td>Enumerates the source files to include in the release archive and the membership expected during verification.</td><td><a href="#ref-build">ZIP builder</a>, <a href="#ref-verify">Archive verifier</a></td></tr>
+<tr id="ref-build" data-kind="Package" data-position="208,6,28"><th scope="row"><a href="../scripts/package.py">ZIP builder</a></th><td>Builds a deterministic archive from the manifest and writes its SHA-256 checksum.</td><td><a href="#ref-verify">Archive verifier</a></td></tr>
+<tr id="ref-verify" data-kind="Package" data-position="237,130,-5"><th scope="row"><a href="../scripts/verify_package.py">Archive verifier</a></th><td>Compares the bounded archive snapshot and its members with the manifest and the reviewed source bytes.</td><td>End of path</td></tr>
+</tbody></table></details>
+<details id="query-guide" hidden><summary>Read the graph as JSON</summary><p class="muted">The selected map view determines which components and connections appear in this local projection.</p><pre id="query"></pre><pre id="payload"></pre></details>
+</div></main>
+<script>
+'use strict';
+const byId = id => document.getElementById(id);
+const nodes = Array.from(document.querySelectorAll('tbody tr'), row => {
+  const source = row.cells[0].querySelector('a');
+  return {id: row.id.slice(4), name: source.textContent, kind: row.dataset.kind,
+    path: source.getAttribute('href'), purpose: row.cells[1].textContent,
+    position: row.dataset.position.split(',').map(Number),
+    uses: Array.from(row.cells[2].querySelectorAll('a'), link => link.hash.slice(5))};
+});
+const index = new Map(nodes.map(node => [node.id, node]));
+const canvas = document.querySelector('canvas');
+const ctx = canvas.getContext('2d');
+const select = byId('component');
+const colors = {Contract:'#86dbb8', Review:'#ffc47e', Package:'#9dbeff'};
+const viewButtons = Array.from(document.querySelectorAll('[data-view]'));
+let view = 'All', selected = 'plan', yaw = -.09, pitch = .07, plotted = [], drag = null;
+function visible() {
+  return nodes.filter(n => view === 'All' || (view === 'Package' ? n.kind === 'Package' : n.kind !== 'Package'));
+}
+function draw() {
+  if (!ctx) return;
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  const pixelsW = Math.round(w * ratio), pixelsH = Math.round(h * ratio);
+  if (canvas.width !== pixelsW || canvas.height !== pixelsH) {
+    canvas.width = pixelsW; canvas.height = pixelsH;
+  }
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#344443';
+  for (let x = 13; x < w; x += 22) for (let y = 13; y < h; y += 22) ctx.fillRect(x, y, 1, 1);
+  const shown = visible();
+  const center = view === 'Package' ? 220 : view === 'Records' ? -75 : 0;
+  const extent = view === 'All' ? 640 : view === 'Records' ? 505 : 330;
+  const scale = Math.min(w / extent, h / 385);
+  const project = ([x,y,z]) => {
+    x -= center;
+    const a = x * Math.cos(yaw) - z * Math.sin(yaw), b = x * Math.sin(yaw) + z * Math.cos(yaw);
+    const vertical = y * Math.cos(pitch) - b * Math.sin(pitch), depth = y * Math.sin(pitch) + b * Math.cos(pitch);
+    const perspective = 800 / (800 - depth);
+    return {x:w/2 + a*scale*perspective, y:h/2 + vertical*scale*perspective, z:depth, factor:perspective};
+  };
+  plotted = shown.map(n => ({node:n, ...project(n.position)})).sort((a,b)=>a.z-b.z);
+  const coords = new Map(plotted.map(p => [p.node.id,p]));
+  function edge(from,to,active) {
+    ctx.strokeStyle = active ? '#9bd2bd' : '#53676a'; ctx.lineWidth = active ? 2 : 1;
+    ctx.beginPath(); ctx.moveTo(from.x,from.y); ctx.lineTo(to.x,to.y); ctx.stroke();
+    const dx=to.x-from.x, dy=to.y-from.y, len=Math.hypot(dx,dy);
+    if (len < 35) return;
+    const t=.7, x=from.x+t*dx, y=from.y+t*dy, a=Math.atan2(dy,dx);
+    ctx.beginPath(); ctx.moveTo(x-5*Math.cos(a-.48),y-5*Math.sin(a-.48)); ctx.lineTo(x,y);
+    ctx.lineTo(x-5*Math.cos(a+.48),y-5*Math.sin(a+.48)); ctx.stroke();
+  }
+  const edges = [];
+  for (const from of plotted) for (const target of from.node.uses) {
+    if (coords.has(target)) edges.push([from,coords.get(target),from.node.id===selected || target===selected]);
+  }
+  edges.sort((a,b)=>Number(a[2])-Number(b[2])).forEach(([a,b,s])=>edge(a,b,s));
+  for (const p of plotted) {
+    const active=p.node.id===selected, r=(active?7:5)*p.factor, ink=colors[p.node.kind];
+    ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(p.x,p.y,r,0,2*Math.PI); ctx.fill();
+    if (active) {ctx.beginPath(); ctx.strokeStyle=ink; ctx.lineWidth=1.5;ctx.arc(p.x,p.y,r+5,0,2*Math.PI);ctx.stroke();}
+  }
+  // Give the selected label first choice of position. Other labels avoid
+  // previously placed labels and point markers on smaller screens.
+  const boxes=[];
+  const intersects=(a,b)=>a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
+  for (const p of [...plotted].sort((a,b)=>Number(b.node.id===selected)-Number(a.node.id===selected))) {
+    ctx.font = p.node.id===selected ? 'bold 12px system-ui' : '12px system-ui';
+    const width=ctx.measureText(p.node.name).width+10, height=19;
+    const offsets=[[12,-10],[-width-12,-10],[-width/2,13],[-width/2,-29]];
+    const options=offsets.map(([dx,dy])=>({x:Math.max(2,Math.min(w-width-2,p.x+dx)),y:Math.max(2,Math.min(h-height-2,p.y+dy)),w:width,h:height}));
+    const box=options.find(b=>!boxes.some(other=>intersects(b,other)) && !plotted.some(q=>intersects(b,{x:q.x-6,y:q.y-6,w:12,h:12}))) || (p.node.id===selected ? options[0] : null);
+    if (!box) continue;
+    boxes.push(box);ctx.fillStyle='#151f22';ctx.fillRect(box.x,box.y,width,height);
+    ctx.fillStyle=p.node.id===selected ? '#f4f7ec' : '#c6d2d1';ctx.fillText(p.node.name,box.x+5,box.y+14);
+  }
+}
+function display() {
+  const shown=visible(), node=index.get(selected), ids=new Set(shown.map(n=>n.id));
+  select.replaceChildren(...shown.map(n=>new Option(n.name,n.id)));
+  select.value=selected;
+  byId('name').textContent=node.name;
+  byId('category').textContent=node.kind;
+  byId('category').style.color=colors[node.kind];
+  byId('description').textContent=node.purpose;
+  byId('source').setAttribute('href',node.path);
+  const connections=[...node.uses.map(id=>'Used by '+index.get(id).name),
+    ...nodes.filter(n=>n.uses.includes(selected)).map(n=>'Uses '+n.name)];
+  byId('links').replaceChildren(...connections.map(label=>{const li=document.createElement('li');li.textContent=label;return li;}));
+  const edges=shown.flatMap(n=>n.uses.filter(id=>ids.has(id)).map(to=>({from:n.id,to})));
+  byId('counts').textContent=shown.length+' components · '+edges.length+' connections';
+  byId('query').textContent='query { architecture(view: '+view.toUpperCase()+') { nodes { id name kind path } edges { from to } } }';
+  const projection=shown.map(({id,name,kind,path})=>({id,name,kind,path}));
+  byId('payload').textContent=JSON.stringify({data:{architecture:{nodes:projection,edges}}},null,2);
+  viewButtons.forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));
+  draw();
+}
+function rotate(dx,dy) {
+  yaw=(yaw+dx)%(2*Math.PI);
+  pitch=Math.max(-.8,Math.min(.8,pitch+dy));
+  draw();
+}
+function reset(){yaw=-.09;pitch=.07;draw();}
+function choose(id){selected=id;display();}
+select.addEventListener('change',()=>choose(select.value));
+viewButtons.forEach(b=>b.addEventListener('click',()=>{
+  view=b.dataset.view;
+  const shown=visible();
+  if (!shown.some(n=>n.id===selected)) selected=shown[0].id;
+  yaw=-.09; pitch=.07; display();
+}));
+byId('left').addEventListener('click',()=>rotate(-.18,0));
+byId('right').addEventListener('click',()=>rotate(.18,0));
+byId('reset').addEventListener('click',reset);
+canvas.addEventListener('keydown',e=>{
+  const steps={ArrowLeft:[-.18,0],ArrowRight:[.18,0],ArrowUp:[0,-.1],ArrowDown:[0,.1]};
+  if (Object.hasOwn(steps,e.key)){e.preventDefault();rotate(...steps[e.key]);}
+  if (e.key==='Home'){e.preventDefault();reset();}
+});
+canvas.addEventListener('pointerdown',e=>{
+  if (!e.isPrimary || e.button!==0) return;
+  drag={startX:e.clientX,startY:e.clientY,x:e.clientX,y:e.clientY,id:e.pointerId,moved:false};
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove',e=>{
+  if (!drag || e.pointerId!==drag.id) return;
+  if (Math.hypot(e.clientX-drag.startX,e.clientY-drag.startY)>5) drag.moved=true;
+  if (drag.moved) rotate((e.clientX-drag.x)*.007,(e.clientY-drag.y)*.005);
+  drag.x=e.clientX;drag.y=e.clientY;
+});
+canvas.addEventListener('pointerup',e=>{
+  if (!drag || drag.id!==e.pointerId) return;
+  if (!drag.moved) {
+    const rect=canvas.getBoundingClientRect(), x=e.clientX-rect.left, y=e.clientY-rect.top;
+    const hits=plotted.map(p=>[Math.hypot(x-p.x,y-p.y),p.node.id]).sort((a,b)=>a[0]-b[0]);
+    if(hits.length && hits[0][0]<22) choose(hits[0][1]);
+  }
+  drag=null;
+});
+canvas.addEventListener('lostpointercapture',()=>{drag=null;});
+canvas.addEventListener('pointercancel',()=>{drag=null;});
+if(ctx){
+  byId('explorer').hidden=false;
+  byId('query-guide').hidden=false;
+  byId('reference').open=false;
+  display();window.addEventListener('resize',draw);
+}
+</script></body></html>
