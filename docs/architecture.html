@@ -12,6 +12,14 @@ header{padding:clamp(28px,5vw,64px) 0 25px}h1{margin:0;font-family:Georgia,serif
 .workbench{display:grid;grid-template-columns:minmax(0,2.45fr) minmax(220px,1fr);border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--paper)}.left{min-width:0}.filters{padding:12px;border-bottom:1px solid var(--line)}.filters button{font-size:.8rem}.scene{position:relative;touch-action:pan-y;background:radial-gradient(ellipse at 43% 45%,#192c29 0,transparent 60%),linear-gradient(#151b1f,#101418)}canvas{display:block;width:100%;height:clamp(280px,34vw,470px);touch-action:pan-y;cursor:grab}.stagefoot{border-top:1px solid var(--line);justify-content:space-between;padding:10px 14px;color:var(--muted);font: .78rem ui-monospace,monospace}.tools button{padding:4px 10px;font:inherit}.tools{gap:4px}
 aside{padding:clamp(16px,2.5vw,35px);border-left:1px solid var(--line);display:flex;flex-direction:column;align-items:flex-start;gap:14px}h2,h3,p{margin:0}aside h2{font:400 clamp(1.8rem,3vw,3.1rem)/1.05 Georgia,serif;letter-spacing:-.045em}aside p{color:#c4cac8;line-height:1.55;font-size:.95rem}.selectbox{display:grid;gap:6px;width:100%;color:var(--muted);font: .78rem ui-monospace,monospace}select{max-width:100%;width:100%;font-family:system-ui,sans-serif} .category{color:var(--mint);font: .8rem ui-monospace,monospace}#links{margin:0;padding:0 0 0 1.3rem;color:var(--muted);line-height:1.7}.doclink{margin-top:auto}
 .guide{margin-top:28px}.guide summary{cursor:pointer;padding:1rem 0;color:var(--ink);font-size:1.02rem}.guide details{border-bottom:1px solid var(--line)}table{width:100%;border-collapse:collapse;font-size:.88rem;text-align:left;}td,th{padding:13px 10px;border-top:1px solid var(--line);vertical-align:top;line-height:1.5}thead th{color:var(--muted);font: .78rem ui-monospace,monospace}tbody th{min-width:8rem}tbody td{color:#c5ccca}pre{padding:14px;background:#0d1013;overflow:auto;border:1px solid var(--line);border-radius:5px;max-height:19rem;color:#c5dbcd}#payload{margin-bottom:14px}.muted{color:var(--muted)}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}[hidden]{display:none!important}noscript p{margin:1rem 0}header p{margin-top:14px} @media(max-width:760px){.workbench{grid-template-columns:1fr}aside{border-left:0;border-top:1px solid var(--line)}canvas{height:295px}.stagefoot{gap:.5rem}.guide td,.guide th{padding:10px 4px}table{font-size:.8rem}}@media(max-width:410px){table{table-layout:fixed}tbody th{min-width:0}.guide td,.guide th{overflow-wrap:anywhere}.guide thead th:first-child{width:28%}.guide thead th:last-child{width:24%}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}@media print{body{color:#111;background:white}.workbench,.tools,nav,#query-guide{display:none}td,th,tbody td,a,header p{color:#111}}
+@media (max-width: 560px) {
+  .filters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 7px; }
+  .filters button { min-width: 0; min-height: 44px; padding: 4px; line-height: 1.15; }
+  canvas { height: 355px; }
+  .stagefoot { display: grid; grid-template-columns: 1fr auto; gap: 5px; padding: 8px; }
+  #counts { grid-column: 1 / -1; }
+  .tools button { min-width: 44px; min-height: 44px; }
+}
 </style>
 <body>
 <nav aria-label="Repository"><a class="brand" href="../README.md">Agent Team OS</a><a href="https://github.com/EauDoon/agent-team-os">GitHub ↗</a></nav>
@@ -20,22 +28,22 @@ aside{padding:clamp(16px,2.5vw,35px);border-left:1px solid var(--line);display:f
 <div class="workbench" id="explorer" hidden>
 <div class="left"><div class="filters" aria-label="Map views"><button type="button" data-view="All" aria-pressed="true">Full map</button><button type="button" data-view="Records" aria-pressed="false">Record review</button><button type="button" data-view="Package" aria-pressed="false">Release package</button></div>
 <div class="scene"><canvas tabindex="0" aria-label="3D component map" aria-describedby="controls">Choose a component in the inspector or use the dependency table below.</canvas></div>
-<div class="stagefoot"><span id="counts"></span><span>Drag to rotate · Tap a point</span><div class="tools"><button id="left" aria-label="Rotate left">↶</button><button id="right" aria-label="Rotate right">↷</button><button id="reset">Reset view</button></div></div></div>
+<div class="stagefoot"><span id="counts"></span><span>Drag to orbit</span><div class="tools"><button id="left" aria-label="Rotate left">↶</button><button id="right" aria-label="Rotate right">↷</button><button id="reset">Reset view</button></div></div></div>
 <aside><label class="selectbox">Select component<select id="component"></select></label><span id="category" class="category"></span><h2 id="name"></h2><p id="description"></p><ul id="links"></ul><a class="doclink" id="source">Read source ↗</a></aside></div>
-<p class="sr" id="controls">Use arrow keys to rotate or Home to reset. Drag horizontally to orbit or tap a point to inspect. Every component is available in the select menu.</p>
+<p class="sr" id="controls">Use arrow keys to rotate or Home to reset. Drag horizontally to orbit or tap a point or its label to inspect. Every component is available in the select menu.</p>
 <noscript><p>Read the component sources and their connections in the table below.</p></noscript>
 <div class="guide"><details id="reference" open><summary>Component sources and dependencies</summary>
 <table><thead><tr><th scope="col">Component</th><th scope="col">Purpose</th><th scope="col">Used by</th></tr></thead><tbody>
-<tr id="ref-brief" data-kind="Contract" data-position="-235,-135,15"><th scope="row"><a href="../schemas/role-brief.schema.json">Role brief</a></th><td>Names a role, its access scope, its task, the evidence it may use, the expected output and when to stop.</td><td><a href="#ref-plan">Routing plan</a>, <a href="#ref-connect">Connect envelope</a></td></tr>
-<tr id="ref-plan" data-kind="Contract" data-position="-102,-62,38"><th scope="row"><a href="../schemas/routing-plan.schema.json">Routing plan</a></th><td>Embeds each role brief alongside dependencies, a single output and the resources that assignment may write.</td><td><a href="#ref-inspect">Record inspector</a>, <a href="#ref-packet">Operator packet</a></td></tr>
-<tr id="ref-connect" data-kind="Contract" data-position="-238,17,-15"><th scope="row"><a href="../connect.md">Connect envelope</a></th><td>Carries the role brief in a handoff and records the request, response, status and result of a bounded exchange.</td><td><a href="#ref-inspect">Record inspector</a></td></tr>
-<tr id="ref-ledger" data-kind="Contract" data-position="-103,91,15"><th scope="row"><a href="../schemas/evidence-ledger.schema.json">Evidence ledger</a></th><td>Connects claims to named sources, revisions and inspection dates and preserves unresolved claims.</td><td><a href="#ref-inspect">Record inspector</a>, <a href="#ref-packet">Operator packet</a></td></tr>
-<tr id="ref-audit" data-kind="Contract" data-position="45,-143,-30"><th scope="row"><a href="../schemas/audit-closure.schema.json">Audit closure</a></th><td>Records findings, owners and the exact revision checked before an operator accepts the closure recommendation.</td><td><a href="#ref-inspect">Record inspector</a>, <a href="#ref-packet">Operator packet</a></td></tr>
-<tr id="ref-inspect" data-kind="Review" data-position="65,-24,73"><th scope="row"><a href="../scripts/inspect_records.py">Record inspector</a></th><td>Reads local records to inspect dependencies, source freshness and audit readiness or compare two saved audit reports.</td><td>End of path</td></tr>
-<tr id="ref-packet" data-kind="Review" data-position="66,81,-25"><th scope="row"><a href="../docs/packets.md">Operator packet</a></th><td>References typed records in one directory so the packet checker can verify the files together and issue a local receipt.</td><td>End of path</td></tr>
-<tr id="ref-manifest" data-kind="Package" data-position="232,-122,-30"><th scope="row"><a href="../package-manifest.json">Package manifest</a></th><td>Enumerates the source files to include in the release archive and the membership expected during verification.</td><td><a href="#ref-build">ZIP builder</a>, <a href="#ref-verify">Archive verifier</a></td></tr>
-<tr id="ref-build" data-kind="Package" data-position="208,6,28"><th scope="row"><a href="../scripts/package.py">ZIP builder</a></th><td>Builds a deterministic archive from the manifest and writes its SHA-256 checksum.</td><td><a href="#ref-verify">Archive verifier</a></td></tr>
-<tr id="ref-verify" data-kind="Package" data-position="237,130,-5"><th scope="row"><a href="../scripts/verify_package.py">Archive verifier</a></th><td>Compares the bounded archive snapshot and its members with the manifest and the reviewed source bytes.</td><td>End of path</td></tr>
+<tr id="ref-brief" data-portrait="-82,-153" data-kind="Contract" data-position="-235,-135,15"><th scope="row"><a href="../schemas/role-brief.schema.json">Role brief</a></th><td>Names a role, its access scope, its task, the evidence it may use, the expected output and when to stop.</td><td><a href="#ref-plan">Routing plan</a>, <a href="#ref-connect">Connect envelope</a></td></tr>
+<tr id="ref-plan" data-portrait="0,-52" data-kind="Contract" data-position="-102,-62,38"><th scope="row"><a href="../schemas/routing-plan.schema.json">Routing plan</a></th><td>Embeds each role brief alongside dependencies, a single output and the resources that assignment may write.</td><td><a href="#ref-inspect">Record inspector</a>, <a href="#ref-packet">Operator packet</a></td></tr>
+<tr id="ref-connect" data-portrait="-86,-76" data-kind="Contract" data-position="-238,17,-15"><th scope="row"><a href="../connect.md">Connect envelope</a></th><td>Carries the role brief in a handoff and records the request, response, status and result of a bounded exchange.</td><td><a href="#ref-inspect">Record inspector</a></td></tr>
+<tr id="ref-ledger" data-portrait="86,-76" data-kind="Contract" data-position="-103,91,15"><th scope="row"><a href="../schemas/evidence-ledger.schema.json">Evidence ledger</a></th><td>Connects claims to named sources, revisions and inspection dates and preserves unresolved claims.</td><td><a href="#ref-inspect">Record inspector</a>, <a href="#ref-packet">Operator packet</a></td></tr>
+<tr id="ref-audit" data-portrait="72,-153" data-kind="Contract" data-position="45,-143,-30"><th scope="row"><a href="../schemas/audit-closure.schema.json">Audit closure</a></th><td>Records findings, owners and the exact revision checked before an operator accepts the closure recommendation.</td><td><a href="#ref-inspect">Record inspector</a>, <a href="#ref-packet">Operator packet</a></td></tr>
+<tr id="ref-inspect" data-portrait="-73,25" data-kind="Review" data-position="65,-24,73"><th scope="row"><a href="../scripts/inspect_records.py">Record inspector</a></th><td>Reads local records to inspect dependencies, source freshness and audit readiness or compare two saved audit reports.</td><td>End of path</td></tr>
+<tr id="ref-packet" data-portrait="73,25" data-kind="Review" data-position="66,81,-25"><th scope="row"><a href="../docs/packets.md">Operator packet</a></th><td>References typed records in one directory so the packet checker can verify the files together and issue a local receipt.</td><td>End of path</td></tr>
+<tr id="ref-manifest" data-portrait="-84,107" data-kind="Package" data-position="232,-122,-30"><th scope="row"><a href="../package-manifest.json">Package manifest</a></th><td>Enumerates the source files to include in the release archive and the membership expected during verification.</td><td><a href="#ref-build">ZIP builder</a>, <a href="#ref-verify">Archive verifier</a></td></tr>
+<tr id="ref-build" data-portrait="0,158" data-kind="Package" data-position="208,6,28"><th scope="row"><a href="../scripts/package.py">ZIP builder</a></th><td>Builds a deterministic archive from the manifest and writes its SHA-256 checksum.</td><td><a href="#ref-verify">Archive verifier</a></td></tr>
+<tr id="ref-verify" data-portrait="85,104" data-kind="Package" data-position="237,130,-5"><th scope="row"><a href="../scripts/verify_package.py">Archive verifier</a></th><td>Compares the bounded archive snapshot and its members with the manifest and the reviewed source bytes.</td><td>End of path</td></tr>
 </tbody></table></details>
 <details id="query-guide" hidden><summary>Read the graph as JSON</summary><p class="muted">The selected map view determines which components and connections appear in this local projection.</p><pre id="query"></pre><pre id="payload"></pre></details>
 </div></main>
@@ -47,6 +55,7 @@ const nodes = Array.from(document.querySelectorAll('tbody tr'), row => {
   return {id: row.id.slice(4), name: source.textContent, kind: row.dataset.kind,
     path: source.getAttribute('href'), purpose: row.cells[1].textContent,
     position: row.dataset.position.split(',').map(Number),
+    portrait: row.dataset.portrait.split(',').map(Number),
     uses: Array.from(row.cells[2].querySelectorAll('a'), link => link.hash.slice(5))};
 });
 const index = new Map(nodes.map(node => [node.id, node]));
@@ -55,7 +64,7 @@ const ctx = canvas.getContext('2d');
 const select = byId('component');
 const colors = {Contract:'#86dbb8', Review:'#ffc47e', Package:'#9dbeff'};
 const viewButtons = Array.from(document.querySelectorAll('[data-view]'));
-let view = 'All', selected = 'plan', yaw = -.09, pitch = .07, plotted = [], drag = null;
+let view = 'All', selected = 'plan', yaw = -.09, pitch = .07, plotted = [], labelBoxes = [], drag = null;
 function visible() {
   return nodes.filter(n => view === 'All' || (view === 'Package' ? n.kind === 'Package' : n.kind !== 'Package'));
 }
@@ -76,47 +85,122 @@ function draw() {
   const center = view === 'Package' ? 220 : view === 'Records' ? -75 : 0;
   const extent = view === 'All' ? 640 : view === 'Records' ? 505 : 330;
   const scale = Math.min(w / extent, h / 385);
-  const project = ([x,y,z]) => {
-    x -= center;
+  // On narrow canvases the two independent paths sit above one another.
+  // Both layouts use the same depth coordinates, direction and camera.
+  const portrait = w < 480;
+  const project = node => {
+    let [x, y, z] = node.position;
+    let scaleX = scale, scaleY = scale;
+    if (portrait) {
+      [x, y] = node.portrait;
+      const middle = {All: 0, Records: -70, Package: 126}[view];
+      const height = {All: 345, Records: 240, Package: 80}[view];
+      y -= middle;
+      scaleX = Math.min((w - 82) / 200, 1.4);
+      scaleY = Math.min((h - 64) / height, 2);
+    } else {
+      x -= center;
+    }
     const a = x * Math.cos(yaw) - z * Math.sin(yaw), b = x * Math.sin(yaw) + z * Math.cos(yaw);
     const vertical = y * Math.cos(pitch) - b * Math.sin(pitch), depth = y * Math.sin(pitch) + b * Math.cos(pitch);
     const perspective = 800 / (800 - depth);
-    return {x:w/2 + a*scale*perspective, y:h/2 + vertical*scale*perspective, z:depth, factor:perspective};
+    return {x:w/2 + a*scaleX*perspective, y:h/2 + vertical*scaleY*perspective, z:depth, factor:perspective};
   };
-  plotted = shown.map(n => ({node:n, ...project(n.position)})).sort((a,b)=>a.z-b.z);
+  plotted = shown.map(n => ({node:n, ...project(n)})).sort((a,b)=>a.z-b.z);
   const coords = new Map(plotted.map(p => [p.node.id,p]));
-  function edge(from,to,active) {
-    ctx.strokeStyle = active ? '#9bd2bd' : '#53676a'; ctx.lineWidth = active ? 2 : 1;
-    ctx.beginPath(); ctx.moveTo(from.x,from.y); ctx.lineTo(to.x,to.y); ctx.stroke();
-    const dx=to.x-from.x, dy=to.y-from.y, len=Math.hypot(dx,dy);
-    if (len < 35) return;
-    const t=.7, x=from.x+t*dx, y=from.y+t*dy, a=Math.atan2(dy,dx);
-    ctx.beginPath(); ctx.moveTo(x-5*Math.cos(a-.48),y-5*Math.sin(a-.48)); ctx.lineTo(x,y);
-    ctx.lineTo(x-5*Math.cos(a+.48),y-5*Math.sin(a+.48)); ctx.stroke();
-  }
+  // Reserve the labels before routing arrowheads. Try the adjacent positions
+  // first, then fit a nearby free slot with a leader when the view is crowded.
+  labelBoxes = [];
+  const intersects = (a,b) => a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+  const markers = plotted.map(p => {
+    const radius = (p.node.id === selected ? 13 : 7) * p.factor;
+    return {x:p.x-radius, y:p.y-radius, w:2*radius, h:2*radius};
+  });
   const edges = [];
-  for (const from of plotted) for (const target of from.node.uses) {
-    if (coords.has(target)) edges.push([from,coords.get(target),from.node.id===selected || target===selected]);
+  for (const from of plotted) {
+    for (const id of from.node.uses) {
+      const to = coords.get(id);
+      if (to) edges.push({from,to,active:from.node.id === selected || id === selected});
+    }
   }
-  edges.sort((a,b)=>Number(a[2])-Number(b[2])).forEach(([a,b,s])=>edge(a,b,s));
+  const obstacles = [...markers];
+  // Reserve a visible arrow along each projected segment before labels can
+  // cover it. Near edge-on angles two nodes can project onto the same point.
+  for (const edge of edges) {
+    const {from,to} = edge;
+    const dx = to.x-from.x, dy = to.y-from.y;
+    if (Math.hypot(dx,dy) < 18) continue;
+    const angle = Math.atan2(dy,dx);
+    for (const t of [.68,.45,.82,.28,.56,.18,.75,.34,.9,.12]) {
+      const x = from.x+t*dx, y = from.y+t*dy;
+      const left = [x-8*Math.cos(angle-.48),y-8*Math.sin(angle-.48)];
+      const right = [x-8*Math.cos(angle+.48),y-8*Math.sin(angle+.48)];
+      const x0 = Math.min(x,left[0],right[0])-1, x1 = Math.max(x,left[0],right[0])+1;
+      const y0 = Math.min(y,left[1],right[1])-1, y1 = Math.max(y,left[1],right[1])+1;
+      const box = {x:x0,y:y0,w:x1-x0,h:y1-y0};
+      if (obstacles.some(other => intersects(box,other))) continue;
+      edge.arrow = {x,y,left,right};
+      obstacles.push(box);
+      break;
+    }
+  }
+  const priority = [...plotted].sort((a,b) => Number(b.node.id===selected)-Number(a.node.id===selected));
+  for (const p of priority) {
+    const font = (p.node.id === selected ? 'bold ' : '') + (portrait ? 13 : 12) + 'px system-ui';
+    ctx.font = font;
+    const width = Math.ceil(ctx.measureText(p.node.name).width) + 10, height = 19;
+    const sides = [[12,-10],[-width-12,-10]];
+    const ends = [[-width/2,14],[-width/2,-31]];
+    const offsets = portrait ? [...ends, ...sides] : [...sides, ...ends];
+    const boxAt = (x,y) => ({x:Math.max(2,Math.min(w-width-2,x)),
+                             y:Math.max(2,Math.min(h-height-2,y)), w:width,h:height});
+    const free = box => obstacles.every(other => !intersects(box,other));
+    let box = offsets.map(([dx,dy]) => boxAt(p.x+dx,p.y+dy)).find(free);
+    if (!box) {
+      let shortest = Infinity;
+      for (let y=2; y<=h-height-2; y+=8) {
+        for (let x=2; x<=w-width-2; x+=8) {
+          const distance = (x+width/2-p.x)**2 + (y+height/2-p.y)**2;
+          const candidate = {x,y,w:width,h:height};
+          if (distance < shortest && free(candidate)) {
+            box = candidate;
+            shortest = distance;
+          }
+        }
+      }
+    }
+    if (!box) continue;
+    obstacles.push({...box, x:box.x-2, y:box.y-2, w:box.w+4, h:box.h+4});
+    labelBoxes.push({...box,id:p.node.id,font});
+  }
+  for (const {from,to,active,arrow} of edges.sort((a,b) => Number(a.active)-Number(b.active))) {
+    ctx.strokeStyle = active ? '#a3dfc7' : '#71888d';
+    ctx.lineWidth = active ? 2 : 1;
+    ctx.beginPath(); ctx.moveTo(from.x,from.y); ctx.lineTo(to.x,to.y); ctx.stroke();
+    if (!arrow) continue;
+    ctx.fillStyle = active ? '#a3dfc7' : '#91a9ad';
+    ctx.beginPath(); ctx.moveTo(arrow.x,arrow.y);
+    ctx.lineTo(...arrow.left); ctx.lineTo(...arrow.right);
+    ctx.closePath(); ctx.fill();
+  }
+  for (const box of labelBoxes) {
+    const p = coords.get(box.id);
+    const x = Math.max(box.x,Math.min(box.x+box.w,p.x));
+    const y = Math.max(box.y,Math.min(box.y+box.h,p.y));
+    if (Math.hypot(x-p.x,y-p.y) <= 16) continue;
+    ctx.save();
+    ctx.strokeStyle = colors[p.node.kind]; ctx.lineWidth = 1; ctx.setLineDash([2,3]);
+    ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(x,y);ctx.stroke();ctx.restore();
+  }
   for (const p of plotted) {
     const active=p.node.id===selected, r=(active?7:5)*p.factor, ink=colors[p.node.kind];
     ctx.fillStyle=ink; ctx.beginPath(); ctx.arc(p.x,p.y,r,0,2*Math.PI); ctx.fill();
     if (active) {ctx.beginPath(); ctx.strokeStyle=ink; ctx.lineWidth=1.5;ctx.arc(p.x,p.y,r+5,0,2*Math.PI);ctx.stroke();}
   }
-  // Give the selected label first choice of position. Other labels avoid
-  // previously placed labels and point markers on smaller screens.
-  const boxes=[];
-  const intersects=(a,b)=>a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y;
-  for (const p of [...plotted].sort((a,b)=>Number(b.node.id===selected)-Number(a.node.id===selected))) {
-    ctx.font = p.node.id===selected ? 'bold 12px system-ui' : '12px system-ui';
-    const width=ctx.measureText(p.node.name).width+10, height=19;
-    const offsets=[[12,-10],[-width-12,-10],[-width/2,13],[-width/2,-29]];
-    const options=offsets.map(([dx,dy])=>({x:Math.max(2,Math.min(w-width-2,p.x+dx)),y:Math.max(2,Math.min(h-height-2,p.y+dy)),w:width,h:height}));
-    const box=options.find(b=>!boxes.some(other=>intersects(b,other)) && !plotted.some(q=>intersects(b,{x:q.x-6,y:q.y-6,w:12,h:12}))) || (p.node.id===selected ? options[0] : null);
-    if (!box) continue;
-    boxes.push(box);ctx.fillStyle='#151f22';ctx.fillRect(box.x,box.y,width,height);
-    ctx.fillStyle=p.node.id===selected ? '#f4f7ec' : '#c6d2d1';ctx.fillText(p.node.name,box.x+5,box.y+14);
+  for (const box of labelBoxes) {
+    ctx.font=box.font;ctx.fillStyle='#151f22';ctx.fillRect(box.x,box.y,box.w,box.h);
+    ctx.fillStyle=box.id===selected ? '#f4f7ec' : '#c6d2d1';
+    ctx.fillText(index.get(box.id).name,box.x+5,box.y+14);
   }
 }
 function display() {
@@ -177,7 +261,9 @@ canvas.addEventListener('pointerup',e=>{
   if (!drag.moved) {
     const rect=canvas.getBoundingClientRect(), x=e.clientX-rect.left, y=e.clientY-rect.top;
     const hits=plotted.map(p=>[Math.hypot(x-p.x,y-p.y),p.node.id]).sort((a,b)=>a[0]-b[0]);
-    if(hits.length && hits[0][0]<22) choose(hits[0][1]);
+    const label = labelBoxes.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+    if (label) choose(label.id);
+    else if (hits.length && hits[0][0] < 22) choose(hits[0][1]);
   }
   drag=null;
 });
