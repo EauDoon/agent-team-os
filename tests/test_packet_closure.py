@@ -231,7 +231,10 @@ class ClosurePacketTests(unittest.TestCase):
     def test_walkthrough_refuses_a_dangling_symlink_output(self):
         target = self.root / 'link-target'
         link = self.root / 'link'
-        link.symlink_to(target)
+        try:
+            link.symlink_to(target)
+        except OSError:
+            self.skipTest('symbolic links are unavailable to this account')
         result = subprocess.run([sys.executable, str(ROOT / 'examples/closure-walkthrough.py'),
                                  '--output', str(link)], cwd=self.root,
                                 capture_output=True, text=True, timeout=30)
@@ -240,6 +243,22 @@ class ClosurePacketTests(unittest.TestCase):
                          {'ok': False, 'error': 'output must be a new directory; nothing was written'})
         self.assertFalse(target.exists())
 
+    def test_walkthrough_refuses_an_output_below_or_through_a_dangling_symlink(self):
+        target = self.root / 'link-target'
+        link = self.root / 'link'
+        try:
+            link.symlink_to(target)
+        except OSError:
+            self.skipTest('symbolic links are unavailable to this account')
+        for given in (link / 'sub', link / '..' / 'link'):
+            with self.subTest(given=str(given)):
+                result = subprocess.run([sys.executable, str(ROOT / 'examples/closure-walkthrough.py'),
+                                         '--output', str(given)], cwd=self.root,
+                                        capture_output=True, text=True, timeout=30)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(json.loads(result.stdout),
+                                 {'ok': False, 'error': 'output must be a new directory; nothing was written'})
+                self.assertFalse(target.exists())
 
 
 if __name__ == '__main__':

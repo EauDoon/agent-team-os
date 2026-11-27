@@ -154,7 +154,9 @@ def main() -> int:
     # The link test must see the path as given: resolve() follows a link, so a
     # dangling one would pass and the run would write through it.
     output = args.output.resolve()
-    if args.output.is_symlink() or output.exists():
+    # A dangling link below the last component is followed by resolve() too.
+    dangling = any(item.is_symlink() and not item.exists() for item in args.output.parents)
+    if dangling or args.output.is_symlink() or output.exists():
         print(json.dumps({'ok': False, 'error': 'output must be a new directory; nothing was written'}))
         return 1
     print(json.dumps(walkthrough(output), indent=2))

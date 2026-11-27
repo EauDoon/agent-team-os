@@ -112,12 +112,14 @@ set `VERSION`; those versions were never tagged or published.
   a printed page held neither.
 - `examples/closure-walkthrough.py` refuses an existing output path with one
   fixed JSON error and exit code 1. It used to end in a Python traceback that
-  printed the local path. An output path that is a dangling symlink is refused
-  too, so the run cannot write through the link.
+  printed the local path. An output path that is a dangling symlink, or that
+  passes through one (`link/sub`, `link/../link`), is refused too, so the run
+  cannot write through the link.
 - `scripts/package.py` reports a damaged `VERSION` or `package-manifest.json`
   as one `package was not built` line on standard error and exits 1, before it
   creates the output directory. It used to end in a Python traceback. A missing
-  input file is named without its local path.
+  input file, or a listed file that cannot be read, is named without its local
+  path.
 - `make` targets fall back to `python3` on hosts where no `python` command is
   installed. `make ci` used to stop with `python: No such file or directory`
   there. `make PYTHON=...` still overrides the choice.
