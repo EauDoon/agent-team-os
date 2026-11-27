@@ -215,6 +215,20 @@ class ClosurePacketTests(unittest.TestCase):
             self.assertTrue(summary['synthetic'])
             self.assertEqual(summary['checks'], 18)
 
+    def test_walkthrough_refuses_an_existing_output_with_fixed_text(self):
+        existing = self.root / 'kept'
+        existing.mkdir()
+        (existing / 'note.txt').write_text('keep', encoding='utf-8')
+        result = subprocess.run([sys.executable, str(ROOT / 'examples/closure-walkthrough.py'),
+                                 '--output', str(existing)], cwd=self.root,
+                                capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stderr, '')
+        self.assertEqual(json.loads(result.stdout),
+                         {'ok': False, 'error': 'output must be a new directory; nothing was written'})
+        self.assertEqual([item.name for item in existing.iterdir()], ['note.txt'])
+
+
 
 if __name__ == '__main__':
     unittest.main()

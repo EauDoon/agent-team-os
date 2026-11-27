@@ -12,7 +12,8 @@ deterministic package directory, run:
 python3 examples/closure-walkthrough.py --output ../synthetic-closure-run
 ```
 
-Choose a new output directory. The script writes only there and runs the bundled
+Choose a new output directory; an existing path is refused with exit code 1 and
+nothing is written. The script writes only there and runs the bundled
 CLIs using the same interpreter. It authors and checks a six-field brief and
 v0.2 handoff, writes clearly synthetic evidence and audit fixtures, inspects
 them, then creates and verifies a v0.2 closure packet receipt for
