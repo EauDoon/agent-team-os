@@ -114,7 +114,12 @@ def main() -> int:
     try:
         version = version_for(root)
         files = files_for(root)
-    except (OSError, ValueError) as exc:
+    except OSError as exc:
+        # str(OSError) carries the absolute filename, so name the file only.
+        name = Path(exc.filename).name if exc.filename else "package input"
+        print(f"package was not built: {name}: {exc.strerror or 'cannot be read'}", file=sys.stderr)
+        return 1
+    except ValueError as exc:
         # A damaged VERSION or manifest is an input error, not a crash. The
         # message names the rule and the manifest entry, never a local path.
         print(f"package was not built: {exc}", file=sys.stderr)
