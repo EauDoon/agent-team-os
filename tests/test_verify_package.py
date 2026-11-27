@@ -56,6 +56,37 @@ class PackageVerificationTests(unittest.TestCase):
                 self.assertRegex(result.stderr, r'\Apackage was not built: .+\n\Z')
                 self.assertFalse(output.exists())
 
+    def test_builder_reports_an_unreadable_listed_file_without_a_traceback_or_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / 'tree'
+            (root / 'scripts').mkdir(parents=True)
+            for name in ('package.py', 'version.py'):
+                (root / 'scripts' / name).write_bytes((ROOT / 'scripts' / name).read_bytes())
+            (root / 'VERSION').write_text('1.2.3\n', encoding='utf-8')
+            listed = root / 'data.txt'
+            listed.write_text('x\n', encoding='utf-8')
+            (root / 'package-manifest.json').write_text('["VERSION", "data.txt"]', encoding='utf-8')
+            listed.chmod(0)
+            try:
+                try:
+                    listed.read_bytes()
+                except OSError:
+                    pass
+                else:
+                    self.skipTest('this account can read a file with no permission bits')
+                output = Path(directory) / 'dist'
+                result = subprocess.run(
+                    [sys.executable, str(root / 'scripts/package.py'), '--output', str(output)],
+                    capture_output=True, text=True, timeout=30)
+            finally:
+                listed.chmod(0o600)
+            self.assertEqual(result.returncode, 1)
+            self.assertEqual(result.stdout, '')
+            self.assertNotIn('Traceback', result.stderr)
+            self.assertNotIn(directory, result.stderr)
+            self.assertRegex(result.stderr, r'\Apackage was not built: data\.txt: .+\n\Z')
+            self.assertFalse(output.exists())
+
     def test_unicode_output_path_reports_success_with_ascii_process_encoding(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / 'caf\u00e9-\u6771\u4eac'

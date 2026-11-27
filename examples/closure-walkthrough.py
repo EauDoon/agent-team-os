@@ -151,10 +151,18 @@ def main() -> int:
     parser.add_argument('--output', type=Path, required=True, help='new directory for synthetic records and transcript')
     args = parser.parse_args()
     # Refuse an existing path before any write, with fixed text and no local path.
-    # The link test must see the path as given: resolve() follows a link, so a
-    # dangling one would pass and the run would write through it.
-    output = args.output.resolve()
-    if args.output.is_symlink() or output.exists():
+    # resolve() follows a dangling link anywhere in the path, also one behind
+    # `missing/..` that lstat on the given path cannot see. So walk the
+    # components the way resolve() does and test each step before following it.
+    output, dangling = Path(), False
+    for part in args.output.parts:
+        step = output / part
+        if step.is_symlink() and not step.exists():
+            dangling = True
+            break
+        output = step.resolve()
+    output = output.resolve()
+    if dangling or args.output.is_symlink() or output.exists():
         print(json.dumps({'ok': False, 'error': 'output must be a new directory; nothing was written'}))
         return 1
     print(json.dumps(walkthrough(output), indent=2))

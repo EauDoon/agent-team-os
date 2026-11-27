@@ -114,6 +114,7 @@ def main() -> int:
     try:
         version = version_for(root)
         files = files_for(root)
+        payloads = [(path, path.read_bytes()) for path in files]
     except OSError as exc:
         # str(OSError) carries the absolute filename, so name the file only.
         name = Path(exc.filename).name if exc.filename else "package input"
@@ -137,14 +138,14 @@ def main() -> int:
         # which made the release digest depend on the interpreter. Stored
         # members keep the checksum reproducible from source on any Python.
         with ZipFile(staged_archive, "w", compression=ZIP_STORED) as handle:
-            for path in files:
+            for path, payload in payloads:
                 relative = path.relative_to(root).as_posix()
                 info = ZipInfo(f"{prefix}/{relative}")
                 info.date_time = (2020, 1, 1, 0, 0, 0)
                 info.compress_type = ZIP_STORED
                 info.create_system = 3
                 info.external_attr = 0o100644 << 16
-                handle.writestr(info, path.read_bytes())
+                handle.writestr(info, payload)
         digest = hashlib.sha256(staged_archive.read_bytes()).hexdigest()
         staged_checksum.write_bytes(f"{digest}  {archive.name}\n".encode("ascii"))
         promote_pair(staged_archive, staged_checksum, archive, checksum)
