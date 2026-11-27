@@ -269,6 +269,16 @@ canvas.addEventListener('pointerup',e=>{
 });
 canvas.addEventListener('lostpointercapture',()=>{drag=null;});
 canvas.addEventListener('pointercancel',()=>{drag=null;});
+// The print stylesheet hides the map, so the collapsed table must open on paper.
+let openBeforePrint = null;
+function preparePrint(printing) {
+  const reference = byId('reference');
+  if (printing && openBeforePrint === null) { openBeforePrint = reference.open; reference.open = true; }
+  else if (!printing && openBeforePrint !== null) { reference.open = openBeforePrint; openBeforePrint = null; }
+}
+window.addEventListener('beforeprint', () => preparePrint(true));
+window.addEventListener('afterprint', () => preparePrint(false));
+window.matchMedia('print').addEventListener('change', e => preparePrint(e.matches));
 if(ctx){
   byId('explorer').hidden=false;
   byId('query-guide').hidden=false;
