@@ -1,3 +1,5 @@
+<p align="center"><img src=".github/assets/banner.svg" alt="Agent Team, an LLM skill. A wire format and tool pack for bounded, evidence-backed multi-role work: a versioned role-brief contract, an interop specification, and Python checks for authored JSON. Shown as a graph of roles where the link that closes a dependency cycle lights red." width="100%"></p>
+
 # Agent Team
 
 [![build](https://img.shields.io/github/actions/workflow/status/EauDoon/agent-team-os/ci.yml?branch=main)](https://github.com/EauDoon/agent-team-os/actions)
