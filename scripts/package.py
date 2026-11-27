@@ -111,11 +111,17 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8", errors="strict", newline="\n")
     root = Path(__file__).resolve().parents[1]
     output_dir = args.output.resolve()
+    try:
+        version = version_for(root)
+        files = files_for(root)
+    except (OSError, ValueError) as exc:
+        # A damaged VERSION or manifest is an input error, not a crash. The
+        # message names the rule and the manifest entry, never a local path.
+        print(f"package was not built: {exc}", file=sys.stderr)
+        return 1
     output_dir.mkdir(parents=True, exist_ok=True)
-    version = version_for(root)
     archive = output_dir / f"agent-team-{version}.zip"
     checksum = archive.with_suffix(archive.suffix + ".sha256")
-    files = files_for(root)
     prefix = f"agent-team-{version}"
     staging = Path(mkdtemp(dir=output_dir, prefix=".agent-team-package-"))
     preserve_recovery = False
