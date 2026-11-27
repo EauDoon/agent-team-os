@@ -250,7 +250,8 @@ class ClosurePacketTests(unittest.TestCase):
             link.symlink_to(target)
         except OSError:
             self.skipTest('symbolic links are unavailable to this account')
-        for given in (link / 'sub', link / '..' / 'link'):
+        for given in (link / 'sub', link / '..' / 'link', self.root / 'missing' / '..' / 'link',
+                      self.root / 'missing' / '..' / 'link' / 'sub'):
             with self.subTest(given=str(given)):
                 result = subprocess.run([sys.executable, str(ROOT / 'examples/closure-walkthrough.py'),
                                          '--output', str(given)], cwd=self.root,
