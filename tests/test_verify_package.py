@@ -32,15 +32,19 @@ ROOT = Path(__file__).resolve().parents[1]
 class PackageVerificationTests(unittest.TestCase):
     def test_builder_reports_damaged_inputs_without_a_traceback_or_output(self):
         cases = {'missing manifest file': ('1.2.3', '["absent.txt"]'),
-                 'invalid version': ('1.2', '["VERSION"]')}
+                 'invalid version': ('1.2', '["VERSION"]'),
+                 'no VERSION file': (None, '["scripts/package.py"]'),
+                 'no manifest': ('1.2.3', None)}
         for label, (version, manifest) in cases.items():
             with self.subTest(label), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory) / 'tree'
                 (root / 'scripts').mkdir(parents=True)
                 for name in ('package.py', 'version.py'):
                     (root / 'scripts' / name).write_bytes((ROOT / 'scripts' / name).read_bytes())
-                (root / 'VERSION').write_text(version + '\n', encoding='utf-8')
-                (root / 'package-manifest.json').write_text(manifest, encoding='utf-8')
+                if version is not None:
+                    (root / 'VERSION').write_text(version + '\n', encoding='utf-8')
+                if manifest is not None:
+                    (root / 'package-manifest.json').write_text(manifest, encoding='utf-8')
                 output = Path(directory) / 'dist'
                 result = subprocess.run(
                     [sys.executable, str(root / 'scripts/package.py'), '--output', str(output)],

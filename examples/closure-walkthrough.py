@@ -150,9 +150,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True, help='new directory for synthetic records and transcript')
     args = parser.parse_args()
-    output = args.output.resolve()
     # Refuse an existing path before any write, with fixed text and no local path.
-    if output.exists() or output.is_symlink():
+    # The link test must see the path as given: resolve() follows a link, so a
+    # dangling one would pass and the run would write through it.
+    output = args.output.resolve()
+    if args.output.is_symlink() or output.exists():
         print(json.dumps({'ok': False, 'error': 'output must be a new directory; nothing was written'}))
         return 1
     print(json.dumps(walkthrough(output), indent=2))
