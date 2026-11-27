@@ -1,4 +1,6 @@
-PYTHON ?= python
+# Prefer `python`, which CI and Windows provide; fall back to `python3` where
+# only that name is installed. Override with `make PYTHON=...`.
+PYTHON ?= $(shell command -v python >/dev/null 2>&1 && echo python || echo python3)
 PKG_VERSION := $(shell $(PYTHON) scripts/version.py)
 PKG_ZIP := dist/agent-team-$(PKG_VERSION).zip
 

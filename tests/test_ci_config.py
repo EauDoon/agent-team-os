@@ -102,6 +102,13 @@ class WorkflowConfigTests(unittest.TestCase):
         self.assertRegex(makefile, r'(?m)^ci: package$')
         self.assertRegex(makefile, r'(?m)^PKG_VERSION := \$\(shell \$\(PYTHON\) scripts/version\.py\)$')
 
+    def test_make_falls_back_to_python3_when_python_is_absent(self):
+        # README commands use `python3`; hosts with only that name ran
+        # `make ci` into "python: No such file or directory".
+        makefile = read('Makefile')
+        self.assertRegex(makefile, r'(?m)^PYTHON \?= \$\(shell command -v python >/dev/null 2>&1 '
+                                   r'&& echo python \|\| echo python3\)$')
+
 
 if __name__ == '__main__':
     unittest.main()
