@@ -107,6 +107,18 @@ set `VERSION`; those versions were never tagged or published.
   scope change.
 - `connect.md` no longer says the `result` payload mirrors the shape of
   `evals/result.schema.json`. The two schemas share no field names.
+- Printing `docs/architecture.html` now includes the component table. The print
+  stylesheet hides the map and the page script collapses the table on load, so
+  a printed page held neither.
+- `examples/closure-walkthrough.py` refuses an existing output path with one
+  fixed JSON error and exit code 1. It used to end in a Python traceback that
+  printed the local path.
+- `scripts/package.py` reports a damaged `VERSION` or `package-manifest.json`
+  as one `package was not built` line on standard error and exits 1, before it
+  creates the output directory. It used to end in a Python traceback.
+- `make` targets fall back to `python3` on hosts where no `python` command is
+  installed. `make ci` used to stop with `python: No such file or directory`
+  there. `make PYTHON=...` still overrides the choice.
 
 ## [0.6.0] - 2026-10-09
 
